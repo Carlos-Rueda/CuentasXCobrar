@@ -6,10 +6,12 @@ import { ClientesModule } from './modules/clientes/clientes.module';
 import { FacturasModule } from './modules/facturas/facturas.module';
 import { PagosModule } from './modules/pagos/pagos.module';
 import { CuentasCobrarModule } from './modules/cuentas-cobrar/cuentas-cobrar.module';
+import { FacturacionMockModule } from './facturacion-mock/facturacion-mock.module';
 
 @Module({
-  imports: [AuthModule, ClientesModule, FacturasModule, PagosModule, CuentasCobrarModule],
+  imports: [AuthModule, ClientesModule, FacturasModule, PagosModule, CuentasCobrarModule, FacturacionMockModule],
   controllers: [AppController],
   providers: [AppService],
+  
 })
 export class AppModule {}
