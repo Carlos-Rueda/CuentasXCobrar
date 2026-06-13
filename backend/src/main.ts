@@ -17,9 +17,16 @@ async function bootstrap() {
     .setVersion('1.0')
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  SwaggerModule.setup('docs', app, document);
 
-  await app.listen(process.env.PORT ?? 3000);
+  const port = process.env.PORT ?? 3000;
+  await app.listen(port);
+  
+  console.log(`\n🚀 ===================================================`);
+  console.log(`🔥 ¡El backend de Cuentas por Cobrar está encendido!`);
+  console.log(`🌐 Endpoints de la API:   http://localhost:${port}/api`);
+  console.log(`📖 Documentación Swagger: http://localhost:${port}/docs`);
+  console.log(`===================================================\n`);
 }
 bootstrap();
 
