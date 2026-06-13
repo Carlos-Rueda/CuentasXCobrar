@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { FacturacionMockService } from '../facturacion-mock/facturacion-mock.service';
 import { EstadoCuentaDto, MovimientoDto } from './dto/estado-cuenta.dto';
+import { ValidadorDeudaDto } from './dto/validador-deuda.dto';
 
 @Injectable()
 export class CxcService {
@@ -70,4 +71,31 @@ export class CxcService {
       historial
     };
   }
+  async validarDeudaCliente(clienteId: string): Promise<ValidadorDeudaDto> {
+    // 1. Buscamos las facturas pendientes usando el método que ya programamos en el Mock
+    const facturasPendientes = this.facturacionService.findFacturasPendientesByCliente(clienteId);
+    
+    // 2. Calculamos la suma de lo que debe
+    const montoTotalDeuda = facturasPendientes.reduce((total, fac) => total + fac.total, 0);
+    const tieneDeudaActiva = montoTotalDeuda > 0;
+    
+    // 3. Regla de negocio simulada: Si debe más de $500, se bloquea.
+    let estadoCliente: 'APTO_PARA_CREDITO' | 'BLOQUEADO_POR_MORA' = 'APTO_PARA_CREDITO';
+    let mensaje = 'El cliente no registra deudas críticas. Apto para operaciones.';
+
+    if (montoTotalDeuda > 500) {
+        estadoCliente = 'BLOQUEADO_POR_MORA';
+        mensaje = 'El cliente supera el cupo de deuda permitido ($500). Operaciones bloqueadas.';
+    } else if (tieneDeudaActiva) {
+        mensaje = `El cliente posee deudas pendientes por un valor de $${montoTotalDeuda}, pero está dentro del límite autorizado.`;
+    }
+
+    return {
+        clienteId,
+        tieneDeudaActiva,
+        montoTotalDeuda,
+        estadoCliente,
+        mensaje
+    };
+    }
 }
