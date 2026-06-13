@@ -8,11 +8,20 @@ import { PagosModule } from './modules/pagos/pagos.module';
 import { CuentasCobrarModule } from './modules/cuentas-cobrar/cuentas-cobrar.module';
 import { FacturacionMockModule } from './facturacion-mock/facturacion-mock.module';
 import { CxcModule } from './cxc/cxc.module';
+import { CuentasBancariasModule } from './modules/cuentas-bancarias/cuentas-bancarias.module';
 
 @Module({
-  imports: [AuthModule, ClientesModule, FacturasModule, PagosModule, CuentasCobrarModule, FacturacionMockModule, CxcModule], // Agrega el módulo de facturación simulada aquí
+  imports: [
+    AuthModule,
+    ClientesModule,
+    FacturasModule,
+    PagosModule,
+    CuentasCobrarModule,
+    FacturacionMockModule,
+    CxcModule,
+    CuentasBancariasModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
-  
 })
 export class AppModule {}
