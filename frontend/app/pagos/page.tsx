@@ -1,6 +1,5 @@
 "use client";
 
-<<<<<<< HEAD
 import { useEffect, useState } from "react";
 import styles from "./page.module.css";
 import { useRouter } from "next/navigation";
@@ -300,7 +299,6 @@ export default function PagosPage() {
           <button className={styles.button} onClick={guardarPago}>
             Guardar Pago
           </button>
-=======
 import { useState, useCallback } from "react";
 
 // ─── Tipo ────────────────────────────────────────────────────────────────────
@@ -605,7 +603,6 @@ export default function PagosPage() {
           {!clienteOk && (
             <p className="mt-2 text-xs text-slate-400">Busque un cliente válido antes de registrar el cobro</p>
           )}
->>>>>>> 300f7b8c99cbaf108928b9ff7911278669040399
         </div>
       </div>
     </div>
