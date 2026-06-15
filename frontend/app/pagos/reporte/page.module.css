@@ -1,0 +1,90 @@
+.page {
+  min-height: 100vh;
+  background: #f4f7fc;
+  padding: 40px;
+}
+
+.card {
+  max-width: 1200px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+.header {
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  color: white;
+  padding: 30px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.header p {
+  margin-top: 8px;
+  opacity: 0.9;
+}
+
+.content {
+  padding: 30px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table thead {
+  background: #f3f4f6;
+}
+
+.table th {
+  padding: 14px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+}
+
+.table td {
+  padding: 14px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.amount {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.date {
+  color: #6b7280;
+}
+
+.empty {
+  text-align: center;
+  padding: 30px;
+  color: #6b7280;
+}
+
+.backButton {
+  display: inline-block;
+  margin-bottom: 20px;
+  padding: 10px 16px;
+  background: #2563eb;
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: 0.3s;
+}
+
+.backButton:hover {
+  background: #1d4ed8;
+}
