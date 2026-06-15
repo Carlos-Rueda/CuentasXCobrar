@@ -36,7 +36,9 @@ export class PagosService {
     for (const detalle of nuevoPago.detalles) {
       const factura = this.facturas.find((f) => f.id === detalle.facturaId);
       if (!factura) {
-        throw new NotFoundException(`Factura con ID ${detalle.facturaId} no encontrada`);
+        throw new NotFoundException(
+          `Factura con ID ${detalle.facturaId} no encontrada`,
+        );
       }
 
       factura.pendiente -= detalle.montoAbonado;
@@ -56,6 +58,27 @@ export class PagosService {
     return this.facturas;
   }
 
+  obtenerEstadoCuenta(clienteId: string) {
+    return this.facturas.filter((factura) => factura.clienteId === clienteId);
+  }
+  obtenerClientesConDeuda() {
+    const resumen: Record<string, number> = {};
+
+    this.facturas.forEach((factura) => {
+      if (factura.pendiente > 0) {
+        if (!resumen[factura.clienteId]) {
+          resumen[factura.clienteId] = 0;
+        }
+
+        resumen[factura.clienteId] += factura.pendiente;
+      }
+    });
+
+    return Object.keys(resumen).map((clienteId) => ({
+      clienteId,
+      saldoPendiente: resumen[clienteId],
+    }));
+  }
   generarReciboPdf(id: string): Promise<Buffer> {
     const pago = this.pagos.find((p) => p.id === id);
     if (!pago) {
@@ -89,9 +112,11 @@ export class PagosService {
         doc.moveDown(0.5);
 
         pago.detalles.forEach((det, idx) => {
-          doc.fontSize(12).text(
-            `${idx + 1}. Factura: ${det.facturaId} - Monto Abonado: $${det.montoAbonado.toFixed(2)}`
-          );
+          doc
+            .fontSize(12)
+            .text(
+              `${idx + 1}. Factura: ${det.facturaId} - Monto Abonado: $${det.montoAbonado.toFixed(2)}`,
+            );
         });
 
         doc.end();
@@ -129,5 +154,3 @@ export class PagosService {
     });
   }
 }
-
-
