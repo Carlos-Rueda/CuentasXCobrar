@@ -5,7 +5,24 @@ import { UpdateCuentaBancariaDto } from './dto/update-cuenta-bancaria.dto';
 
 @Injectable()
 export class CuentasBancariasService {
-  private cuentas: CuentaBancariaEntity[] = [];
+  private cuentas: CuentaBancariaEntity[] = [
+    {
+      id: '1',
+      codigo: 'CTA-BAN-001',
+      nombreCuenta: 'Cuenta de Ahorros',
+      entidadBancaria: 'Banco Pichincha',
+      descripcion: 'Cuenta principal para depósitos de clientes',
+      estado: 'ACTIVO',
+    },
+    {
+      id: '2',
+      codigo: 'CTA-BAN-002',
+      nombreCuenta: 'Cuenta Corriente',
+      entidadBancaria: 'Banco Guayaquil',
+      descripcion: 'Cuenta corriente para cobros comerciales',
+      estado: 'ACTIVO',
+    },
+  ];
 
   findAll(): CuentaBancariaEntity[] {
     return this.cuentas;
@@ -19,9 +36,9 @@ export class CuentasBancariasService {
     return cuenta;
   }
 
-  create(cuenta: CreateCuentaBancariaDto): CuentaBancariaEntity {
+  create(cuenta: CreateCuentaBancariaDto & { id?: string }): CuentaBancariaEntity {
     const nuevaCuenta: CuentaBancariaEntity = {
-      id: Date.now().toString(),
+      id: cuenta.id || Date.now().toString(),
       ...cuenta,
     };
     this.cuentas.push(nuevaCuenta);
@@ -50,4 +67,5 @@ export class CuentasBancariasService {
     this.cuentas.splice(index, 1);
   }
 }
+
 
