@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { API_URL } from "@/app/config";
 
 type Factura = {
   id: string;
@@ -51,11 +52,11 @@ export default function FacturasPage() {
 
   const cargarDatos = async () => {
     try {
-      const resClients = await fetch("http://localhost:3000/api/mock-facturacion/clientes");
+      const resClients = await fetch(`${API_URL}/mock-facturacion/clientes`);
       const listClients = await resClients.json();
       setClientes(listClients);
 
-      const resFacturas = await fetch("http://localhost:3000/api/mock-facturacion/facturas");
+      const resFacturas = await fetch(`${API_URL}/mock-facturacion/facturas`);
       const listFacturas = await resFacturas.json();
 
       const mappedFacturas: Factura[] = listFacturas.map((f: any) => {
@@ -190,7 +191,7 @@ export default function FacturasPage() {
     };
 
     try {
-      const res = await fetch("http://localhost:3000/api/mock-facturacion/facturas", {
+      const res = await fetch(`${API_URL}/mock-facturacion/facturas`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

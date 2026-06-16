@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import styles from "../page.module.css";
+import { API_URL } from "@/app/config";
 
 type FormularioPagoProps = {
   onGuardado?: () => void;
@@ -95,7 +96,7 @@ export default function PagosPage({ onGuardado }: FormularioPagoProps) {
         detalles: facturasSeleccionadas,
       };
       console.log("PAYLOAD", payload);
-      const response = await fetch("http://localhost:3000/api/pagos", {
+      const response = await fetch(`${API_URL}/pagos`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -120,7 +121,7 @@ export default function PagosPage({ onGuardado }: FormularioPagoProps) {
   };
   const cargarPagos = async () => {
     try {
-      const response = await fetch("http://localhost:3000/api/pagos/reporte");
+      const response = await fetch(`${API_URL}/pagos/reporte`);
 
       const data = await response.json();
 
@@ -131,7 +132,7 @@ export default function PagosPage({ onGuardado }: FormularioPagoProps) {
   };
   const cargarFacturas = async () => {
     try {
-      const response = await fetch("http://localhost:3000/api/pagos/facturas");
+      const response = await fetch(`${API_URL}/pagos/facturas`);
 
       const data = await response.json();
 

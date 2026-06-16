@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import styles from "./consultarCliente.module.css";
+import { API_URL } from "@/app/config";
 
 export default function ClientesPage() {
   const [clienteId, setClienteId] = useState("");
@@ -11,7 +12,7 @@ export default function ClientesPage() {
   useEffect(() => {
     const cargarClientes = async () => {
       try {
-        const response = await fetch("http://localhost:3000/api/mock-facturacion/clientes");
+        const response = await fetch(`${API_URL}/mock-facturacion/clientes`);
         if (response.ok) {
           const data = await response.json();
           setClientes(data);
@@ -30,7 +31,7 @@ export default function ClientesPage() {
     }
     try {
       const response = await fetch(
-        `http://localhost:3000/api/cxc/estado-cuenta/${clienteId}`
+        `${API_URL}/cxc/estado-cuenta/${clienteId}`
       );
       if (!response.ok) {
         alert("No se encontró el estado de cuenta.");

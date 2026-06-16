@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import styles from "./page.module.css";
 import FormularioPago from "../components/FormularioPago";
+import { API_URL } from "@/app/config";
 
 export default function ReportePagosPage() {
   const [pagos, setPagos] = useState<any[]>([]);
@@ -10,7 +11,7 @@ export default function ReportePagosPage() {
 
   const cargarPagos = async () => {
     try {
-      const response = await fetch("http://localhost:3000/api/pagos/reporte");
+      const response = await fetch(`${API_URL}/pagos/reporte`);
 
       const data = await response.json();
 
@@ -22,7 +23,7 @@ export default function ReportePagosPage() {
 
   const descargarPDFPago = async (id: string) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/pagos/${id}/pdf`);
+      const response = await fetch(`${API_URL}/pagos/${id}/pdf`);
       if (!response.ok) {
         alert("No se pudo descargar el PDF de este pago.");
         return;

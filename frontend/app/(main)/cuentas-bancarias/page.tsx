@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import styles from "./page.module.css";
+import { API_URL } from "@/app/config";
 
 export default function CuentasBancariasPage() {
   const [formData, setFormData] = useState({
@@ -17,7 +18,7 @@ export default function CuentasBancariasPage() {
 
   const cargarCuentas = async () => {
     try {
-      const response = await fetch("http://localhost:3000/api/cuentas-bancarias");
+      const response = await fetch(`${API_URL}/cuentas-bancarias`);
       if (response.ok) {
         const data = await response.json();
         setCuentas(data);
@@ -59,7 +60,7 @@ export default function CuentasBancariasPage() {
       let response;
       if (editandoId) {
         response = await fetch(
-          `http://localhost:3000/api/cuentas-bancarias/${editandoId}`,
+          `${API_URL}/cuentas-bancarias/${editandoId}`,
           {
             method: "PUT",
             headers: {
@@ -70,7 +71,7 @@ export default function CuentasBancariasPage() {
         );
       } else {
         response = await fetch(
-          "http://localhost:3000/api/cuentas-bancarias",
+          `${API_URL}/cuentas-bancarias`,
           {
             method: "POST",
             headers: {
@@ -120,7 +121,7 @@ export default function CuentasBancariasPage() {
   const inactivarCuenta = async (id: string) => {
     if (!confirm("¿Está seguro de eliminar esta cuenta bancaria?")) return;
     try {
-      const response = await fetch(`http://localhost:3000/api/cuentas-bancarias/${id}`, {
+      const response = await fetch(`${API_URL}/cuentas-bancarias/${id}`, {
         method: "DELETE"
       });
       if (response.ok || response.status === 204) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { API_URL } from "@/app/config";
 
 type Registro = {
   id: string;
@@ -56,7 +57,7 @@ function imprimirRecibo(r: Registro) {
 
 async function descargarPDF(r: Registro) {
   try {
-    const res = await fetch(`http://localhost:3000/api/mock-facturacion/facturas/${r.id}/pdf`);
+    const res = await fetch(`${API_URL}/mock-facturacion/facturas/${r.id}/pdf`);
     if (!res.ok) {
       alert(`No se encontró el comprobante para la factura "${r.factura}" en el servidor.`);
       return;
@@ -95,13 +96,13 @@ export default function ReportesPage() {
 
   const cargarDatos = async () => {
     try {
-      const resClients = await fetch("http://localhost:3000/api/mock-facturacion/clientes");
+      const resClients = await fetch(`${API_URL}/mock-facturacion/clientes`);
       const listClients = await resClients.json();
 
-      const resFacturas = await fetch("http://localhost:3000/api/mock-facturacion/facturas");
+      const resFacturas = await fetch(`${API_URL}/mock-facturacion/facturas`);
       const listFacturas = await resFacturas.json();
 
-      const resPagos = await fetch("http://localhost:3000/api/pagos/reporte");
+      const resPagos = await fetch(`${API_URL}/pagos/reporte`);
       const listPagos = await resPagos.json();
 
       const mappedRegistros: Registro[] = listFacturas.map((f: any) => {
