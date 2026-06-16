@@ -13,8 +13,9 @@ type Registro = {
   ultimoPago: string | null;
 };
 
-// ── Datos mock (reemplazar con fetch GET a la API cuando esté lista) ──────────
-// TODO: const res = await fetch("http://localhost:3001/cobros");
+type SortKey = "cliente" | "factura" | "fecha" | "estado" | "monto";
+type SortDir = "asc" | "desc";
+
 const DATOS_MOCK: Registro[] = [
   { cliente: "Juan Pérez",  cedula: "0912345678", factura: "FAC-001", fecha: "14/06/2026", estado: "Pagado",    monto: 250, pagado: 250, ultimoPago: "14/06/2026" },
   { cliente: "María López", cedula: "0923456789", factura: "FAC-002", fecha: "12/06/2026", estado: "Por Pagar", monto: 480, pagado: 0,   ultimoPago: null },
@@ -26,7 +27,6 @@ const DATOS_MOCK: Registro[] = [
 
 const PER_PAGE = 5;
 
-// ── Utilidades ─────────────────────────────────────────────────────────────────
 function imprimirRecibo(r: Registro) {
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${r.factura}</title>
   <style>
@@ -54,9 +54,8 @@ function imprimirRecibo(r: Registro) {
   </table>
   <div class="footer">Generado el ${new Date().toLocaleDateString("es-EC")}</div>
   </body></html>`;
-
   const w = window.open("", "_blank", "width=600,height=700");
-  if (!w) { alert("El navegador bloqueó la ventana emergente. Permítala e intente de nuevo."); return; }
+  if (!w) { alert("El navegador bloqueó la ventana emergente."); return; }
   w.document.write(html);
   w.document.close();
   setTimeout(() => { w.focus(); w.print(); }, 800);
@@ -64,91 +63,92 @@ function imprimirRecibo(r: Registro) {
 
 async function descargarPDF(r: Registro) {
   try {
-    const { default: jsPDF } = await import("jspdf");
-    const doc = new jsPDF();
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.text("Recibo de cobro", 20, 22);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text("Sistema de Cuentas por Cobrar", 20, 30);
-
-    doc.setDrawColor(220);
-    doc.line(20, 35, 190, 35);
-
-    const rows: [string, string][] = [
-      ["Cliente",          r.cliente],
-      ["Cédula",           r.cedula],
-      ["Factura",          r.factura],
-      ["Fecha",            r.fecha],
-      ["Estado",           r.estado],
-      ["Monto total",      `$${r.monto.toLocaleString()}`],
-      ["Pagado",           `$${r.pagado.toLocaleString()}`],
-      ["Saldo pendiente",  `$${(r.monto - r.pagado).toLocaleString()}`],
-      ["Último pago",      r.ultimoPago ?? "Sin pagos"],
-    ];
-
-    let y = 46;
-    doc.setTextColor(0);
-    rows.forEach(([label, val]) => {
-      doc.setFont("helvetica", "normal"); doc.setTextColor(120); doc.text(label, 20, y);
-      doc.setFont("helvetica", "bold");  doc.setTextColor(30);  doc.text(val, 95, y);
-      y += 10;
-    });
-
-    doc.setFontSize(9);
-    doc.setTextColor(160);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Generado: ${new Date().toLocaleDateString("es-EC")}`, 20, 285);
-
-    doc.save(`Recibo-${r.factura}.pdf`);
-  } catch (e) {
-    console.error(e);
-    alert("Error generando el PDF. Verifique que jspdf esté instalado: npm install jspdf");
+    const res = await fetch(`http://localhost:3000/api/pagos/${r.factura}/pdf`);
+    if (!res.ok) { alert(`No se encontró el comprobante "${r.factura}" en el servidor.`); return; }
+    const blob = await res.blob();
+    const url  = window.URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = `Recibo-${r.factura}.pdf`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  } catch {
+    alert("Error al conectar con el servidor.");
   }
 }
 
-// ── Componente ─────────────────────────────────────────────────────────────────
+// ── Icono de orden ─────────────────────────────────────────────────────────────
+function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey | null; sortDir: SortDir }) {
+  if (sortKey !== col) return <span className="ml-1 text-slate-300">↕</span>;
+  return <span className="ml-1 text-blue-500">{sortDir === "asc" ? "↑" : "↓"}</span>;
+}
+
 export default function ReportesPage() {
-  const [fCliente,  setFCliente]  = useState("");
-  const [fCedula,   setFCedula]   = useState("");
-  const [fFactura,  setFFactura]  = useState("");
-  const [fEstado,   setFEstado]   = useState("");
-  const [fMontoMin, setFMontoMin] = useState("");
-  const [fMontoMax, setFMontoMax] = useState("");
-  const [page,      setPage]      = useState(1);
+  const [fCliente, setFCliente] = useState("");
+  const [fCedula,  setFCedula]  = useState("");
+  const [fFactura, setFFactura] = useState("");
+  const [fEstado,  setFEstado]  = useState("");
+  const [filtros,  setFiltros]  = useState({ cliente: "", cedula: "", factura: "", estado: "" });
+  const [page,     setPage]     = useState(1);
+  const [sortKey,  setSortKey]  = useState<SortKey | null>(null);
+  const [sortDir,  setSortDir]  = useState<SortDir>("asc");
 
-  const filtrados = useMemo(() => DATOS_MOCK.filter(r =>
-    r.cliente.toLowerCase().includes(fCliente.toLowerCase()) &&
-    r.cedula.includes(fCedula) &&
-    r.factura.toLowerCase().includes(fFactura.toLowerCase()) &&
-    (fEstado === "" || r.estado === fEstado) &&
-    (fMontoMin === "" || r.monto >= Number(fMontoMin)) &&
-    (fMontoMax === "" || r.monto <= Number(fMontoMax))
-  ), [fCliente, fCedula, fFactura, fEstado, fMontoMin, fMontoMax]);
+  const aplicarFiltros = () => {
+    setFiltros({ cliente: fCliente, cedula: fCedula, factura: fFactura, estado: fEstado });
+    setPage(1);
+  };
 
-  const totalPages = Math.max(1, Math.ceil(filtrados.length / PER_PAGE));
-  const pagina = Math.min(page, totalPages);
-  const slice = filtrados.slice((pagina - 1) * PER_PAGE, pagina * PER_PAGE);
+  const limpiarFiltros = () => {
+    setFCliente(""); setFCedula(""); setFFactura(""); setFEstado("");
+    setFiltros({ cliente: "", cedula: "", factura: "", estado: "" });
+    setSortKey(null); setSortDir("asc"); setPage(1);
+  };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === "Enter") aplicarFiltros(); };
+
+  const toggleSort = (col: SortKey) => {
+    if (sortKey === col) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(col); setSortDir("asc"); }
+    setPage(1);
+  };
+
+  const filtrados = useMemo(() => {
+    let data = DATOS_MOCK.filter(r =>
+      r.cliente.toLowerCase().includes(filtros.cliente.toLowerCase()) &&
+      r.cedula.includes(filtros.cedula) &&
+      r.factura.toLowerCase().includes(filtros.factura.toLowerCase()) &&
+      (filtros.estado === "" || r.estado === filtros.estado)
+    );
+
+    if (sortKey) {
+      data = [...data].sort((a, b) => {
+        let va: string | number = a[sortKey];
+        let vb: string | number = b[sortKey];
+        if (typeof va === "string") va = va.toLowerCase();
+        if (typeof vb === "string") vb = vb.toLowerCase();
+        if (va < vb) return sortDir === "asc" ? -1 : 1;
+        if (va > vb) return sortDir === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+    return data;
+  }, [filtros, sortKey, sortDir]);
+
+  const totalPages   = Math.max(1, Math.ceil(filtrados.length / PER_PAGE));
+  const pagina       = Math.min(page, totalPages);
+  const slice        = filtrados.slice((pagina - 1) * PER_PAGE, pagina * PER_PAGE);
   const totalMonto   = filtrados.reduce((s, r) => s + r.monto,  0);
   const totalCobrado = filtrados.reduce((s, r) => s + r.pagado, 0);
   const totalDeuda   = totalMonto - totalCobrado;
 
-  const cambiarFiltro = (setter: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setter(e.target.value);
-    setPage(1);
-  };
-
-  // ── Badge de estado ────────────────────────────────────────────────────────
   const badgeClass: Record<string, string> = {
     "Pagado":    "bg-emerald-100 text-emerald-700",
     "Parcial":   "bg-amber-100 text-amber-700",
     "Por Pagar": "bg-red-100 text-red-700",
   };
+
+  const thClass = (col: SortKey) =>
+    `px-5 py-3 text-left text-xs font-semibold text-slate-500 tracking-wider cursor-pointer select-none hover:text-slate-700 transition-colors`;
 
   return (
     <div>
@@ -156,44 +156,41 @@ export default function ReportesPage() {
 
       {/* ── Filtros ── */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
-        <h2 className="text-xs font-semibold text-slate-400 tracking-widest mb-4 uppercase">Filtros</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {[
-            { placeholder: "Cliente",       value: fCliente,  setter: setFCliente  },
-            { placeholder: "Cédula",        value: fCedula,   setter: setFCedula   },
-            { placeholder: "N° factura",    value: fFactura,  setter: setFFactura  },
-            { placeholder: "Monto mínimo",  value: fMontoMin, setter: setFMontoMin, type: "number" },
-            { placeholder: "Monto máximo",  value: fMontoMax, setter: setFMontoMax, type: "number" },
-          ].map(({ placeholder, value, setter, type }) => (
-            <input
-              key={placeholder}
-              type={type ?? "text"}
-              placeholder={placeholder}
-              value={value}
-              onChange={cambiarFiltro(setter)}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          ))}
-          <select
-            value={fEstado}
-            onChange={cambiarFiltro(setFEstado)}
-            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
+        <h2 className="text-xs font-semibold text-slate-400 tracking-widest mb-4 uppercase">Filtros de búsqueda</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          <input type="text" placeholder="Cliente"    value={fCliente} onChange={e => setFCliente(e.target.value)} onKeyDown={handleKeyDown}
+            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <input type="text" placeholder="Cédula"     value={fCedula}  onChange={e => setFCedula(e.target.value)}  onKeyDown={handleKeyDown}
+            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <input type="text" placeholder="N° factura" value={fFactura} onChange={e => setFFactura(e.target.value)} onKeyDown={handleKeyDown}
+            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <select value={fEstado} onChange={e => setFEstado(e.target.value)}
+            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="">Todos los estados</option>
             <option value="Pagado">Pagado</option>
             <option value="Parcial">Parcial</option>
             <option value="Por Pagar">Por Pagar</option>
           </select>
         </div>
+        <div className="flex gap-2">
+          <button type="button" onClick={aplicarFiltros}
+            className="px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors">
+            Buscar
+          </button>
+          <button type="button" onClick={limpiarFiltros}
+            className="px-5 py-2.5 border border-slate-200 text-slate-600 text-sm font-medium rounded-xl hover:bg-slate-50 transition-colors">
+            Limpiar
+          </button>
+        </div>
       </div>
 
-      {/* ── Métricas resumen ── */}
+      {/* ── Métricas ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         {[
-          { label: "Registros",   value: filtrados.length,              color: "text-slate-800" },
-          { label: "Total",       value: `$${totalMonto.toLocaleString()}`,   color: "text-slate-800" },
-          { label: "Cobrado",     value: `$${totalCobrado.toLocaleString()}`, color: "text-emerald-600" },
-          { label: "Por cobrar",  value: `$${totalDeuda.toLocaleString()}`,   color: "text-red-600" },
+          { label: "Registros",  value: filtrados.length,                    color: "text-slate-800"   },
+          { label: "Total",      value: `$${totalMonto.toLocaleString()}`,   color: "text-slate-800"   },
+          { label: "Cobrado",    value: `$${totalCobrado.toLocaleString()}`, color: "text-emerald-600" },
+          { label: "Por cobrar", value: `$${totalDeuda.toLocaleString()}`,   color: "text-red-600"     },
         ].map(({ label, value, color }) => (
           <div key={label} className="bg-slate-50 rounded-xl p-4">
             <p className="text-xs text-slate-500 mb-1">{label}</p>
@@ -207,9 +204,25 @@ export default function ReportesPage() {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              {["Cliente","Cédula","Factura","Fecha","Estado","Monto","Saldo / deuda","Último pago","Acciones"].map(h => (
-                <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-slate-500 tracking-wider">{h}</th>
-              ))}
+              <th className={thClass("cliente")} onClick={() => toggleSort("cliente")}>
+                Cliente <SortIcon col="cliente" sortKey={sortKey} sortDir={sortDir} />
+              </th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 tracking-wider">Cédula</th>
+              <th className={thClass("factura")} onClick={() => toggleSort("factura")}>
+                Factura <SortIcon col="factura" sortKey={sortKey} sortDir={sortDir} />
+              </th>
+              <th className={thClass("fecha")} onClick={() => toggleSort("fecha")}>
+                Fecha <SortIcon col="fecha" sortKey={sortKey} sortDir={sortDir} />
+              </th>
+              <th className={thClass("estado")} onClick={() => toggleSort("estado")}>
+                Estado <SortIcon col="estado" sortKey={sortKey} sortDir={sortDir} />
+              </th>
+              <th className={thClass("monto")} onClick={() => toggleSort("monto")}>
+                Monto <SortIcon col="monto" sortKey={sortKey} sortDir={sortDir} />
+              </th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 tracking-wider">Saldo / deuda</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 tracking-wider">Último pago</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 tracking-wider">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -229,39 +242,25 @@ export default function ReportesPage() {
                     </span>
                   </td>
                   <td className="px-5 py-3 font-semibold text-slate-800">${r.monto.toLocaleString()}</td>
-
-                  {/* Columna Saldo / deuda */}
                   <td className="px-5 py-3">
                     <p className="text-xs text-slate-500">${r.pagado.toLocaleString()} de ${r.monto.toLocaleString()}</p>
                     {deuda > 0
                       ? <p className="text-xs font-medium text-red-600 mt-0.5">Debe ${deuda.toLocaleString()}</p>
-                      : <p className="text-xs font-medium text-emerald-600 mt-0.5">Saldo saldado ✓</p>
-                    }
+                      : <p className="text-xs font-medium text-emerald-600 mt-0.5">Saldo saldado ✓</p>}
                   </td>
-
-                  {/* Columna Último pago */}
                   <td className="px-5 py-3">
                     {r.ultimoPago
                       ? <><p className="text-xs font-medium text-slate-700">{r.ultimoPago}</p><p className="text-xs text-slate-400">último pago</p></>
-                      : <p className="text-xs text-slate-400">Sin pagos</p>
-                    }
+                      : <p className="text-xs text-slate-400">Sin pagos</p>}
                   </td>
-
-                  {/* Acciones */}
                   <td className="px-5 py-3">
                     <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => imprimirRecibo(r)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-medium hover:bg-slate-100 transition-colors"
-                      >
+                      <button type="button" onClick={() => imprimirRecibo(r)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-medium hover:bg-slate-100 transition-colors">
                         🖨 Imprimir
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => descargarPDF(r)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-300 text-emerald-700 text-xs font-medium hover:bg-emerald-50 transition-colors"
-                      >
+                      <button type="button" onClick={() => descargarPDF(r)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-300 text-emerald-700 text-xs font-medium hover:bg-emerald-50 transition-colors">
                         ↓ PDF
                       </button>
                     </div>
@@ -278,27 +277,16 @@ export default function ReportesPage() {
             Mostrando {Math.min((pagina - 1) * PER_PAGE + 1, filtrados.length)}–{Math.min(pagina * PER_PAGE, filtrados.length)} de {filtrados.length}
           </p>
           <div className="flex items-center gap-1">
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={pagina === 1}
-              className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >‹</button>
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={pagina === 1}
+              className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">‹</button>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-              <button
-                key={p}
-                onClick={() => setPage(p)}
+              <button key={p} onClick={() => setPage(p)}
                 className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
-                  p === pagina
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                }`}
-              >{p}</button>
+                  p === pagina ? "bg-blue-600 text-white border-blue-600" : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                }`}>{p}</button>
             ))}
-            <button
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={pagina === totalPages}
-              className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >›</button>
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={pagina === totalPages}
+              className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">›</button>
           </div>
         </div>
       </div>
