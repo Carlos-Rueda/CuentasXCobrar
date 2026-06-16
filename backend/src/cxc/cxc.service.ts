@@ -24,7 +24,10 @@ export class CxcService {
     // En producción aquí harías: const pagos = await this.prisma.pago.findMany({ where: { clienteId } });
     const pagosSimuladosEnPostgres = [
       { id: 'pag-501', facturaId: 'fac-101', fecha: '2026-06-03', monto: 50.00, recibo: 'REC-001' },
-      { id: 'pag-502', facturaId: 'fac-101', fecha: '2026-06-08', monto: 100.00, recibo: 'REC-002' } // Completó la fac-101
+      { id: 'pag-502', facturaId: 'fac-101', fecha: '2026-06-08', monto: 100.00, recibo: 'REC-002' }, // Completó la fac-101
+      { id: 'pag-503', facturaId: 'fac-104', fecha: '2026-06-15', monto: 100.00, recibo: 'REC-003' }, // Abono parcial a fac-104
+      { id: 'pag-504', facturaId: 'fac-105', fecha: '2026-06-13', monto: 480.00, recibo: 'REC-004' }, // Completó la fac-105
+      { id: 'pag-505', facturaId: 'fac-107', fecha: '2026-06-10', monto: 120.00, recibo: 'REC-005' }  // Abono parcial a fac-107
     ];
 
     // 4. Procesar el Historial de Movimientos (Cruzar Facturas y Pagos)
@@ -43,8 +46,12 @@ export class CxcService {
       });
     });
 
-    // Registrar los pagos como CRÉDITOS (Abonos)
-    pagosSimuladosEnPostgres.forEach(p => {
+    // Registrar los pagos de este cliente como CRÉDITOS (Abonos)
+    const pagosDelCliente = pagosSimuladosEnPostgres.filter(p =>
+      facturas.some(f => f.id === p.facturaId)
+    );
+
+    pagosDelCliente.forEach(p => {
       totalPagado += p.monto;
       historial.push({
         fecha: p.fecha,
@@ -72,30 +79,28 @@ export class CxcService {
     };
   }
   async validarDeudaCliente(clienteId: string): Promise<ValidadorDeudaDto> {
-    // 1. Buscamos las facturas pendientes usando el método que ya programamos en el Mock
-    const facturasPendientes = this.facturacionService.findFacturasPendientesByCliente(clienteId);
-    
-    // 2. Calculamos la suma de lo que debe
-    const montoTotalDeuda = facturasPendientes.reduce((total, fac) => total + fac.total, 0);
+    // 1. Calculamos la deuda real neta restando los pagos
+    const cxcInfo = await this.generarEstadoCuenta(clienteId);
+    const montoTotalDeuda = Math.max(0, cxcInfo.saldoPendiente);
     const tieneDeudaActiva = montoTotalDeuda > 0;
     
-    // 3. Regla de negocio simulada: Si debe más de $500, se bloquea.
+    // 2. Regla de negocio simulada: Si debe más de $500, se bloquea.
     let estadoCliente: 'APTO_PARA_CREDITO' | 'BLOQUEADO_POR_MORA' = 'APTO_PARA_CREDITO';
     let mensaje = 'El cliente no registra deudas críticas. Apto para operaciones.';
 
     if (montoTotalDeuda > 500) {
         estadoCliente = 'BLOQUEADO_POR_MORA';
-        mensaje = 'El cliente supera el cupo de deuda permitido ($500). Operaciones bloqueadas.';
+        mensaje = `El cliente supera el cupo de deuda permitido ($500). Operaciones bloqueadas. Deuda actual: $${montoTotalDeuda.toFixed(2)}`;
     } else if (tieneDeudaActiva) {
-        mensaje = `El cliente posee deudas pendientes por un valor de $${montoTotalDeuda}, pero está dentro del límite autorizado.`;
+        mensaje = `El cliente posee deudas pendientes por un valor de $${montoTotalDeuda.toFixed(2)}, pero está dentro del límite autorizado.`;
     }
 
     return {
-        clienteId,
-        tieneDeudaActiva,
-        montoTotalDeuda,
-        estadoCliente,
-        mensaje
+      clienteId,
+      tieneDeudaActiva,
+      montoTotalDeuda,
+      estadoCliente,
+      mensaje
     };
-    }
+  }
 }

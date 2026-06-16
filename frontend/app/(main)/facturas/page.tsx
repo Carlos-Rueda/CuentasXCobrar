@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 type Factura = {
-  id: number;
+  id: string;
   cliente: string;
   cedula: string;
   factura: string;
@@ -16,13 +16,9 @@ type Factura = {
 type SortKey = "cliente" | "factura" | "fecha" | "estado" | "monto";
 type SortDir = "asc" | "desc";
 
-const MOCK: Factura[] = [
-  { id: 1, cliente: "Juan Pérez",  cedula: "0912345678", factura: "FAC-001", fecha: "2026-06-14", estado: "Pagado",    monto: 250, descripcion: "Servicio de consultoría mensual" },
-  { id: 2, cliente: "María López", cedula: "0923456789", factura: "FAC-002", fecha: "2026-06-12", estado: "Por Pagar", monto: 480, descripcion: "Suministros de oficina" },
-  { id: 3, cliente: "Carlos Vera", cedula: "0934567890", factura: "FAC-003", fecha: "2026-06-10", estado: "Por Pagar", monto: 150, descripcion: "" },
-];
 
 const EMPTY_FORM = {
+  clienteId:   "",
   cliente:     "",
   cedula:      "",
   factura:     "",
@@ -46,11 +42,45 @@ function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey | 
 }
 
 export default function FacturasPage() {
-  const [facturas,   setFacturas]   = useState<Factura[]>(MOCK);
+  const [facturas,   setFacturas]   = useState<Factura[]>([]);
+  const [clientes,   setClientes]   = useState<any[]>([]);
   const [modalOpen,  setModalOpen]  = useState(false);
   const [form,       setForm]       = useState(EMPTY_FORM);
   const [errors,     setErrors]     = useState<FormErrors>({});
-  const [nextId,     setNextId]     = useState(MOCK.length + 1);
+  const [nextId,     setNextId]     = useState(1);
+
+  const cargarDatos = async () => {
+    try {
+      const resClients = await fetch("http://localhost:3000/api/mock-facturacion/clientes");
+      const listClients = await resClients.json();
+      setClientes(listClients);
+
+      const resFacturas = await fetch("http://localhost:3000/api/mock-facturacion/facturas");
+      const listFacturas = await resFacturas.json();
+
+      const mappedFacturas: Factura[] = listFacturas.map((f: any) => {
+        const client = listClients.find((c: any) => c.id === f.clienteId);
+        return {
+          id: f.id,
+          cliente: client ? client.nombre : f.clienteId,
+          cedula: client ? client.ruc : "—",
+          factura: f.numero,
+          fecha: f.fechaEmision,
+          estado: f.estado === "PAGADA" ? "Pagado" : "Por Pagar",
+          monto: f.total,
+          descripcion: f.detalles?.[0]?.producto || "",
+        };
+      });
+
+      setFacturas(mappedFacturas);
+    } catch (err) {
+      console.error("Error al cargar datos:", err);
+    }
+  };
+
+  useEffect(() => {
+    cargarDatos();
+  }, []);
 
   // ── Filtros ────────────────────────────────────────────────────────────────
   const [fCliente, setFCliente] = useState("");
@@ -113,10 +143,20 @@ export default function FacturasPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    // Bloquear números en el campo cliente
-    if (name === "cliente" && /\d/.test(value)) return;
     setForm(prev => ({ ...prev, [name]: value }));
     setErrors(prev => ({ ...prev, [name]: undefined }));
+  };
+
+  const handleClientSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const cid = e.target.value;
+    const client = clientes.find(c => c.id === cid);
+    setForm(prev => ({
+      ...prev,
+      clienteId: cid,
+      cliente: client ? client.nombre : "",
+      cedula: client ? client.ruc : "",
+    }));
+    setErrors(prev => ({ ...prev, cliente: undefined, cedula: undefined }));
   };
 
   const validar = (): boolean => {
@@ -131,24 +171,45 @@ export default function FacturasPage() {
     return Object.keys(errs).length === 0;
   };
 
-  const guardarFactura = () => {
+  const guardarFactura = async () => {
     if (!validar()) return;
-    const nueva: Factura = {
-      id:          nextId,
-      cliente:     form.cliente.trim(),
-      cedula:      form.cedula.trim(),
-      factura:     form.factura.trim(),
-      fecha:       form.fecha,
-      estado:      form.estado,
-      monto:       Number(form.monto),
-      descripcion: form.descripcion.trim(),
+    const payload = {
+      id: `fac-${Date.now()}`,
+      numero: form.factura.trim(),
+      clienteId: form.clienteId,
+      fechaEmision: form.fecha,
+      total: Number(form.monto),
+      estado: form.estado === "Pagado" ? "PAGADA" : "PENDIENTE",
+      detalles: [
+        {
+          producto: form.descripcion.trim() || "Concepto General",
+          cantidad: 1,
+          precioUnitario: Number(form.monto)
+        }
+      ]
     };
-    setFacturas(prev => [...prev, nueva]);
-    setNextId(n => n + 1);
-    cerrarModal();
+
+    try {
+      const res = await fetch("http://localhost:3000/api/mock-facturacion/facturas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        await cargarDatos();
+        cerrarModal();
+        alert("Factura guardada correctamente en el servidor.");
+      } else {
+        alert("Error al guardar la factura en el servidor.");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Error al conectar con el servidor.");
+    }
   };
 
-  const eliminar = (id: number) => setFacturas(prev => prev.filter(f => f.id !== id));
+  const eliminar = (id: string) => setFacturas(prev => prev.filter(f => f.id !== id));
 
   const thSort = (col: SortKey, label: string) => (
     <th
@@ -246,16 +307,20 @@ export default function FacturasPage() {
 
                 <div className="col-span-1">
                   <label className="block text-xs font-medium text-slate-500 mb-1.5">Cliente *</label>
-                  <input name="cliente" type="text" placeholder="Solo letras" value={form.cliente}
-                    onChange={handleChange} className={inputClass("cliente")} />
+                  <select name="clienteId" value={form.clienteId} onChange={handleClientSelectChange}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Seleccione un cliente</option>
+                    {clientes.map(c => (
+                      <option key={c.id} value={c.id}>{c.nombre}</option>
+                    ))}
+                  </select>
                   {errors.cliente && <p className="text-xs text-red-600 mt-1">{errors.cliente}</p>}
                 </div>
 
                 <div className="col-span-1">
-                  <label className="block text-xs font-medium text-slate-500 mb-1.5">Cédula *</label>
-                  <input name="cedula" type="text" placeholder="10 dígitos" maxLength={10}
-                    value={form.cedula} onChange={handleChange} className={inputClass("cedula")} />
-                  {errors.cedula && <p className="text-xs text-red-600 mt-1">{errors.cedula}</p>}
+                  <label className="block text-xs font-medium text-slate-500 mb-1.5">Cédula/RUC</label>
+                  <input name="cedula" type="text" value={form.cedula} readOnly
+                    className="w-full rounded-xl border border-slate-200 bg-slate-200 px-3 py-2.5 text-sm focus:outline-none text-slate-600 cursor-not-allowed" />
                 </div>
 
                 <div className="col-span-1">

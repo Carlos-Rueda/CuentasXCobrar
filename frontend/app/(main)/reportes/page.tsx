@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 type Registro = {
+  id: string;
   cliente: string;
   cedula: string;
   factura: string;
@@ -16,14 +17,6 @@ type Registro = {
 type SortKey = "cliente" | "factura" | "fecha" | "estado" | "monto";
 type SortDir = "asc" | "desc";
 
-const DATOS_MOCK: Registro[] = [
-  { cliente: "Juan Pérez",  cedula: "0912345678", factura: "FAC-001", fecha: "14/06/2026", estado: "Pagado",    monto: 250, pagado: 250, ultimoPago: "14/06/2026" },
-  { cliente: "María López", cedula: "0923456789", factura: "FAC-002", fecha: "12/06/2026", estado: "Por Pagar", monto: 480, pagado: 0,   ultimoPago: null },
-  { cliente: "Carlos Vera", cedula: "0934567890", factura: "FAC-003", fecha: "10/06/2026", estado: "Pagado",    monto: 150, pagado: 150, ultimoPago: "10/06/2026" },
-  { cliente: "Ana Gómez",   cedula: "0945678901", factura: "FAC-004", fecha: "08/06/2026", estado: "Por Pagar", monto: 900, pagado: 0,   ultimoPago: null },
-  { cliente: "Luis Torres", cedula: "0956789012", factura: "FAC-005", fecha: "05/06/2026", estado: "Parcial",   monto: 600, pagado: 300, ultimoPago: "07/06/2026" },
-  { cliente: "Rosa Méndez", cedula: "0967890123", factura: "FAC-006", fecha: "01/06/2026", estado: "Pagado",    monto: 320, pagado: 320, ultimoPago: "03/06/2026" },
-];
 
 const PER_PAGE = 5;
 
@@ -63,17 +56,23 @@ function imprimirRecibo(r: Registro) {
 
 async function descargarPDF(r: Registro) {
   try {
-    const res = await fetch(`http://localhost:3000/api/pagos/${r.factura}/pdf`);
-    if (!res.ok) { alert(`No se encontró el comprobante "${r.factura}" en el servidor.`); return; }
+    const res = await fetch(`http://localhost:3000/api/mock-facturacion/facturas/${r.id}/pdf`);
+    if (!res.ok) {
+      alert(`No se encontró el comprobante para la factura "${r.factura}" en el servidor.`);
+      return;
+    }
     const blob = await res.blob();
-    const url  = window.URL.createObjectURL(blob);
-    const a    = document.createElement("a");
-    a.href = url; a.download = `Recibo-${r.factura}.pdf`;
-    document.body.appendChild(a); a.click();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Factura-${r.factura}.pdf`;
+    document.body.appendChild(a);
+    a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
-  } catch {
-    alert("Error al conectar con el servidor.");
+  } catch (error) {
+    console.error(error);
+    alert("Error al conectar con el servidor para descargar el PDF.");
   }
 }
 
@@ -84,6 +83,7 @@ function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey | 
 }
 
 export default function ReportesPage() {
+  const [registros, setRegistros] = useState<Registro[]>([]);
   const [fCliente, setFCliente] = useState("");
   const [fCedula,  setFCedula]  = useState("");
   const [fFactura, setFFactura] = useState("");
@@ -92,6 +92,65 @@ export default function ReportesPage() {
   const [page,     setPage]     = useState(1);
   const [sortKey,  setSortKey]  = useState<SortKey | null>(null);
   const [sortDir,  setSortDir]  = useState<SortDir>("asc");
+
+  const cargarDatos = async () => {
+    try {
+      const resClients = await fetch("http://localhost:3000/api/mock-facturacion/clientes");
+      const listClients = await resClients.json();
+
+      const resFacturas = await fetch("http://localhost:3000/api/mock-facturacion/facturas");
+      const listFacturas = await resFacturas.json();
+
+      const resPagos = await fetch("http://localhost:3000/api/pagos/reporte");
+      const listPagos = await resPagos.json();
+
+      const mappedRegistros: Registro[] = listFacturas.map((f: any) => {
+        const client = listClients.find((c: any) => c.id === f.clienteId);
+        
+        let pagado = 0;
+        let ultimoPago: string | null = null;
+        
+        listPagos.forEach((pago: any) => {
+          const detail = pago.detalles?.find((d: any) => d.facturaId === f.id);
+          if (detail) {
+            pagado += detail.montoAbonado;
+            ultimoPago = pago.fecha;
+          }
+        });
+
+        if (f.estado === "PAGADA" && pagado === 0) {
+          pagado = f.total;
+        }
+
+        let estado: "Pagado" | "Parcial" | "Por Pagar" = "Por Pagar";
+        if (pagado >= f.total) {
+          estado = "Pagado";
+        } else if (pagado > 0) {
+          estado = "Parcial";
+        }
+
+        return {
+          id: f.id,
+          cliente: client ? client.nombre : f.clienteId,
+          cedula: client ? client.ruc : "—",
+          factura: f.numero,
+          fecha: f.fechaEmision,
+          estado,
+          monto: f.total,
+          pagado,
+          ultimoPago: ultimoPago ? new Date(ultimoPago).toLocaleDateString("es-EC") : null
+        };
+      });
+
+      setRegistros(mappedRegistros);
+    } catch (err) {
+      console.error("Error al cargar datos:", err);
+    }
+  };
+
+  useEffect(() => {
+    cargarDatos();
+  }, []);
 
   const aplicarFiltros = () => {
     setFiltros({ cliente: fCliente, cedula: fCedula, factura: fFactura, estado: fEstado });
@@ -113,7 +172,7 @@ export default function ReportesPage() {
   };
 
   const filtrados = useMemo(() => {
-    let data = DATOS_MOCK.filter(r =>
+    let data = registros.filter(r =>
       r.cliente.toLowerCase().includes(filtros.cliente.toLowerCase()) &&
       r.cedula.includes(filtros.cedula) &&
       r.factura.toLowerCase().includes(filtros.factura.toLowerCase()) &&

@@ -19,6 +19,28 @@ export default function ReportePagosPage() {
       console.error(error);
     }
   };
+
+  const descargarPDFPago = async (id: string) => {
+    try {
+      const response = await fetch(`http://localhost:3000/api/pagos/${id}/pdf`);
+      if (!response.ok) {
+        alert("No se pudo descargar el PDF de este pago.");
+        return;
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Comprobante-Pago-${id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      alert("Error al conectar con el servidor para descargar el PDF.");
+    }
+  };
   const totalPagos = pagos.length;
 
   const montoTotal = pagos.reduce(
@@ -93,6 +115,7 @@ export default function ReportePagosPage() {
                 <th>Cuenta Bancaria</th>
                 <th>Monto Total</th>
                 <th>Fecha</th>
+                <th>Acciones</th>
               </tr>
             </thead>
 
@@ -118,11 +141,21 @@ export default function ReportePagosPage() {
                     <td className={styles.amount}>${pago.montoTotal}</td>
 
                     <td>{new Date(pago.fecha).toLocaleDateString()}</td>
+
+                    <td>
+                      <button
+                        onClick={() => descargarPDFPago(pago.id)}
+                        className={styles.pdfButton}
+                        title="Descargar Comprobante PDF"
+                      >
+                        ↓ PDF
+                      </button>
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className={styles.empty}>
+                  <td colSpan={6} className={styles.empty}>
                     No existen pagos registrados.
                   </td>
                 </tr>

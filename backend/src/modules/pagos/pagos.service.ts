@@ -1,28 +1,35 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PagoEntity } from './pago.entity';
 import { CreatePagoDto } from './dto/create-pago.dto';
+import { FacturacionMockService } from '../../facturacion-mock/facturacion-mock.service';
 import * as PDFDocument from 'pdfkit';
 
 @Injectable()
 export class PagosService {
+  constructor(private readonly facturacionService: FacturacionMockService) {}
+
   private pagos: PagoEntity[] = [
     {
       id: '1718210344000',
-      clienteId: 'C1',
-      cuentaBancariaId: 'CB001',
+      clienteId: 'cli-001',
+      cuentaBancariaId: '1',
       montoTotal: 150.0,
       fecha: new Date().toISOString(),
       detalles: [
-        { facturaId: 'F001', montoAbonado: 50.0 },
-        { facturaId: 'F002', montoAbonado: 100.0 },
+        { facturaId: 'fac-101', montoAbonado: 50.0 },
+        { facturaId: 'fac-101', montoAbonado: 100.0 },
       ],
     },
   ];
 
-  private facturas = [
-    { id: 'F001', clienteId: 'C1', total: 100, pendiente: 100 },
-    { id: 'F002', clienteId: 'C1', total: 250, pendiente: 250 },
-  ];
+  calcularPagadoParaFactura(facturaId: string): number {
+    let pagado = 0;
+    this.pagos.forEach(p => {
+      const detail = p.detalles.find(d => d.facturaId === facturaId);
+      if (detail) pagado += detail.montoAbonado;
+    });
+    return pagado;
+  }
 
   registrarCobro(pago: CreatePagoDto) {
     const nuevoPago: PagoEntity = {
@@ -34,15 +41,24 @@ export class PagosService {
     const facturasAfectadas: any[] = [];
 
     for (const detalle of nuevoPago.detalles) {
-      const factura = this.facturas.find((f) => f.id === detalle.facturaId);
+      const factura = this.facturacionService.findOneFactura(detalle.facturaId);
       if (!factura) {
         throw new NotFoundException(
           `Factura con ID ${detalle.facturaId} no encontrada`,
         );
       }
 
-      factura.pendiente -= detalle.montoAbonado;
-      facturasAfectadas.push({ ...factura });
+      const pagadoFactura = this.calcularPagadoParaFactura(detalle.facturaId) + detalle.montoAbonado;
+      if (pagadoFactura >= factura.total) {
+        factura.estado = 'PAGADA';
+      }
+
+      facturasAfectadas.push({
+        id: factura.id,
+        clienteId: factura.clienteId,
+        total: factura.total,
+        pendiente: Math.max(0, factura.total - pagadoFactura)
+      });
     }
 
     this.pagos.push(nuevoPago);
@@ -55,16 +71,25 @@ export class PagosService {
   }
 
   obtenerFacturas() {
-    return this.facturas;
+    return this.facturacionService.findAllFacturas().map(f => {
+      const pagado = this.calcularPagadoParaFactura(f.id);
+      return {
+        id: f.id,
+        clienteId: f.clienteId,
+        total: f.total,
+        pendiente: Math.max(0, f.total - pagado)
+      };
+    });
   }
 
   obtenerEstadoCuenta(clienteId: string) {
-    return this.facturas.filter((factura) => factura.clienteId === clienteId);
+    return this.obtenerFacturas().filter((factura) => factura.clienteId === clienteId);
   }
+
   obtenerClientesConDeuda() {
     const resumen: Record<string, number> = {};
 
-    this.facturas.forEach((factura) => {
+    this.obtenerFacturas().forEach((factura) => {
       if (factura.pendiente > 0) {
         if (!resumen[factura.clienteId]) {
           resumen[factura.clienteId] = 0;

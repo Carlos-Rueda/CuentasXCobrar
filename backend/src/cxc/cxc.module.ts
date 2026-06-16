@@ -7,5 +7,6 @@ import { FacturacionMockModule } from '../facturacion-mock/facturacion-mock.modu
   imports: [FacturacionMockModule], // 👈 Le da acceso al simulador de facturas
   controllers: [CxcController],
   providers: [CxcService],
+  exports: [CxcService],
 })
 export class CxcModule {}

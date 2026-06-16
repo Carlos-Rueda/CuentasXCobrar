@@ -10,6 +10,7 @@ const NAV = [
   { href: "/facturas",  label: "Facturas",  icon: "🧾" },
   { href: "/pagos/reporte",     label: "Cobros",    icon: "💳" },
   { href: "/reportes",  label: "Reportes",  icon: "📊" },
+  { href: "/cuentas-bancarias", label: "Cuentas Bancarias", icon: "🏦" },
 ];
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {

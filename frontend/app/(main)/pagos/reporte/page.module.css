@@ -164,3 +164,20 @@
   border-radius: 16px;
   overflow-y: auto;
 }
+
+.pdfButton {
+  border: 1px solid #10b981;
+  background: white;
+  color: #10b981;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pdfButton:hover {
+  background: #10b981;
+  color: white;
+}
