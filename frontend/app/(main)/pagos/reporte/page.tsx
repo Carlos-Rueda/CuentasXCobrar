@@ -25,6 +25,32 @@ export default function ReportePagosPage() {
     (total, pago) => total + Number(pago.montoTotal),
     0,
   );
+  const cuentasBancarias = [
+    {
+      id: 1,
+      codigo: "CTA-BAN-001",
+      nombreCuenta: "Cuenta de Ahorros",
+    },
+    {
+      id: 2,
+      codigo: "CTA-BAN-002",
+      nombreCuenta: "Cuenta Corriente",
+    },
+  ];
+  const clientes = [
+    {
+      id: "cli-001",
+      nombre: "Carlos Rueda",
+    },
+    {
+      id: "cli-002",
+      nombre: "Distribuidora Norte",
+    },
+    {
+      id: "cli-003",
+      nombre: "María Andrade",
+    },
+  ];
 
   useEffect(() => {
     cargarPagos();
@@ -76,9 +102,18 @@ export default function ReportePagosPage() {
                   <tr key={pago.id}>
                     <td>{pago.id}</td>
 
-                    <td>{pago.clienteId}</td>
+                    <td>
+                      {clientes.find((cliente) => cliente.id === pago.clienteId)
+                        ?.nombre || pago.clienteId}
+                    </td>
 
-                    <td>{pago.cuentaBancariaId}</td>
+                    <td>
+                      {cuentasBancarias.find(
+                        (cuenta) =>
+                          cuenta.id.toString() ===
+                          pago.cuentaBancariaId.toString(),
+                      )?.codigo || pago.cuentaBancariaId}
+                    </td>
 
                     <td className={styles.amount}>${pago.montoTotal}</td>
 

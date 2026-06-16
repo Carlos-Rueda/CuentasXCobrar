@@ -46,10 +46,12 @@ export default function PagosPage({ onGuardado }: FormularioPagoProps) {
   const cuentasBancarias = [
     {
       id: 1,
+      codigo: "CTA-BAN-002",
       nombreCuenta: "Cuenta de Ahorros",
     },
     {
       id: 2,
+      codigo: "CTA-BAN-002",
       nombreCuenta: "Cuenta Corriente",
     },
   ];
@@ -229,7 +231,7 @@ export default function PagosPage({ onGuardado }: FormularioPagoProps) {
 
               {cuentasBancarias.map((cuenta) => (
                 <option key={cuenta.id} value={cuenta.id}>
-                  {cuenta.nombreCuenta}
+                  {cuenta.codigo} - {cuenta.nombreCuenta}
                 </option>
               ))}
             </select>
