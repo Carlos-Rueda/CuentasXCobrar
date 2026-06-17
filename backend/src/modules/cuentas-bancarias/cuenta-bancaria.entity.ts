@@ -18,6 +18,9 @@ export class CuentaBancariaEntity {
 
   @ApiProperty({ example: 'ACTIVO', description: 'Estado de la cuenta bancaria (ACTIVO / INACTIVO)' })
   estado: string;
+
+  @ApiProperty({ example: 'cli-001', description: 'ID del cliente propietario de la cuenta', required: false })
+  clienteId?: string;
 }
 
 

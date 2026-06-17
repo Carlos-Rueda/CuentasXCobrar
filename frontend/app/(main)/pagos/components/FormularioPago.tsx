@@ -1,4 +1,6 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useState } from "react";
 import styles from "../page.module.css";
@@ -30,32 +32,37 @@ export default function PagosPage({ onGuardado }: FormularioPagoProps) {
   );
 
   const clientes = [
-    {
-      id: "cli-001",
-      nombre: "Carlos Rueda",
-    },
-    {
-      id: "cli-002",
-      nombre: "Distribuidora Norte",
-    },
-    {
-      id: "cli-003",
-      nombre: "María Andrade",
-    },
+    { id: "cli-001", nombre: "Carlos Rueda" },
+    { id: "cli-002", nombre: "Distribuidora Norte" },
+    { id: "cli-003", nombre: "María Andrade" },
+    { id: "cli-004", nombre: "Juan Pérez" },
+    { id: "cli-005", nombre: "María López" },
   ];
 
-  const cuentasBancarias = [
-    {
-      id: 1,
-      codigo: "CTA-BAN-002",
-      nombreCuenta: "Cuenta de Ahorros",
-    },
-    {
-      id: 2,
-      codigo: "CTA-BAN-002",
-      nombreCuenta: "Cuenta Corriente",
-    },
-  ];
+interface CuentaBancaria {
+  id: string;
+  codigo: string;
+  nombreCuenta: string;
+  entidadBancaria: string;
+  descripcion?: string;
+  estado: string;
+  clienteId?: string;
+}
+
+  const [cuentasBancarias, setCuentasBancarias] = useState<CuentaBancaria[]>([]);
+
+  const cargarCuentasBancarias = async () => {
+    try {
+      const response = await fetch(`${API_URL}/cuentas-bancarias`, { cache: "no-store" });
+      if (response.ok) {
+        const data = await response.json();
+        const activas = data.filter((c: CuentaBancaria) => c.estado === "ACTIVO");
+        setCuentasBancarias(activas);
+      }
+    } catch (error) {
+      console.error("Error al cargar cuentas bancarias:", error);
+    }
+  };
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -64,10 +71,19 @@ export default function PagosPage({ onGuardado }: FormularioPagoProps) {
   ) => {
     const { name, value } = e.target;
 
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
+    if (name === "clienteId") {
+      setFormData({
+        ...formData,
+        clienteId: value,
+        cuentaBancariaId: "",
+      });
+      setFacturasSeleccionadas([]);
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value,
+      });
+    }
   };
   const seleccionarFactura = (factura: any, checked: boolean) => {
     if (checked) {
@@ -121,7 +137,7 @@ export default function PagosPage({ onGuardado }: FormularioPagoProps) {
   };
   const cargarPagos = async () => {
     try {
-      const response = await fetch(`${API_URL}/pagos/reporte`);
+      const response = await fetch(`${API_URL}/pagos/reporte`, { cache: "no-store" });
 
       const data = await response.json();
 
@@ -132,7 +148,7 @@ export default function PagosPage({ onGuardado }: FormularioPagoProps) {
   };
   const cargarFacturas = async () => {
     try {
-      const response = await fetch(`${API_URL}/pagos/facturas`);
+      const response = await fetch(`${API_URL}/pagos/facturas`, { cache: "no-store" });
 
       const data = await response.json();
 
@@ -171,6 +187,7 @@ export default function PagosPage({ onGuardado }: FormularioPagoProps) {
   useEffect(() => {
     cargarPagos();
     cargarFacturas();
+    cargarCuentasBancarias();
   }, []);
 
   return (
@@ -230,11 +247,13 @@ export default function PagosPage({ onGuardado }: FormularioPagoProps) {
             >
               <option value="">Seleccione una cuenta bancaria</option>
 
-              {cuentasBancarias.map((cuenta) => (
-                <option key={cuenta.id} value={cuenta.id}>
-                  {cuenta.codigo} - {cuenta.nombreCuenta}
-                </option>
-              ))}
+              {cuentasBancarias
+                .filter((cuenta) => cuenta.clienteId === formData.clienteId)
+                .map((cuenta) => (
+                  <option key={cuenta.id} value={cuenta.id}>
+                    {cuenta.codigo} - {cuenta.nombreCuenta}
+                  </option>
+                ))}
             </select>
           </div>
           <div className={styles.group}>
@@ -245,39 +264,48 @@ export default function PagosPage({ onGuardado }: FormularioPagoProps) {
                 <tr>
                   <th></th>
                   <th>Factura</th>
+                  <th>Total</th>
+                  <th>Abonado</th>
                   <th>Pendiente</th>
-                  <th>Monto Abonado</th>
+                  <th>Monto a Cobrar</th>
                 </tr>
               </thead>
               <tbody>
-                {facturas.map((factura) => (
-                  <tr key={factura.id}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        onChange={(e) =>
-                          seleccionarFactura(factura, e.target.checked)
-                        }
-                      />
-                    </td>
+                {facturas
+                  .filter((factura) => factura.clienteId === formData.clienteId)
+                  .map((factura) => {
+                    const abonado = Number(factura.total) - Number(factura.pendiente);
+                    return (
+                      <tr key={factura.id}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={facturaSeleccionada(factura.id)}
+                            onChange={(e) =>
+                              seleccionarFactura(factura, e.target.checked)
+                            }
+                          />
+                        </td>
 
-                    <td>{factura.id}</td>
+                        <td>{factura.id}</td>
+                        <td>${factura.total}</td>
+                        <td>${abonado}</td>
+                        <td>${factura.pendiente}</td>
 
-                    <td>${factura.pendiente}</td>
-
-                    <td>
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="0"
-                        disabled={!facturaSeleccionada(factura.id)}
-                        onChange={(e) =>
-                          actualizarMonto(factura.id, Number(e.target.value))
-                        }
-                      />
-                    </td>
-                  </tr>
-                ))}
+                        <td>
+                          <input
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            disabled={!facturaSeleccionada(factura.id)}
+                            onChange={(e) =>
+                              actualizarMonto(factura.id, Number(e.target.value))
+                            }
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
               </tbody>
             </table>
           </div>

@@ -22,10 +22,10 @@ async function bootstrap() {
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
   
-  console.log(`\n🚀 ===================================================`);
-  console.log(`🔥 ¡El backend de Cuentas por Cobrar está encendido!`);
-  console.log(`🌐 Endpoints de la API:   http://localhost:${port}/api`);
-  console.log(`📖 Documentación Swagger: http://localhost:${port}/docs`);
+  console.log(`\n ===================================================`);
+  console.log(` ¡El backend de Cuentas por Cobrar está encendido!`);
+  console.log(` Endpoints de la API:   http://localhost:${port}/api`);
+  console.log(` Documentación Swagger: http://localhost:${port}/docs`);
   console.log(`===================================================\n`);
 }
 bootstrap();

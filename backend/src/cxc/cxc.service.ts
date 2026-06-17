@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { FacturacionMockService } from '../facturacion-mock/facturacion-mock.service';
+import { PagosService } from '../modules/pagos/pagos.service';
 import { EstadoCuentaDto, MovimientoDto } from './dto/estado-cuenta.dto';
 import { ValidadorDeudaDto } from './dto/validador-deuda.dto';
 
@@ -7,8 +8,7 @@ import { ValidadorDeudaDto } from './dto/validador-deuda.dto';
 export class CxcService {
   constructor(
     private readonly facturacionService: FacturacionMockService,
-    // Aquí inyectarías tu repositorio de base de datos Postgres (ej: Prisma o TypeORM)
-    // private prisma: PrismaService 
+    private readonly pagosService: PagosService,
   ) {}
 
   async generarEstadoCuenta(clienteId: string): Promise<EstadoCuentaDto> {
@@ -20,15 +20,8 @@ export class CxcService {
     const facturas = this.facturacionService.findAllFacturas()
       .filter(f => f.clienteId === clienteId);
 
-    // 3. SIMULACIÓN DE PAGOS DESDE TU BASE DE DATOS REAL (Postgres)
-    // En producción aquí harías: const pagos = await this.prisma.pago.findMany({ where: { clienteId } });
-    const pagosSimuladosEnPostgres = [
-      { id: 'pag-501', facturaId: 'fac-101', fecha: '2026-06-03', monto: 50.00, recibo: 'REC-001' },
-      { id: 'pag-502', facturaId: 'fac-101', fecha: '2026-06-08', monto: 100.00, recibo: 'REC-002' }, // Completó la fac-101
-      { id: 'pag-503', facturaId: 'fac-104', fecha: '2026-06-15', monto: 100.00, recibo: 'REC-003' }, // Abono parcial a fac-104
-      { id: 'pag-504', facturaId: 'fac-105', fecha: '2026-06-13', monto: 480.00, recibo: 'REC-004' }, // Completó la fac-105
-      { id: 'pag-505', facturaId: 'fac-107', fecha: '2026-06-10', monto: 120.00, recibo: 'REC-005' }  // Abono parcial a fac-107
-    ];
+    // 3. Obtener pagos reales del cliente desde la base de datos en memoria
+    const pagosReales = this.pagosService.obtenerReporte().filter(p => p.clienteId === clienteId);
 
     // 4. Procesar el Historial de Movimientos (Cruzar Facturas y Pagos)
     const historial: MovimientoDto[] = [];
@@ -47,17 +40,13 @@ export class CxcService {
     });
 
     // Registrar los pagos de este cliente como CRÉDITOS (Abonos)
-    const pagosDelCliente = pagosSimuladosEnPostgres.filter(p =>
-      facturas.some(f => f.id === p.facturaId)
-    );
-
-    pagosDelCliente.forEach(p => {
-      totalPagado += p.monto;
+    pagosReales.forEach(p => {
+      totalPagado += p.montoTotal;
       historial.push({
-        fecha: p.fecha,
-        documento: `Abono/Pago Ref: ${p.recibo}`,
+        fecha: p.fecha.split('T')[0],
+        documento: `Abono/Pago Ref: PAG-${p.id}`,
         tipo: 'CREDITO',
-        monto: p.monto
+        monto: p.montoTotal
       });
     });
 

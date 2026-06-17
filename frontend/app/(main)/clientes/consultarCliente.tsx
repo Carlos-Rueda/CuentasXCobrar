@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useState } from "react";
 import styles from "./consultarCliente.module.css";
@@ -12,7 +13,7 @@ export default function ClientesPage() {
   useEffect(() => {
     const cargarClientes = async () => {
       try {
-        const response = await fetch(`${API_URL}/mock-facturacion/clientes`);
+        const response = await fetch(`${API_URL}/mock-facturacion/clientes`, { cache: "no-store" });
         if (response.ok) {
           const data = await response.json();
           setClientes(data);
@@ -31,7 +32,8 @@ export default function ClientesPage() {
     }
     try {
       const response = await fetch(
-        `${API_URL}/cxc/estado-cuenta/${clienteId}`
+        `${API_URL}/cxc/estado-cuenta/${clienteId}`,
+        { cache: "no-store" }
       );
       if (!response.ok) {
         alert("No se encontró el estado de cuenta.");

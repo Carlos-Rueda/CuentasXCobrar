@@ -13,6 +13,7 @@ export class CuentasBancariasService {
       entidadBancaria: 'Banco Pichincha',
       descripcion: 'Cuenta principal para depósitos de clientes',
       estado: 'ACTIVO',
+      clienteId: 'cli-001',
     },
     {
       id: '2',
@@ -21,6 +22,7 @@ export class CuentasBancariasService {
       entidadBancaria: 'Banco Guayaquil',
       descripcion: 'Cuenta corriente para cobros comerciales',
       estado: 'ACTIVO',
+      clienteId: 'cli-002',
     },
   ];
 

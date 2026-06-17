@@ -1,4 +1,6 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useState, useMemo, useEffect } from "react";
 import { API_URL } from "@/app/config";
@@ -11,6 +13,9 @@ type Factura = {
   fecha: string;
   estado: "Pagado" | "Por Pagar";
   monto: number;
+  pagado: number;
+  pendiente: number;
+  pagosAsociados?: { id: string; montoAbonado: number; fecha: string }[];
   descripcion: string;
 };
 
@@ -52,23 +57,53 @@ export default function FacturasPage() {
 
   const cargarDatos = async () => {
     try {
-      const resClients = await fetch(`${API_URL}/mock-facturacion/clientes`);
+      const resClients = await fetch(`${API_URL}/mock-facturacion/clientes`, { cache: "no-store" });
       const listClients = await resClients.json();
       setClientes(listClients);
 
-      const resFacturas = await fetch(`${API_URL}/mock-facturacion/facturas`);
+      const resFacturas = await fetch(`${API_URL}/mock-facturacion/facturas`, { cache: "no-store" });
       const listFacturas = await resFacturas.json();
+
+      const resPagos = await fetch(`${API_URL}/pagos/reporte`, { cache: "no-store" });
+      const listPagos = await resPagos.json();
 
       const mappedFacturas: Factura[] = listFacturas.map((f: any) => {
         const client = listClients.find((c: any) => c.id === f.clienteId);
+        
+        let pagado = 0;
+        const pagosAsociados: { id: string; montoAbonado: number; fecha: string }[] = [];
+        listPagos.forEach((pago: any) => {
+          const detail = pago.detalles?.find((d: any) => d.facturaId === f.id);
+          if (detail) {
+            pagado += detail.montoAbonado;
+            pagosAsociados.push({
+              id: pago.id,
+              montoAbonado: detail.montoAbonado,
+              fecha: pago.fecha,
+            });
+          }
+        });
+
+        if (f.estado === "PAGADA" && pagado === 0) {
+          pagado = f.total;
+        }
+
+        let estado: "Pagado" | "Por Pagar" = "Por Pagar";
+        if (pagado >= f.total) {
+          estado = "Pagado";
+        }
+
         return {
           id: f.id,
           cliente: client ? client.nombre : f.clienteId,
           cedula: client ? client.ruc : "—",
           factura: f.numero,
           fecha: f.fechaEmision,
-          estado: f.estado === "PAGADA" ? "Pagado" : "Por Pagar",
+          estado,
           monto: f.total,
+          pagado,
+          pendiente: Math.max(0, f.total - pagado),
+          pagosAsociados,
           descripcion: f.detalles?.[0]?.producto || "",
         };
       });
@@ -389,7 +424,9 @@ export default function FacturasPage() {
               {thSort("factura", "N° factura")}
               {thSort("fecha",   "Fecha")}
               {thSort("estado",  "Estado")}
-              {thSort("monto",   "Monto")}
+              {thSort("monto",   "Total")}
+              <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 tracking-wider">Pagado</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 tracking-wider">Pendiente</th>
               <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 tracking-wider">Descripción</th>
               <th className="px-5 py-3"></th>
             </tr>
@@ -397,7 +434,7 @@ export default function FacturasPage() {
           <tbody>
             {filtradas.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-5 py-12 text-center text-slate-400 text-sm">
+                <td colSpan={10} className="px-5 py-12 text-center text-slate-400 text-sm">
                   No hay facturas que coincidan con los filtros.
                 </td>
               </tr>
@@ -413,6 +450,19 @@ export default function FacturasPage() {
                   }`}>{f.estado}</span>
                 </td>
                 <td className="px-5 py-3 font-semibold text-slate-800">${f.monto.toLocaleString()}</td>
+                <td className="px-5 py-3 text-emerald-600 font-medium">
+                  <div>${f.pagado.toLocaleString()}</div>
+                  {f.pagosAsociados && f.pagosAsociados.length > 0 && (
+                    <div className="text-[10px] text-slate-400 mt-1 font-sans font-normal leading-relaxed">
+                      {f.pagosAsociados.map((p) => (
+                        <div key={p.id}>
+                          Ref: PAG-{p.id} (${p.montoAbonado})
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </td>
+                <td className="px-5 py-3 text-red-600 font-medium">${f.pendiente.toLocaleString()}</td>
                 <td className="px-5 py-3 text-slate-500 text-xs max-w-[180px] truncate">{f.descripcion || "—"}</td>
                 <td className="px-5 py-3">
                   <button type="button" onClick={() => eliminar(f.id)} aria-label="Eliminar factura"

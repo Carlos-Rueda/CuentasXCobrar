@@ -6,6 +6,7 @@ import { FacturacionMockModule } from '../../facturacion-mock/facturacion-mock.m
 @Module({
   imports: [FacturacionMockModule],
   controllers: [PagosController],
-  providers: [PagosService]
+  providers: [PagosService],
+  exports: [PagosService],
 })
 export class PagosModule {}

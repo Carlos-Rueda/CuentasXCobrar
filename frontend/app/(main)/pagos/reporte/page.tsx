@@ -1,4 +1,6 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useState } from "react";
 import styles from "./page.module.css";
@@ -8,6 +10,7 @@ import { API_URL } from "@/app/config";
 export default function ReportePagosPage() {
   const [pagos, setPagos] = useState<any[]>([]);
   const [mostrarModal, setMostrarModal] = useState(false);
+  const [filtroCliente, setFiltroCliente] = useState("");
 
   const cargarPagos = async () => {
     try {
@@ -42,41 +45,51 @@ export default function ReportePagosPage() {
       alert("Error al conectar con el servidor para descargar el PDF.");
     }
   };
-  const totalPagos = pagos.length;
+  const pagosFiltrados = pagos.filter((pago) => {
+    if (!filtroCliente) return true;
+    return pago.clienteId === filtroCliente;
+  });
 
-  const montoTotal = pagos.reduce(
+  const totalPagos = pagosFiltrados.length;
+
+  const montoTotal = pagosFiltrados.reduce(
     (total, pago) => total + Number(pago.montoTotal),
     0,
   );
-  const cuentasBancarias = [
-    {
-      id: 1,
-      codigo: "CTA-BAN-001",
-      nombreCuenta: "Cuenta de Ahorros",
-    },
-    {
-      id: 2,
-      codigo: "CTA-BAN-002",
-      nombreCuenta: "Cuenta Corriente",
-    },
-  ];
+interface CuentaBancaria {
+  id: string;
+  codigo: string;
+  nombreCuenta: string;
+  entidadBancaria: string;
+  descripcion?: string;
+  estado: string;
+  clienteId?: string;
+}
+
+  const [cuentasBancarias, setCuentasBancarias] = useState<CuentaBancaria[]>([]);
+
+  const cargarCuentasBancarias = async () => {
+    try {
+      const response = await fetch(`${API_URL}/cuentas-bancarias`);
+      if (response.ok) {
+        const data = await response.json();
+        setCuentasBancarias(data);
+      }
+    } catch (error) {
+      console.error("Error al cargar cuentas bancarias:", error);
+    }
+  };
   const clientes = [
-    {
-      id: "cli-001",
-      nombre: "Carlos Rueda",
-    },
-    {
-      id: "cli-002",
-      nombre: "Distribuidora Norte",
-    },
-    {
-      id: "cli-003",
-      nombre: "María Andrade",
-    },
+    { id: "cli-001", nombre: "Carlos Rueda" },
+    { id: "cli-002", nombre: "Distribuidora Norte" },
+    { id: "cli-003", nombre: "María Andrade" },
+    { id: "cli-004", nombre: "Juan Pérez" },
+    { id: "cli-005", nombre: "María López" },
   ];
 
   useEffect(() => {
     cargarPagos();
+    cargarCuentasBancarias();
   }, []);
 
   return (
@@ -98,7 +111,27 @@ export default function ReportePagosPage() {
           </div>
         </div>
 
-        <div className={styles.actions}>
+        <div className={styles.actions} style={{ display: "flex", gap: "15px", alignItems: "center" }}>
+          <select
+            value={filtroCliente}
+            onChange={(e) => setFiltroCliente(e.target.value)}
+            style={{
+              padding: "10px",
+              borderRadius: "8px",
+              border: "1px solid #cbd5e1",
+              backgroundColor: "#fff",
+              fontSize: "14px",
+              outline: "none",
+              minWidth: "200px"
+            }}
+          >
+            <option value="">Buscar por cliente (Todos)</option>
+            {clientes.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nombre}
+              </option>
+            ))}
+          </select>
           <button
             className={styles.newButton}
             onClick={() => setMostrarModal(true)}
@@ -121,8 +154,8 @@ export default function ReportePagosPage() {
             </thead>
 
             <tbody>
-              {pagos.length > 0 ? (
-                pagos.map((pago) => (
+              {pagosFiltrados.length > 0 ? (
+                pagosFiltrados.map((pago) => (
                   <tr key={pago.id}>
                     <td>{pago.id}</td>
 

@@ -1,4 +1,6 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useState, useMemo, useEffect } from "react";
 import { API_URL } from "@/app/config";
@@ -96,13 +98,13 @@ export default function ReportesPage() {
 
   const cargarDatos = async () => {
     try {
-      const resClients = await fetch(`${API_URL}/mock-facturacion/clientes`);
+      const resClients = await fetch(`${API_URL}/mock-facturacion/clientes`, { cache: 'no-store' });
       const listClients = await resClients.json();
 
-      const resFacturas = await fetch(`${API_URL}/mock-facturacion/facturas`);
+      const resFacturas = await fetch(`${API_URL}/mock-facturacion/facturas`, { cache: 'no-store' });
       const listFacturas = await resFacturas.json();
 
-      const resPagos = await fetch(`${API_URL}/pagos/reporte`);
+      const resPagos = await fetch(`${API_URL}/pagos/reporte`, { cache: 'no-store' });
       const listPagos = await resPagos.json();
 
       const mappedRegistros: Registro[] = listFacturas.map((f: any) => {
