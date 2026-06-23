@@ -59,7 +59,7 @@ function imprimirRecibo(r: Registro) {
 
 async function descargarPDF(r: Registro) {
   try {
-    const res = await fetch(`${API_URL}/mock-facturacion/facturas/${r.id}/pdf`);
+    const res = await fetch(`${API_URL}/facturas/${r.id}/pdf`);
     if (!res.ok) {
       alert(`No se encontró el comprobante para la factura "${r.factura}" en el servidor.`);
       return;
@@ -98,10 +98,10 @@ export default function ReportesPage() {
 
   const cargarDatos = async () => {
     try {
-      const resClients = await fetch(`${API_URL}/mock-facturacion/clientes`, { cache: 'no-store' });
+      const resClients = await fetch(`${API_URL}/facturas/clientes`, { cache: 'no-store' });
       const listClients = await resClients.json();
 
-      const resFacturas = await fetch(`${API_URL}/mock-facturacion/facturas`, { cache: 'no-store' });
+      const resFacturas = await fetch(`${API_URL}/facturas`, { cache: 'no-store' });
       const listFacturas = await resFacturas.json();
 
       const resPagos = await fetch(`${API_URL}/pagos/reporte`, { cache: 'no-store' });

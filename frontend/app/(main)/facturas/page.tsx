@@ -57,11 +57,11 @@ export default function FacturasPage() {
 
   const cargarDatos = async () => {
     try {
-      const resClients = await fetch(`${API_URL}/mock-facturacion/clientes`, { cache: "no-store" });
+      const resClients = await fetch(`${API_URL}/facturas/clientes`, { cache: "no-store" });
       const listClients = await resClients.json();
       setClientes(listClients);
 
-      const resFacturas = await fetch(`${API_URL}/mock-facturacion/facturas`, { cache: "no-store" });
+      const resFacturas = await fetch(`${API_URL}/facturas`, { cache: "no-store" });
       const listFacturas = await resFacturas.json();
 
       const resPagos = await fetch(`${API_URL}/pagos/reporte`, { cache: "no-store" });
@@ -226,7 +226,7 @@ export default function FacturasPage() {
     };
 
     try {
-      const res = await fetch(`${API_URL}/mock-facturacion/facturas`, {
+      const res = await fetch(`${API_URL}/facturas`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

@@ -13,7 +13,7 @@ export default function ClientesPage() {
   useEffect(() => {
     const cargarClientes = async () => {
       try {
-        const response = await fetch(`${API_URL}/mock-facturacion/clientes`, { cache: "no-store" });
+        const response = await fetch(`${API_URL}/facturas/clientes`, { cache: "no-store" });
         if (response.ok) {
           const data = await response.json();
           setClientes(data);

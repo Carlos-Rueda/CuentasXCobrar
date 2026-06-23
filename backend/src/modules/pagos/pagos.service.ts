@@ -1,12 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PagoEntity } from './pago.entity';
 import { CreatePagoDto } from './dto/create-pago.dto';
-import { FacturacionMockService } from '../../facturacion-mock/facturacion-mock.service';
+import { FacturasService } from '../facturas/facturas.service';
 import * as PDFDocument from 'pdfkit';
 
 @Injectable()
 export class PagosService {
-  constructor(private readonly facturacionService: FacturacionMockService) {}
+  constructor(private readonly facturacionService: FacturasService) {}
 
   private pagos: PagoEntity[] = [
     {
@@ -31,7 +31,7 @@ export class PagosService {
     return pagado;
   }
 
-  registrarCobro(pago: CreatePagoDto) {
+  async registrarCobro(pago: CreatePagoDto) {
     const nuevoPago: PagoEntity = {
       id: Date.now().toString(),
       fecha: new Date().toISOString(),
@@ -41,7 +41,7 @@ export class PagosService {
     const facturasAfectadas: any[] = [];
 
     for (const detalle of nuevoPago.detalles) {
-      const factura = this.facturacionService.findOneFactura(detalle.facturaId);
+      const factura = await this.facturacionService.findOneFactura(detalle.facturaId);
       if (!factura) {
         throw new NotFoundException(
           `Factura con ID ${detalle.facturaId} no encontrada`,
@@ -70,8 +70,9 @@ export class PagosService {
     };
   }
 
-  obtenerFacturas() {
-    return this.facturacionService.findAllFacturas().map(f => {
+  async obtenerFacturas() {
+    const facturas = await this.facturacionService.findAllFacturas();
+    return facturas.map(f => {
       const pagado = this.calcularPagadoParaFactura(f.id);
       return {
         id: f.id,
@@ -82,14 +83,16 @@ export class PagosService {
     });
   }
 
-  obtenerEstadoCuenta(clienteId: string) {
-    return this.obtenerFacturas().filter((factura) => factura.clienteId === clienteId);
+  async obtenerEstadoCuenta(clienteId: string) {
+    const facturas = await this.obtenerFacturas();
+    return facturas.filter((factura) => factura.clienteId === clienteId);
   }
 
-  obtenerClientesConDeuda() {
+  async obtenerClientesConDeuda() {
     const resumen: Record<string, number> = {};
+    const facturas = await this.obtenerFacturas();
 
-    this.obtenerFacturas().forEach((factura) => {
+    facturas.forEach((factura) => {
       if (factura.pendiente > 0) {
         if (!resumen[factura.clienteId]) {
           resumen[factura.clienteId] = 0;
@@ -104,6 +107,7 @@ export class PagosService {
       saldoPendiente: resumen[clienteId],
     }));
   }
+
   generarReciboPdf(id: string): Promise<Buffer> {
     const pago = this.pagos.find((p) => p.id === id);
     if (!pago) {
@@ -112,8 +116,6 @@ export class PagosService {
 
     return new Promise((resolve, reject) => {
       try {
-        // En algunos entornos de TS, al importar con namespace * as PDFDocument,
-        // la clase constructible puede requerir acceder a la propiedad default o tratarse directamente.
         const DocConstructor = (PDFDocument.default || PDFDocument) as any;
         const doc = new DocConstructor({ margin: 50 });
         const chunks: Buffer[] = [];

@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { PagosController } from './pagos.controller';
 import { PagosService } from './pagos.service';
-import { FacturacionMockModule } from '../../facturacion-mock/facturacion-mock.module';
+import { FacturasModule } from '../facturas/facturas.module';
 
 @Module({
-  imports: [FacturacionMockModule],
+  imports: [FacturasModule],
   controllers: [PagosController],
   providers: [PagosService],
   exports: [PagosService],

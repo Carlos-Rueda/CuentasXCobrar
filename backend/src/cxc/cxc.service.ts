@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { FacturacionMockService } from '../facturacion-mock/facturacion-mock.service';
+import { FacturasService } from '../modules/facturas/facturas.service';
 import { PagosService } from '../modules/pagos/pagos.service';
 import { EstadoCuentaDto, MovimientoDto } from './dto/estado-cuenta.dto';
 import { ValidadorDeudaDto } from './dto/validador-deuda.dto';
@@ -7,17 +7,17 @@ import { ValidadorDeudaDto } from './dto/validador-deuda.dto';
 @Injectable()
 export class CxcService {
   constructor(
-    private readonly facturacionService: FacturacionMockService,
+    private readonly facturacionService: FacturasService,
     private readonly pagosService: PagosService,
   ) {}
 
   async generarEstadoCuenta(clienteId: string): Promise<EstadoCuentaDto> {
-    // 1. Obtener los datos del cliente desde el módulo de Facturación (Mock)
-    const cliente = this.facturacionService.findOneCliente(clienteId);
+    // 1. Obtener los datos del cliente desde el módulo de Facturación
+    const cliente = await this.facturacionService.findOneCliente(clienteId);
     if (!cliente) throw new NotFoundException('Cliente no encontrado');
 
-    // 2. Obtener todas las facturas de este cliente (Mock)
-    const facturas = this.facturacionService.findAllFacturas()
+    // 2. Obtener todas las facturas de este cliente
+    const facturas = (await this.facturacionService.findAllFacturas())
       .filter(f => f.clienteId === clienteId);
 
     // 3. Obtener pagos reales del cliente desde la base de datos en memoria

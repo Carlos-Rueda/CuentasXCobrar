@@ -1,6 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { CxcService } from './cxc/cxc.service';
-import { FacturacionMockService } from './facturacion-mock/facturacion-mock.service';
+import { FacturasService } from './modules/facturas/facturas.service';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Integración (Salida)')
@@ -8,14 +8,14 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 export class AppController {
   constructor(
     private readonly cxcService: CxcService,
-    private readonly facturacionService: FacturacionMockService,
+    private readonly facturacionService: FacturasService,
   ) {}
 
   @Get()
   @ApiOperation({ summary: 'Obtener reporte consolidado de deudas de todos los clientes para integración' })
   @ApiResponse({ status: 200, description: 'Listado de clientes con deudas y estados de crédito.' })
   async getConsolidadoDeuda() {
-    const clientes = this.facturacionService.findAllClientes();
+    const clientes = await this.facturacionService.findAllClientes();
     const resultado: any[] = [];
 
     for (const cli of clientes) {
@@ -23,7 +23,7 @@ export class AppController {
         const cxcInfo = await this.cxcService.generarEstadoCuenta(cli.id);
         const valInfo = await this.cxcService.validarDeudaCliente(cli.id);
         
-        const facturas = this.facturacionService.findAllFacturas()
+        const facturas = (await this.facturacionService.findAllFacturas())
           .filter(f => f.clienteId === cli.id);
         const totalCuentas = facturas.length;
 
