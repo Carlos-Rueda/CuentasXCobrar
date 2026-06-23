@@ -248,7 +248,6 @@ interface CuentaBancaria {
               <option value="">Seleccione una cuenta bancaria</option>
 
               {cuentasBancarias
-                .filter((cuenta) => cuenta.clienteId === formData.clienteId)
                 .map((cuenta) => (
                   <option key={cuenta.id} value={cuenta.id}>
                     {cuenta.codigo} - {cuenta.nombreCuenta}

@@ -23,7 +23,7 @@ export class CuentasBancariasService implements OnModuleInit {
               entidad_bancaria: 'Banco Pichincha',
               descripcion:
                 'Cuenta corriente principal para recibir transferencias interbancarias y depósitos de clientes.',
-              estado: 'activo',
+              estado: 'ACTIVO',
             },
             {
               codigo: 'CTA-BAN-002',
@@ -31,7 +31,7 @@ export class CuentasBancariasService implements OnModuleInit {
               entidad_bancaria: 'Banco Guayaquil',
               descripcion:
                 'Cuenta de ahorros destinada a la recaudación de pagos con cheques y depósitos directos.',
-              estado: 'activo',
+              estado: 'ACTIVO',
             },
             {
               codigo: 'CTA-BAN-003',
@@ -39,7 +39,7 @@ export class CuentasBancariasService implements OnModuleInit {
               entidad_bancaria: 'Produbanco',
               descripcion:
                 'Cuenta de uso exclusivo para cobros corporativos de clientes VIP y transferencias internacionales.',
-              estado: 'activo',
+              estado: 'ACTIVO',
             },
           ],
         });
@@ -66,7 +66,7 @@ export class CuentasBancariasService implements OnModuleInit {
       nombreCuenta: db.nombre_cuenta,
       entidadBancaria: db.entidad_bancaria,
       descripcion: db.descripcion || undefined,
-      estado: db.estado || 'activo',
+      estado: (db.estado || 'ACTIVO').toUpperCase(),
     };
   }
 

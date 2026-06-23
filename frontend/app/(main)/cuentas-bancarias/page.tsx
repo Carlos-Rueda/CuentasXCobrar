@@ -21,7 +21,6 @@ export default function CuentasBancariasPage() {
     entidadBancaria: "",
     descripcion: "",
     estado: true,
-    clienteId: "",
   });
   const [mostrarModal, setMostrarModal] = useState(false);
   const [editandoId, setEditandoId] = useState<string | null>(null);
@@ -65,7 +64,6 @@ export default function CuentasBancariasPage() {
       entidadBancaria: formData.entidadBancaria,
       descripcion: formData.descripcion,
       estado: formData.estado ? "ACTIVO" : "INACTIVO",
-      clienteId: formData.clienteId || undefined,
     };
 
     try {
@@ -105,7 +103,6 @@ export default function CuentasBancariasPage() {
           entidadBancaria: "",
           descripcion: "",
           estado: true,
-          clienteId: "",
         });
         setEditandoId(null);
         setMostrarModal(false);
@@ -126,7 +123,6 @@ export default function CuentasBancariasPage() {
       entidadBancaria: cuenta.entidadBancaria,
       descripcion: cuenta.descripcion || "",
       estado: cuenta.estado === "ACTIVO",
-      clienteId: cuenta.clienteId || "",
     });
     setEditandoId(cuenta.id);
     setMostrarModal(true);
@@ -165,7 +161,6 @@ export default function CuentasBancariasPage() {
                 entidadBancaria: "",
                 descripcion: "",
                 estado: true,
-                clienteId: "",
               });
               setMostrarModal(true);
             }}
@@ -181,7 +176,6 @@ export default function CuentasBancariasPage() {
                 <th>Código</th>
                 <th>Nombre Cuenta</th>
                 <th>Entidad Bancaria</th>
-                <th>Cliente</th>
                 <th>Estado</th>
                 <th>Acciones</th>
               </tr>
@@ -194,9 +188,6 @@ export default function CuentasBancariasPage() {
                     <td>{cuenta.codigo}</td>
                     <td>{cuenta.nombreCuenta}</td>
                     <td>{cuenta.entidadBancaria}</td>
-                    <td>
-                      {clientes.find((c) => c.id === cuenta.clienteId)?.nombre || "Sin Asignar"}
-                    </td>
                     <td>
                       <span style={{
                         padding: "4px 8px",
@@ -229,7 +220,7 @@ export default function CuentasBancariasPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: "center", padding: "20px", color: "#64748b" }}>
+                  <td colSpan={5} style={{ textAlign: "center", padding: "20px", color: "#64748b" }}>
                     No hay cuentas bancarias registradas.
                   </td>
                 </tr>
@@ -285,29 +276,6 @@ export default function CuentasBancariasPage() {
                     />
                   </div>
 
-                  <div className={styles.group}>
-                    <label>Cliente Propietario *</label>
-                    <select
-                      name="clienteId"
-                      value={formData.clienteId}
-                      onChange={(e) => setFormData({ ...formData, clienteId: e.target.value })}
-                      style={{
-                        padding: "10px",
-                        borderRadius: "8px",
-                        border: "1px solid #cbd5e1",
-                        backgroundColor: "#fff",
-                        fontSize: "14px",
-                        outline: "none"
-                      }}
-                    >
-                      <option value="">Seleccione un cliente</option>
-                      {clientes.map((cliente) => (
-                        <option key={cliente.id} value={cliente.id}>
-                          {cliente.nombre}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
 
                   <div className={styles.group}>
                     <label>Descripción</label>
