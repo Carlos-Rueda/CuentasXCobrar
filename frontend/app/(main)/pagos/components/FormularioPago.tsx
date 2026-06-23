@@ -108,7 +108,7 @@ interface CuentaBancaria {
         clienteId: formData.clienteId,
         cuentaBancariaId: formData.cuentaBancariaId,
         montoTotal: montoTotalCalculado,
-
+        descripcion: formData.descripcion,
         detalles: facturasSeleccionadas,
       };
       console.log("PAYLOAD", payload);

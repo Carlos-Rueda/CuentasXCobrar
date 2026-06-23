@@ -21,10 +21,9 @@ export class CxcService {
       (f) => f.clienteId === clienteId,
     );
 
-    // 3. Obtener pagos reales del cliente desde la base de datos en memoria
-    const pagosReales = this.pagosService
-      .obtenerReporte()
-      .filter((p) => p.clienteId === clienteId);
+    // 3. Obtener pagos reales del cliente desde la base de datos real
+    const pagos = await this.pagosService.obtenerReporte();
+    const pagosReales = pagos.filter((p) => p.clienteId === clienteId);
 
     // 4. Procesar el Historial de Movimientos (Cruzar Facturas y Pagos)
     const historial: MovimientoDto[] = [];

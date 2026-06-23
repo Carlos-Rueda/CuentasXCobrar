@@ -12,6 +12,8 @@ describe('PagosController', () => {
     obtenerClientesConDeuda: jest.fn(),
     generarReciboPdf: jest.fn(),
     obtenerReporte: jest.fn(),
+    findAll: jest.fn().mockResolvedValue([]),
+    findOne: jest.fn().mockResolvedValue(null),
   };
 
   beforeEach(async () => {

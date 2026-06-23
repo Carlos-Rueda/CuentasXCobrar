@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Res, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Res, Query, NotFoundException } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -25,11 +25,22 @@ export class PagosController {
     return await this.pagosService.registrarCobro(pago);
   }
 
+  @Get()
+  @ApiOperation({ summary: 'Obtener todos los pagos registrados' })
+  @ApiResponse({
+    status: 200,
+    description: 'Retorna todos los pagos guardados en base de datos.',
+    type: [PagoEntity],
+  })
+  async findAll(): Promise<PagoEntity[]> {
+    return await this.pagosService.findAll();
+  }
+
   @Get('facturas')
   @ApiOperation({
-    summary: 'Obtener facturas simuladas con sus montos pendientes',
+    summary: 'Obtener facturas con sus montos pendientes calculados desde la BD',
   })
-  @ApiResponse({ status: 200, description: 'Retorna las facturas en memoria.' })
+  @ApiResponse({ status: 200, description: 'Retorna las facturas con saldo pendiente actual.' })
   async obtenerFacturas() {
     return await this.pagosService.obtenerFacturas();
   }
@@ -55,11 +66,11 @@ export class PagosController {
     description: 'Retorna los cobros/pagos filtrados por rango de fechas.',
     type: [PagoEntity],
   })
-  obtenerReporte(
+  async obtenerReporte(
     @Query('fechaInicio') fechaInicio?: string,
     @Query('fechaFin') fechaFin?: string,
-  ): PagoEntity[] {
-    return this.pagosService.obtenerReporte(fechaInicio, fechaFin);
+  ): Promise<PagoEntity[]> {
+    return await this.pagosService.obtenerReporte(fechaInicio, fechaFin);
   }
 
   @Get('estado-cuenta/:clienteId')
@@ -84,6 +95,19 @@ export class PagosController {
   })
   async obtenerClientesConDeuda() {
     return await this.pagosService.obtenerClientesConDeuda();
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Obtener un pago específico por ID con datos del cliente' })
+  @ApiParam({ name: 'id', description: 'ID del pago a buscar' })
+  @ApiResponse({ status: 200, description: 'Datos del pago y del cliente.' })
+  @ApiResponse({ status: 404, description: 'Pago no encontrado.' })
+  async findOne(@Param('id') id: string) {
+    const pago = await this.pagosService.findOne(id);
+    if (!pago) {
+      throw new NotFoundException(`Pago con ID ${id} no encontrado`);
+    }
+    return pago;
   }
 
   @Get(':id/pdf')

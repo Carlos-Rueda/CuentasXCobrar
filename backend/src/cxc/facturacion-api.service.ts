@@ -246,4 +246,31 @@ export class FacturacionApiService {
         estado: f.estado,
       }));
   }
+
+  /**
+   * Obtiene todas las facturas de facturación desde la API GraphQL.
+   */
+  async obtenerFacturas(): Promise<FacturaDto[]> {
+    const query = `
+      query {
+        facturas {
+          items {
+            id
+            numeroFactura
+            clienteId
+            total
+            estado
+          }
+        }
+      }
+    `;
+    const data = await this.queryGraphQL<FacturasResponse>(query);
+    return (data.facturas?.items || []).map((f) => ({
+      id: f.id,
+      numeroFactura: f.numeroFactura,
+      clienteId: f.clienteId,
+      total: f.total,
+      estado: f.estado,
+    }));
+  }
 }
