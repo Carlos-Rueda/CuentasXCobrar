@@ -6,13 +6,17 @@ import 'dotenv/config';
 
 @Injectable()
 export class FacturasService {
-  private readonly graphqlUrl = 'https://ad-modulo-facturacion.onrender.com/graphql';
+  private readonly graphqlUrl =
+    'https://ad-modulo-facturacion.onrender.com/graphql';
 
   /**
    * Helper privado para realizar peticiones POST a la API GraphQL.
    */
   private async queryGraphQL(query: string, variables: any = {}) {
-    const token = process.env.FACTURACION_JWT_TOKEN || process.env.FACTURACION_API_TOKEN || '';
+    const token =
+      process.env.FACTURACION_JWT_TOKEN ||
+      process.env.FACTURACION_API_TOKEN ||
+      '';
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -40,8 +44,8 @@ export class FacturasService {
     return {
       id: gqlCliente.id,
       nombre: gqlCliente.nombre,
-      ruc: gqlCliente.cedula,       // Mapeo: 'cedula' -> 'ruc'
-      correo: gqlCliente.email,     // Mapeo: 'email' -> 'correo'
+      ruc: gqlCliente.cedula, // Mapeo: 'cedula' -> 'ruc'
+      correo: gqlCliente.email, // Mapeo: 'email' -> 'correo'
       telefono: gqlCliente.telefono,
     };
   }
@@ -50,17 +54,21 @@ export class FacturasService {
    * Mapea el formato de factura devuelto por GraphQL al FacturaDto esperado por el sistema.
    */
   private mapFactura(gqlFactura: any): FacturaDto {
-    const detalles: DetalleFacturaDto[] = (gqlFactura.detalles || []).map((d: any) => ({
-      producto: d.productoNombre || d.productoCodigo || 'Producto Sin Nombre',
-      cantidad: d.cantidad,
-      precioUnitario: d.precioUnitario || 0,
-    }));
+    const detalles: DetalleFacturaDto[] = (gqlFactura.detalles || []).map(
+      (d: any) => ({
+        producto: d.productoNombre || d.productoCodigo || 'Producto Sin Nombre',
+        cantidad: d.cantidad,
+        precioUnitario: d.precioUnitario || 0,
+      }),
+    );
 
     return {
       id: gqlFactura.id,
       numero: gqlFactura.numeroFactura, // Mapeo: 'numeroFactura' -> 'numero'
       clienteId: gqlFactura.clienteId,
-      fechaEmision: gqlFactura.fechaEmision ? gqlFactura.fechaEmision.split('T')[0] : '',
+      fechaEmision: gqlFactura.fechaEmision
+        ? gqlFactura.fechaEmision.split('T')[0]
+        : '',
       total: gqlFactura.total,
       estado: gqlFactura.estado,
       detalles,
@@ -165,7 +173,9 @@ export class FacturasService {
   /**
    * Obtiene facturas pendientes de un cliente.
    */
-  async findFacturasPendientesByCliente(clienteId: string): Promise<FacturaDto[]> {
+  async findFacturasPendientesByCliente(
+    clienteId: string,
+  ): Promise<FacturaDto[]> {
     // Para mayor robustez, consultamos las facturas filtradas
     const query = `
       query($clienteId: String!) {
@@ -183,12 +193,16 @@ export class FacturasService {
     `;
     try {
       const data = await this.queryGraphQL(query, { clienteId });
-      const facturas = (data.facturas?.items || []).map((f: any) => this.mapFactura(f));
+      const facturas = (data.facturas?.items || []).map((f: any) =>
+        this.mapFactura(f),
+      );
       return facturas.filter((f: FacturaDto) => f.estado === 'PENDIENTE');
     } catch {
       // Fallback: Filtrado en memoria en caso de que la API de filter falle o varíe
       const todas = await this.findAllFacturas();
-      return todas.filter(f => f.clienteId === clienteId && f.estado === 'PENDIENTE');
+      return todas.filter(
+        (f) => f.clienteId === clienteId && f.estado === 'PENDIENTE',
+      );
     }
   }
 

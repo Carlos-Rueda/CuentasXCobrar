@@ -24,14 +24,19 @@ export class CuentasBancariasService {
   /**
    * Crea una nueva cuenta bancaria.
    */
-  async create(cuenta: CreateCuentaBancariaDto): Promise<CuentaBancariaEntity | null> {
+  async create(
+    cuenta: CreateCuentaBancariaDto,
+  ): Promise<CuentaBancariaEntity | null> {
     return null;
   }
 
   /**
    * Actualiza una cuenta bancaria existente.
    */
-  async update(id: string, cuentaActualizada: UpdateCuentaBancariaDto): Promise<CuentaBancariaEntity | null> {
+  async update(
+    id: string,
+    cuentaActualizada: UpdateCuentaBancariaDto,
+  ): Promise<CuentaBancariaEntity | null> {
     return null;
   }
 

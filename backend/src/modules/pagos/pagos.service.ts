@@ -24,8 +24,8 @@ export class PagosService {
 
   calcularPagadoParaFactura(facturaId: string): number {
     let pagado = 0;
-    this.pagos.forEach(p => {
-      const detail = p.detalles.find(d => d.facturaId === facturaId);
+    this.pagos.forEach((p) => {
+      const detail = p.detalles.find((d) => d.facturaId === facturaId);
       if (detail) pagado += detail.montoAbonado;
     });
     return pagado;
@@ -41,14 +41,18 @@ export class PagosService {
     const facturasAfectadas: any[] = [];
 
     for (const detalle of nuevoPago.detalles) {
-      const factura = await this.facturacionService.findOneFactura(detalle.facturaId);
+      const factura = await this.facturacionService.findOneFactura(
+        detalle.facturaId,
+      );
       if (!factura) {
         throw new NotFoundException(
           `Factura con ID ${detalle.facturaId} no encontrada`,
         );
       }
 
-      const pagadoFactura = this.calcularPagadoParaFactura(detalle.facturaId) + detalle.montoAbonado;
+      const pagadoFactura =
+        this.calcularPagadoParaFactura(detalle.facturaId) +
+        detalle.montoAbonado;
       if (pagadoFactura >= factura.total) {
         factura.estado = 'PAGADA';
       }
@@ -57,7 +61,7 @@ export class PagosService {
         id: factura.id,
         clienteId: factura.clienteId,
         total: factura.total,
-        pendiente: Math.max(0, factura.total - pagadoFactura)
+        pendiente: Math.max(0, factura.total - pagadoFactura),
       });
     }
 
@@ -72,13 +76,13 @@ export class PagosService {
 
   async obtenerFacturas() {
     const facturas = await this.facturacionService.findAllFacturas();
-    return facturas.map(f => {
+    return facturas.map((f) => {
       const pagado = this.calcularPagadoParaFactura(f.id);
       return {
         id: f.id,
         clienteId: f.clienteId,
         total: f.total,
-        pendiente: Math.max(0, f.total - pagado)
+        pendiente: Math.max(0, f.total - pagado),
       };
     });
   }

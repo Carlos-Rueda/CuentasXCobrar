@@ -12,8 +12,14 @@ export class AppController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'Obtener reporte consolidado de deudas de todos los clientes para integración' })
-  @ApiResponse({ status: 200, description: 'Listado de clientes con deudas y estados de crédito.' })
+  @ApiOperation({
+    summary:
+      'Obtener reporte consolidado de deudas de todos los clientes para integración',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Listado de clientes con deudas y estados de crédito.',
+  })
   async getConsolidadoDeuda() {
     const clientes = await this.facturacionService.findAllClientes();
     const resultado: any[] = [];
@@ -22,9 +28,10 @@ export class AppController {
       try {
         const cxcInfo = await this.cxcService.generarEstadoCuenta(cli.id);
         const valInfo = await this.cxcService.validarDeudaCliente(cli.id);
-        
-        const facturas = (await this.facturacionService.findAllFacturas())
-          .filter(f => f.clienteId === cli.id);
+
+        const facturas = (
+          await this.facturacionService.findAllFacturas()
+        ).filter((f) => f.clienteId === cli.id);
         const totalCuentas = facturas.length;
 
         resultado.push({
