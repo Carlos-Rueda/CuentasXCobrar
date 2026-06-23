@@ -8,9 +8,11 @@ import { PagosModule } from './modules/pagos/pagos.module';
 import { CuentasCobrarModule } from './modules/cuentas-cobrar/cuentas-cobrar.module';
 import { CxcModule } from './cxc/cxc.module';
 import { CuentasBancariasModule } from './modules/cuentas-bancarias/cuentas-bancarias.module';
+import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
   imports: [
+    PrismaModule,
     AuthModule,
     ClientesModule,
     FacturasModule,
