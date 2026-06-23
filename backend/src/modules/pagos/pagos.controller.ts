@@ -21,8 +21,8 @@ export class PagosController {
     status: 201,
     description: 'Cobro registrado y facturas actualizadas con éxito.',
   })
-  registrarCobro(@Body() pago: CreatePagoDto) {
-    return this.pagosService.registrarCobro(pago);
+  async registrarCobro(@Body() pago: CreatePagoDto) {
+    return await this.pagosService.registrarCobro(pago);
   }
 
   @Get('facturas')
@@ -30,8 +30,8 @@ export class PagosController {
     summary: 'Obtener facturas simuladas con sus montos pendientes',
   })
   @ApiResponse({ status: 200, description: 'Retorna las facturas en memoria.' })
-  obtenerFacturas() {
-    return this.pagosService.obtenerFacturas();
+  async obtenerFacturas() {
+    return await this.pagosService.obtenerFacturas();
   }
 
   @Get('reporte')
@@ -61,6 +61,7 @@ export class PagosController {
   ): PagoEntity[] {
     return this.pagosService.obtenerReporte(fechaInicio, fechaFin);
   }
+
   @Get('estado-cuenta/:clienteId')
   @ApiOperation({
     summary: 'Consultar estado de cuenta de un cliente',
@@ -73,15 +74,16 @@ export class PagosController {
     status: 200,
     description: 'Estado de cuenta del cliente',
   })
-  obtenerEstadoCuenta(@Param('clienteId') clienteId: string) {
-    return this.pagosService.obtenerEstadoCuenta(clienteId);
+  async obtenerEstadoCuenta(@Param('clienteId') clienteId: string) {
+    return await this.pagosService.obtenerEstadoCuenta(clienteId);
   }
+
   @Get('clientes-deuda')
   @ApiOperation({
     summary: 'Listado de clientes con saldo pendiente',
   })
-  obtenerClientesConDeuda() {
-    return this.pagosService.obtenerClientesConDeuda();
+  async obtenerClientesConDeuda() {
+    return await this.pagosService.obtenerClientesConDeuda();
   }
 
   @Get(':id/pdf')

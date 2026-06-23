@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { API_URL } from "@/app/config";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,7 +23,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:3000/api/cxc/auth/login-mock", {
+      const res = await fetch(`${API_URL}/cxc/auth/login-mock`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({
@@ -47,7 +48,7 @@ export default function LoginPage() {
       router.push("/dashboard");
 
     } catch {
-      setError("No se pudo conectar con el servidor. Verifique que el backend esté corriendo en el puerto 3000.");
+      setError("No se pudo conectar con el servidor. Verifique que el backend esté encendido.");
     } finally {
       setLoading(false);
     }

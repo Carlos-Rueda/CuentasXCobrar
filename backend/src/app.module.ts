@@ -6,7 +6,6 @@ import { ClientesModule } from './modules/clientes/clientes.module';
 import { FacturasModule } from './modules/facturas/facturas.module';
 import { PagosModule } from './modules/pagos/pagos.module';
 import { CuentasCobrarModule } from './modules/cuentas-cobrar/cuentas-cobrar.module';
-import { FacturacionMockModule } from './facturacion-mock/facturacion-mock.module';
 import { CxcModule } from './cxc/cxc.module';
 import { CuentasBancariasModule } from './modules/cuentas-bancarias/cuentas-bancarias.module';
 
@@ -17,7 +16,6 @@ import { CuentasBancariasModule } from './modules/cuentas-bancarias/cuentas-banc
     FacturasModule,
     PagosModule,
     CuentasCobrarModule,
-    FacturacionMockModule,
     CxcModule,
     CuentasBancariasModule,
   ],

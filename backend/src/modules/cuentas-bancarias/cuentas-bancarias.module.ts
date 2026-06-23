@@ -8,4 +8,3 @@ import { CuentasBancariasController } from './cuentas-bancarias.controller';
   exports: [CuentasBancariasService],
 })
 export class CuentasBancariasModule {}
-
