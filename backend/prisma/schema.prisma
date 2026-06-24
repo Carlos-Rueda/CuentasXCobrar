@@ -18,6 +18,10 @@ model cuentas_bancarias {
   estado           String?          @default("activo") @db.VarChar
   created_at       DateTime?        @default(now()) @db.Timestamptz(6)
   updated_at       DateTime?        @default(now()) @db.Timestamptz(6)
+  titular          String?          @db.VarChar
+  tipo_cuenta      String?          @db.VarChar
+  nro_cuenta       String?          @db.VarChar
+  ruc              String?          @db.VarChar
   pagos_clientes   pagos_clientes[]
 }
 

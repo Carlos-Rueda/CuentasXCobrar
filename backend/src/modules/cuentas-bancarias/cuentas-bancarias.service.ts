@@ -21,6 +21,10 @@ export class CuentasBancariasService implements OnModuleInit {
               codigo: 'CTA-BAN-001',
               nombre_cuenta: 'Cuenta Corriente Principal',
               entidad_bancaria: 'Banco Pichincha',
+              titular: 'Empresa Integrador S.A.',
+              tipo_cuenta: 'Corriente',
+              nro_cuenta: '2100987654',
+              ruc: '1790011223001',
               descripcion:
                 'Cuenta corriente principal para recibir transferencias interbancarias y depósitos de clientes.',
               estado: 'ACTIVO',
@@ -29,6 +33,10 @@ export class CuentasBancariasService implements OnModuleInit {
               codigo: 'CTA-BAN-002',
               nombre_cuenta: 'Cuenta de Ahorros Recaudación',
               entidad_bancaria: 'Banco Guayaquil',
+              titular: 'Empresa Integrador S.A.',
+              tipo_cuenta: 'Ahorros',
+              nro_cuenta: '1209876543',
+              ruc: '1790011223001',
               descripcion:
                 'Cuenta de ahorros destinada a la recaudación de pagos con cheques y depósitos directos.',
               estado: 'ACTIVO',
@@ -37,6 +45,10 @@ export class CuentasBancariasService implements OnModuleInit {
               codigo: 'CTA-BAN-003',
               nombre_cuenta: 'Cuenta Especial Corriente',
               entidad_bancaria: 'Produbanco',
+              titular: 'Empresa Integrador S.A. VIP',
+              tipo_cuenta: 'Corriente',
+              nro_cuenta: '5500987612',
+              ruc: '1790011223001',
               descripcion:
                 'Cuenta de uso exclusivo para cobros corporativos de clientes VIP y transferencias internacionales.',
               estado: 'ACTIVO',
@@ -52,19 +64,16 @@ export class CuentasBancariasService implements OnModuleInit {
   /**
    * Mapea un registro de base de datos cuentas_bancarias (snake_case) al formato del frontend CuentaBancariaEntity (camelCase).
    */
-  private mapToEntity(db: {
-    id: string;
-    codigo: string;
-    nombre_cuenta: string;
-    entidad_bancaria: string;
-    descripcion: string | null;
-    estado: string | null;
-  }): CuentaBancariaEntity {
+  private mapToEntity(db: any): CuentaBancariaEntity {
     return {
       id: db.id,
       codigo: db.codigo,
       nombreCuenta: db.nombre_cuenta,
       entidadBancaria: db.entidad_bancaria,
+      titular: db.titular || '',
+      tipoCuenta: db.tipo_cuenta || '',
+      nroCuenta: db.nro_cuenta || '',
+      ruc: db.ruc || '',
       descripcion: db.descripcion || undefined,
       estado: (db.estado || 'ACTIVO').toUpperCase(),
     };
@@ -102,8 +111,12 @@ export class CuentasBancariasService implements OnModuleInit {
         codigo: cuenta.codigo,
         nombre_cuenta: cuenta.nombreCuenta,
         entidad_bancaria: cuenta.entidadBancaria,
+        titular: cuenta.titular,
+        tipo_cuenta: cuenta.tipoCuenta,
+        nro_cuenta: cuenta.nroCuenta,
+        ruc: cuenta.ruc,
         descripcion: cuenta.descripcion || null,
-        estado: cuenta.estado || 'activo',
+        estado: cuenta.estado || 'ACTIVO',
       },
     });
     return this.mapToEntity(dbCuenta);
@@ -116,13 +129,7 @@ export class CuentasBancariasService implements OnModuleInit {
     id: string,
     cuentaActualizada: UpdateCuentaBancariaDto,
   ): Promise<CuentaBancariaEntity | null> {
-    const data: {
-      codigo?: string;
-      nombre_cuenta?: string;
-      entidad_bancaria?: string;
-      descripcion?: string | null;
-      estado?: string;
-    } = {};
+    const data: any = {};
 
     if (cuentaActualizada.codigo !== undefined) {
       data.codigo = cuentaActualizada.codigo;
@@ -132,6 +139,18 @@ export class CuentasBancariasService implements OnModuleInit {
     }
     if (cuentaActualizada.entidadBancaria !== undefined) {
       data.entidad_bancaria = cuentaActualizada.entidadBancaria;
+    }
+    if (cuentaActualizada.titular !== undefined) {
+      data.titular = cuentaActualizada.titular;
+    }
+    if (cuentaActualizada.tipoCuenta !== undefined) {
+      data.tipo_cuenta = cuentaActualizada.tipoCuenta;
+    }
+    if (cuentaActualizada.nroCuenta !== undefined) {
+      data.nro_cuenta = cuentaActualizada.nroCuenta;
+    }
+    if (cuentaActualizada.ruc !== undefined) {
+      data.ruc = cuentaActualizada.ruc;
     }
     if (cuentaActualizada.descripcion !== undefined) {
       data.descripcion = cuentaActualizada.descripcion || null;

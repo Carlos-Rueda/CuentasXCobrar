@@ -19,6 +19,10 @@ export default function CuentasBancariasPage() {
     codigo: "",
     nombreCuenta: "",
     entidadBancaria: "",
+    titular: "",
+    tipoCuenta: "Corriente",
+    nroCuenta: "",
+    ruc: "",
     descripcion: "",
     estado: true,
   });
@@ -62,6 +66,10 @@ export default function CuentasBancariasPage() {
       codigo: formData.codigo,
       nombreCuenta: formData.nombreCuenta,
       entidadBancaria: formData.entidadBancaria,
+      titular: formData.titular,
+      tipoCuenta: formData.tipoCuenta,
+      nroCuenta: formData.nroCuenta,
+      ruc: formData.ruc,
       descripcion: formData.descripcion,
       estado: formData.estado ? "ACTIVO" : "INACTIVO",
     };
@@ -101,6 +109,10 @@ export default function CuentasBancariasPage() {
           codigo: "",
           nombreCuenta: "",
           entidadBancaria: "",
+          titular: "",
+          tipoCuenta: "Corriente",
+          nroCuenta: "",
+          ruc: "",
           descripcion: "",
           estado: true,
         });
@@ -121,6 +133,10 @@ export default function CuentasBancariasPage() {
       codigo: cuenta.codigo,
       nombreCuenta: cuenta.nombreCuenta,
       entidadBancaria: cuenta.entidadBancaria,
+      titular: cuenta.titular || "",
+      tipoCuenta: cuenta.tipoCuenta || "Corriente",
+      nroCuenta: cuenta.nroCuenta || "",
+      ruc: cuenta.ruc || "",
       descripcion: cuenta.descripcion || "",
       estado: cuenta.estado === "ACTIVO",
     });
@@ -159,6 +175,10 @@ export default function CuentasBancariasPage() {
                 codigo: "",
                 nombreCuenta: "",
                 entidadBancaria: "",
+                titular: "",
+                tipoCuenta: "Corriente",
+                nroCuenta: "",
+                ruc: "",
                 descripcion: "",
                 estado: true,
               });
@@ -176,6 +196,10 @@ export default function CuentasBancariasPage() {
                 <th>Código</th>
                 <th>Nombre Cuenta</th>
                 <th>Entidad Bancaria</th>
+                <th>Titular</th>
+                <th>Tipo</th>
+                <th>Nro. Cuenta</th>
+                <th>RUC</th>
                 <th>Estado</th>
                 <th>Acciones</th>
               </tr>
@@ -188,6 +212,10 @@ export default function CuentasBancariasPage() {
                     <td>{cuenta.codigo}</td>
                     <td>{cuenta.nombreCuenta}</td>
                     <td>{cuenta.entidadBancaria}</td>
+                    <td>{cuenta.titular}</td>
+                    <td>{cuenta.tipoCuenta}</td>
+                    <td>{cuenta.nroCuenta}</td>
+                    <td>{cuenta.ruc}</td>
                     <td>
                       <span style={{
                         padding: "4px 8px",
@@ -220,7 +248,7 @@ export default function CuentasBancariasPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: "center", padding: "20px", color: "#64748b" }}>
+                  <td colSpan={9} style={{ textAlign: "center", padding: "20px", color: "#64748b" }}>
                     No hay cuentas bancarias registradas.
                   </td>
                 </tr>
@@ -276,6 +304,55 @@ export default function CuentasBancariasPage() {
                     />
                   </div>
 
+                  <div className={styles.group}>
+                    <label>Titular de la Cuenta *</label>
+                    <input
+                      name="titular"
+                      value={formData.titular}
+                      onChange={(e) => setFormData({ ...formData, titular: e.target.value })}
+                      placeholder="e.g. Empresa Integrador S.A."
+                    />
+                  </div>
+
+                  <div className={styles.group}>
+                    <label>Tipo de Cuenta *</label>
+                    <select
+                      name="tipoCuenta"
+                      value={formData.tipoCuenta}
+                      onChange={(e) => setFormData({ ...formData, tipoCuenta: e.target.value })}
+                      style={{
+                        padding: "10px",
+                        borderRadius: "8px",
+                        border: "1px solid #cbd5e1",
+                        backgroundColor: "#fff",
+                        fontSize: "14px",
+                        outline: "none"
+                      }}
+                    >
+                      <option value="Corriente">Corriente</option>
+                      <option value="Ahorros">Ahorros</option>
+                    </select>
+                  </div>
+
+                  <div className={styles.group}>
+                    <label>Número de Cuenta *</label>
+                    <input
+                      name="nroCuenta"
+                      value={formData.nroCuenta}
+                      onChange={(e) => setFormData({ ...formData, nroCuenta: e.target.value })}
+                      placeholder="e.g. 2100456789"
+                    />
+                  </div>
+
+                  <div className={styles.group}>
+                    <label>RUC Asociado *</label>
+                    <input
+                      name="ruc"
+                      value={formData.ruc}
+                      onChange={(e) => setFormData({ ...formData, ruc: e.target.value })}
+                      placeholder="e.g. 1790011223001"
+                    />
+                  </div>
 
                   <div className={styles.group}>
                     <label>Descripción</label>
