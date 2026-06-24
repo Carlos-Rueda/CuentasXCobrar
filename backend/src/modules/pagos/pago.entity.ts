@@ -9,13 +9,22 @@ export class PagoDetalle {
 }
 
 export class PagoEntity {
-  @ApiProperty({ example: '1718210344000', description: 'ID único del pago (UUID)' })
+  @ApiProperty({
+    example: '1718210344000',
+    description: 'ID único del pago (UUID)',
+  })
   id: string;
 
-  @ApiProperty({ example: 'PAG-CLI-00001', description: 'Número de pago autogenerado secuencial' })
+  @ApiProperty({
+    example: 'PAG-CLI-00001',
+    description: 'Número de pago autogenerado secuencial',
+  })
   numeroPago: string;
 
-  @ApiProperty({ example: 'Pago de facturas pendientes', description: 'Descripción o concepto del pago' })
+  @ApiProperty({
+    example: 'Pago de facturas pendientes',
+    description: 'Descripción o concepto del pago',
+  })
   descripcion: string;
 
   @ApiProperty({

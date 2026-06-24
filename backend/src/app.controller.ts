@@ -26,8 +26,12 @@ export class AppController {
 
     for (const cli of clientes) {
       try {
-        const cxcInfo = await this.cuentasCobrarService.generarEstadoCuenta(cli.id);
-        const valInfo = await this.cuentasCobrarService.validarDeudaCliente(cli.id);
+        const cxcInfo = await this.cuentasCobrarService.generarEstadoCuenta(
+          cli.id,
+        );
+        const valInfo = await this.cuentasCobrarService.validarDeudaCliente(
+          cli.id,
+        );
 
         const facturas = (
           await this.facturacionService.findAllFacturas()

@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Body, Param, Res, Query, NotFoundException } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-explicit-any */
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Res,
+  Query,
+  NotFoundException,
+} from '@nestjs/common';
+import * as express from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -10,16 +21,16 @@ import { PagosService } from './pagos.service';
 import { CreatePagoDto } from './dto/create-pago.dto';
 import { PagoEntity } from './pago.entity';
 
-@ApiTags('Pagos / Cobros')
+@ApiTags('Pagos')
 @Controller('pagos')
 export class PagosController {
   constructor(private readonly pagosService: PagosService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Registrar un nuevo cobro/pago' })
+  @ApiOperation({ summary: 'Registrar un nuevo pago' })
   @ApiResponse({
     status: 201,
-    description: 'Cobro registrado y facturas actualizadas con éxito.',
+    description: 'Pago registrado y facturas actualizadas con éxito.',
   })
   async registrarCobro(@Body() pago: CreatePagoDto) {
     return await this.pagosService.registrarCobro(pago);
@@ -38,16 +49,20 @@ export class PagosController {
 
   @Get('facturas')
   @ApiOperation({
-    summary: 'Obtener facturas con sus montos pendientes calculados desde la BD',
+    summary:
+      'Obtener facturas con sus montos pendientes calculados desde la BD',
   })
-  @ApiResponse({ status: 200, description: 'Retorna las facturas con saldo pendiente actual.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Retorna las facturas con saldo pendiente actual.',
+  })
   async obtenerFacturas() {
     return await this.pagosService.obtenerFacturas();
   }
 
   @Get('reporte')
   @ApiOperation({
-    summary: 'Generar reporte de cobros filtrado por rango de fechas',
+    summary: 'Generar reporte de pagos filtrado por rango de fechas',
   })
   @ApiQuery({
     name: 'fechaInicio',
@@ -63,7 +78,7 @@ export class PagosController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Retorna los cobros/pagos filtrados por rango de fechas.',
+    description: 'Retorna los pagos filtrados por rango de fechas.',
     type: [PagoEntity],
   })
   async obtenerReporte(
@@ -98,7 +113,9 @@ export class PagosController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Obtener un pago específico por ID con datos del cliente' })
+  @ApiOperation({
+    summary: 'Obtener un pago específico por ID con datos del cliente',
+  })
   @ApiParam({ name: 'id', description: 'ID del pago a buscar' })
   @ApiResponse({ status: 200, description: 'Datos del pago y del cliente.' })
   @ApiResponse({ status: 404, description: 'Pago no encontrado.' })
@@ -111,22 +128,22 @@ export class PagosController {
   }
 
   @Get(':id/pdf')
-  @ApiOperation({ summary: 'Generar comprobante de cobro en PDF' })
+  @ApiOperation({ summary: 'Generar comprobante de pago en PDF' })
   @ApiParam({
     name: 'id',
     description: 'ID del pago para generar el comprobante',
   })
   @ApiResponse({
     status: 200,
-    description: 'Archivo PDF del comprobante de cobro.',
+    description: 'Archivo PDF del comprobante de pago.',
   })
   @ApiResponse({ status: 404, description: 'Pago no encontrado.' })
-  async generarReciboPdf(@Param('id') id: string, @Res() res: any) {
-    const buffer = await this.pagosService.generarReciboPdf(id);
+  async generarReciboPdf(@Param('id') id: string, @Res() res: express.Response) {
+    const buffer = await this.pagosService.generarComprobantePdf(id);
 
     res.set({
       'Content-Type': 'application/pdf',
-      'Content-Disposition': 'attachment; filename=recibo-pago.pdf',
+      'Content-Disposition': 'attachment; filename=comprobante-pago.pdf',
       'Content-Length': buffer.length,
     });
 

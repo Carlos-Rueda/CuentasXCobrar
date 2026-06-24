@@ -36,7 +36,7 @@ export default function DashboardPage() {
 
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
           <p className="text-slate-500">
-            Cobros
+            Pagos
           </p>
 
           <h2 className="text-4xl font-bold text-slate-800 mt-3">
@@ -59,7 +59,7 @@ export default function DashboardPage() {
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
 
         <h2 className="text-xl font-semibold text-slate-800 mb-6">
-          Últimos Cobros
+          Últimos Pagos
         </h2>
 
         <table className="w-full">

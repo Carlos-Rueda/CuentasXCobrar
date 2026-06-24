@@ -35,7 +35,7 @@ function imprimirRecibo(r: Registro) {
     td:last-child{font-weight:500}
     .footer{margin-top:40px;font-size:12px;color:#999;text-align:center}
   </style></head><body>
-  <h1>Recibo de cobro</h1>
+  <h1>Recibo de pago</h1>
   <div class="sub">Sistema de Cuentas por Cobrar</div>
   <table>
     <tr><td>Cliente</td><td>${r.cliente}</td></tr>

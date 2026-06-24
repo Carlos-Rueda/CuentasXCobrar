@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { Test, TestingModule } from '@nestjs/testing';
 import { PagosService } from './pagos.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -47,7 +48,9 @@ describe('PagosService', () => {
 
     service = module.get<PagosService>(PagosService);
     prismaService = module.get<PrismaService>(PrismaService);
-    facturacionApiService = module.get<FacturacionApiService>(FacturacionApiService);
+    facturacionApiService = module.get<FacturacionApiService>(
+      FacturacionApiService,
+    );
   });
 
   it('should be defined', () => {
@@ -56,7 +59,9 @@ describe('PagosService', () => {
 
   describe('create', () => {
     it('should throw NotFoundException if bank account does not exist', async () => {
-      mockPrismaService.cuentas_bancarias.findUnique.mockResolvedValueOnce(null);
+      mockPrismaService.cuentas_bancarias.findUnique.mockResolvedValueOnce(
+        null,
+      );
 
       await expect(
         service.create({
@@ -68,7 +73,9 @@ describe('PagosService', () => {
     });
 
     it('should throw NotFoundException if client does not exist', async () => {
-      mockPrismaService.cuentas_bancarias.findUnique.mockResolvedValueOnce({ id: 'cb-001' });
+      mockPrismaService.cuentas_bancarias.findUnique.mockResolvedValueOnce({
+        id: 'cb-001',
+      });
       mockFacturacionApiService.obtenerClientePorId.mockResolvedValueOnce(null);
 
       await expect(

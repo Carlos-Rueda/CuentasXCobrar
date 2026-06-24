@@ -1,9 +1,28 @@
-import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-explicit-any */
+import {
+  Injectable,
+  NotFoundException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { FacturacionApiService } from '../cuentas-cobrar/facturacion-api.service';
 import { CreatePagoDto } from './dto/create-pago.dto';
 import { PagoEntity } from './pago.entity';
 import * as PDFDocument from 'pdfkit';
+
+interface DbPagoWithDetalles {
+  id: string;
+  numero_pago: string;
+  descripcion: string;
+  cliente_id: string;
+  cuenta_bancaria_id: string | null;
+  fecha_pago: Date | null;
+  detalles_pago?: Array<{
+    factura_id: string;
+    monto_pagado: any;
+  }>;
+}
 
 @Injectable()
 export class PagosService {
@@ -16,15 +35,18 @@ export class PagosService {
   /**
    * Mapea un registro de Prisma (snake_case) al formato del frontend PagoEntity (camelCase).
    */
-  private toEntity(db: any): PagoEntity {
+  private toEntity(db: DbPagoWithDetalles): PagoEntity {
     const detalles = db.detalles_pago
-      ? db.detalles_pago.map((d: any) => ({
+      ? db.detalles_pago.map((d) => ({
           facturaId: d.factura_id,
           montoAbonado: Number(d.monto_pagado),
         }))
       : [];
 
-    const montoTotal = detalles.reduce((sum: number, det: any) => sum + det.montoAbonado, 0);
+    const montoTotal = detalles.reduce(
+      (sum: number, det) => sum + det.montoAbonado,
+      0,
+    );
 
     return {
       id: db.id,
@@ -33,7 +55,9 @@ export class PagosService {
       clienteId: db.cliente_id,
       cuentaBancariaId: db.cuenta_bancaria_id || '',
       montoTotal,
-      fecha: db.fecha_pago ? db.fecha_pago.toISOString() : new Date().toISOString(),
+      fecha: db.fecha_pago
+        ? db.fecha_pago.toISOString()
+        : new Date().toISOString(),
       detalles,
     };
   }
@@ -49,13 +73,18 @@ export class PagosService {
       where: { id: cuentaBancariaId },
     });
     if (!cuentaExiste) {
-      throw new NotFoundException(`La cuenta bancaria con ID ${cuentaBancariaId} no existe`);
+      throw new NotFoundException(
+        `La cuenta bancaria con ID ${cuentaBancariaId} no existe`,
+      );
     }
 
     // 2. Validar que el cliente exista en el servicio externo de facturación
-    const clienteExiste = await this.facturacionApiService.obtenerClientePorId(clienteId);
+    const clienteExiste =
+      await this.facturacionApiService.obtenerClientePorId(clienteId);
     if (!clienteExiste) {
-      throw new NotFoundException(`El cliente con ID ${clienteId} no existe en el sistema de facturación`);
+      throw new NotFoundException(
+        `El cliente con ID ${clienteId} no existe en el sistema de facturación`,
+      );
     }
 
     // 3. Generar número de pago secuencial PAG-CLI-XXXXX
@@ -92,7 +121,7 @@ export class PagosService {
       });
     });
 
-    return this.toEntity(dbPago);
+    return this.toEntity(dbPago!);
   }
 
   /**
@@ -135,7 +164,7 @@ export class PagosService {
   /**
    * Obtiene un pago específico por ID adjuntando datos del cliente.
    */
-  async findOne(id: string): Promise<any | null> {
+  async findOne(id: string): Promise<unknown> {
     const item = await this.prismaService.pagos_clientes.findUnique({
       where: { id },
       include: { detalles_pago: true },
@@ -146,9 +175,14 @@ export class PagosService {
 
     let cliente: any = null;
     try {
-      cliente = await this.facturacionApiService.obtenerClientePorId(item.cliente_id);
+      cliente = await this.facturacionApiService.obtenerClientePorId(
+        item.cliente_id,
+      );
     } catch (error) {
-      console.error(`Error al obtener información del cliente ${item.cliente_id}:`, error);
+      console.error(
+        `Error al obtener información del cliente ${item.cliente_id}:`,
+        error,
+      );
     }
 
     return {
@@ -219,7 +253,10 @@ export class PagosService {
   /**
    * Genera el reporte de pagos/cobros filtrado por rango de fechas.
    */
-  async obtenerReporte(fechaInicio?: string, fechaFin?: string): Promise<PagoEntity[]> {
+  async obtenerReporte(
+    fechaInicio?: string,
+    fechaFin?: string,
+  ): Promise<PagoEntity[]> {
     const where: any = {};
     if (fechaInicio || fechaFin) {
       where.fecha_pago = {};
@@ -241,55 +278,144 @@ export class PagosService {
   }
 
   /**
-   * Genera el recibo PDF asíncronamente desde la base de datos real.
+   * Genera el comprobante de pago en PDF utilizando datos reales de Prisma y GraphQL.
    */
-  async generarReciboPdf(id: string): Promise<Buffer> {
-    const pago = await this.findOne(id);
+  async generarComprobantePdf(pagoId: string): Promise<Buffer> {
+    const pago = await this.prismaService.pagos_clientes.findUnique({
+      where: { id: pagoId },
+      include: {
+        cuentas_bancarias: true,
+        detalles_pago: true,
+      },
+    });
+
     if (!pago) {
-      throw new NotFoundException(`Pago con ID ${id} no encontrado`);
+      throw new NotFoundException(`Pago con ID ${pagoId} no encontrado`);
+    }
+
+    const cliente = await this.facturacionApiService.obtenerClientePorId(
+      pago.cliente_id,
+    );
+
+    // Obtener facturas de GraphQL para mapear IDs a números de factura reales
+    let facturas: any[] = [];
+    try {
+      facturas = await this.facturacionApiService.obtenerFacturas();
+    } catch (error) {
+      console.error('Error al obtener facturas desde GraphQL para el PDF:', error);
     }
 
     return new Promise((resolve, reject) => {
       try {
-        const DocConstructor = (PDFDocument.default || PDFDocument) as any;
+        const DocConstructor = (PDFDocument.default || PDFDocument) as new (
+          options?: PDFKit.PDFDocumentOptions,
+        ) => PDFKit.PDFDocument;
         const doc = new DocConstructor({ margin: 50 });
         const chunks: Buffer[] = [];
 
         doc.on('data', (chunk: Buffer) => chunks.push(chunk));
         doc.on('end', () => resolve(Buffer.concat(chunks)));
-        doc.on('error', (err: any) => reject(err));
+        doc.on('error', (err: Error) => reject(err));
 
         // Cabecera del PDF
-        doc.fontSize(20).text('COMPROBANTE DE COBRO', { align: 'center' });
-        doc.moveDown();
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(22)
+          .text('COMPROBANTE DE PAGO', { align: 'center' });
+        doc.moveDown(0.5);
+        doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+        doc.moveDown(1);
 
-        doc.fontSize(12).text(`ID de Pago: ${pago.id}`);
-        doc.text(`N° de Comprobante: ${pago.numeroPago}`);
-        doc.text(`Fecha: ${pago.fecha}`);
-        doc.text(`Concepto: ${pago.descripcion}`);
-        doc.text(`Cliente: ${pago.cliente ? pago.cliente.nombre : pago.clienteId}`);
-        doc.text(`Cuenta Bancaria Destino: ${pago.cuentaBancariaId}`);
-        doc.text(`Monto Total: $${pago.montoTotal.toFixed(2)}`);
-        doc.moveDown();
+        const yStart = doc.y;
 
-        doc.fontSize(14).text('Detalles del Pago', { underline: true });
+        // Columna Izquierda: Datos del Pago
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(12)
+          .text('DATOS DEL PAGO', 50, yStart);
+        doc.font('Helvetica').fontSize(10);
+        doc.moveDown(0.5);
+        doc.text(`Número de Pago: ${pago.numero_pago}`);
+        doc.text(
+          `Fecha: ${pago.fecha_pago ? pago.fecha_pago.toISOString().split('T')[0] : 'N/A'}`,
+        );
+        doc.text(`Descripción: ${pago.descripcion}`);
+        const ctaNombre = pago.cuentas_bancarias?.nombre_cuenta || 'N/A';
+        const ctaEntidad = pago.cuentas_bancarias?.entidad_bancaria || 'N/A';
+        doc.text(`Cuenta Bancaria: ${ctaNombre} (${ctaEntidad})`);
+
+        // Columna Derecha: Datos del Cliente
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(12)
+          .text('DATOS DEL CLIENTE', 320, yStart);
+        doc.font('Helvetica').fontSize(10);
+        doc.moveDown(0.5);
+        doc.text(`Nombre: ${cliente?.nombre || 'N/A'}`, 320);
+        doc.text(`RUC/Cédula: ${cliente?.cedula || 'N/A'}`, 320);
+        doc.text(`Correo: ${cliente?.correo || 'N/A'}`, 320);
+
+        doc.moveDown(2.5);
+
+        // Reset x coordinate to 50 for Details table
+        doc.x = 50;
+
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(12)
+          .text('DETALLE DE FACTURAS ABONADAS');
+        doc.moveDown(0.5);
+        doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
         doc.moveDown(0.5);
 
-        if (pago.detalles && pago.detalles.length > 0) {
-          pago.detalles.forEach((det: any, idx: number) => {
-            doc
-              .fontSize(12)
-              .text(
-                `${idx + 1}. Factura: ${det.facturaId} - Monto Abonado: $${det.montoAbonado.toFixed(2)}`,
-              );
+        // Cabecera de Tabla
+        const tableY = doc.y;
+        doc.font('Helvetica-Bold').fontSize(10);
+        doc.text('Número de Factura', 50, tableY);
+        doc.text('Monto Abonado', 400, tableY, { align: 'right', width: 150 });
+        doc.moveDown(0.5);
+        doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+        doc.moveDown(0.5);
+
+        doc.font('Helvetica').fontSize(10);
+        let total = 0;
+        if (pago.detalles_pago && pago.detalles_pago.length > 0) {
+          pago.detalles_pago.forEach((det) => {
+            const monto = Number(det.monto_pagado);
+            total += monto;
+            const lineY = doc.y;
+            
+            // Buscar la factura por ID para mostrar el número de factura real
+            const facturaReal = facturas.find((f) => f.id === det.factura_id);
+            const facturaLabel = facturaReal ? facturaReal.numeroFactura : det.factura_id;
+
+            doc.text(facturaLabel, 50, lineY);
+            doc.text(`$${monto.toFixed(2)}`, 400, lineY, {
+              align: 'right',
+              width: 150,
+            });
+            doc.moveDown(0.5);
           });
         } else {
-          doc.fontSize(12).text('Sin facturas asociadas en el desglose.');
+          doc.text('Sin desglose de facturas.', 50);
+          doc.moveDown(0.5);
         }
 
+        doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+        doc.moveDown(0.5);
+
+        // Total
+        const totalY = doc.y;
+        doc.font('Helvetica-Bold').fontSize(12);
+        doc.text('TOTAL ABONADO', 50, totalY);
+        doc.text(`$${total.toFixed(2)}`, 400, totalY, {
+          align: 'right',
+          width: 150,
+        });
+
         doc.end();
-      } catch (error) {
-        reject(error);
+      } catch (error: unknown) {
+        reject(error instanceof Error ? error : new Error(String(error)));
       }
     });
   }

@@ -18,9 +18,10 @@ export default function ReportePagosPage() {
 
       const data = await response.json();
 
-      setPagos(data);
+      setPagos(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(error);
+      setPagos([]);
     }
   };
 
@@ -96,7 +97,7 @@ interface CuentaBancaria {
     <div className={styles.page}>
       <div className={styles.container}>
         <div className={styles.titleSection}>
-          <h1>Cobros</h1>
+          <h1>Pagos</h1>
         </div>
 
         <div className={styles.stats}>
@@ -136,7 +137,7 @@ interface CuentaBancaria {
             className={styles.newButton}
             onClick={() => setMostrarModal(true)}
           >
-            + Nuevo Cobro
+            + Nuevo Pago
           </button>
         </div>
 
@@ -203,7 +204,7 @@ interface CuentaBancaria {
         <div className={styles.modalOverlay}>
           <div className={styles.modal}>
             <div className={styles.modalHeader}>
-              <h2>Registro de Cobros</h2>
+              <h2>Registro de Pagos</h2>
 
               <button
                 className={styles.closeButton}

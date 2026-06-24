@@ -58,14 +58,17 @@ export default function FacturasPage() {
   const cargarDatos = async () => {
     try {
       const resClients = await fetch(`${API_URL}/facturas/clientes`, { cache: "no-store" });
-      const listClients = await resClients.json();
+      const rawClients = await resClients.json();
+      const listClients = Array.isArray(rawClients) ? rawClients : [];
       setClientes(listClients);
 
       const resFacturas = await fetch(`${API_URL}/facturas`, { cache: "no-store" });
-      const listFacturas = await resFacturas.json();
+      const rawFacturas = await resFacturas.json();
+      const listFacturas = Array.isArray(rawFacturas) ? rawFacturas : [];
 
       const resPagos = await fetch(`${API_URL}/pagos/reporte`, { cache: "no-store" });
-      const listPagos = await resPagos.json();
+      const rawPagos = await resPagos.json();
+      const listPagos = Array.isArray(rawPagos) ? rawPagos : [];
 
       const mappedFacturas: Factura[] = listFacturas.map((f: any) => {
         const client = listClients.find((c: any) => c.id === f.clienteId);

@@ -137,24 +137,30 @@ interface CuentaBancaria {
   };
   const cargarPagos = async () => {
     try {
-      const response = await fetch(`${API_URL}/pagos/reporte`, { cache: "no-store" });
+      const response = await fetch(`${API_URL}/pagos/reporte`, {
+        cache: "no-store",
+      });
 
       const data = await response.json();
 
-      setPagos(data);
+      setPagos(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(error);
+      setPagos([]);
     }
   };
   const cargarFacturas = async () => {
     try {
-      const response = await fetch(`${API_URL}/pagos/facturas`, { cache: "no-store" });
+      const response = await fetch(`${API_URL}/pagos/facturas`, {
+        cache: "no-store",
+      });
 
       const data = await response.json();
 
-      setFacturas(data);
+      setFacturas(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(error);
+      setFacturas([]);
     }
   };
   const actualizarMonto = (facturaId: string, monto: number) => {
@@ -194,7 +200,7 @@ interface CuentaBancaria {
     <div className={styles.page}>
       <div className={styles.card}>
         <div className={styles.header}>
-          <h1>Registro de Cobros</h1>
+          <h1>Registro de Pagos</h1>
           <p>Cabecera del pago del cliente</p>
         </div>
 
