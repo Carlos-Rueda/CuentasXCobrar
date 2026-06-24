@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
-import { CxcService } from './cxc/cxc.service';
+import { CuentasCobrarService } from './modules/cuentas-cobrar/cuentas-cobrar.service';
 import { FacturasService } from './modules/facturas/facturas.service';
 
 describe('AppController', () => {
@@ -19,7 +19,7 @@ describe('AppController', () => {
     const app: TestingModule = await Test.createTestingModule({
       controllers: [AppController],
       providers: [
-        { provide: CxcService, useValue: mockCxcService },
+        { provide: CuentasCobrarService, useValue: mockCxcService },
         { provide: FacturasService, useValue: mockFacturacionService },
       ],
     }).compile();
@@ -33,3 +33,4 @@ describe('AppController', () => {
     });
   });
 });
+

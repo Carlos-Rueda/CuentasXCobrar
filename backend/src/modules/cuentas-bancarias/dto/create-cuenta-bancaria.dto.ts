@@ -2,10 +2,10 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsOptional, IsIn } from 'class-validator';
 
 export class CreateCuentaBancariaDto {
-  @ApiProperty({ example: 'CTA-BAN-001', description: 'Código único identificador' })
+  @ApiProperty({ example: 'CTA-BAN-001', description: 'Código único identificador', required: false })
   @IsString()
-  @IsNotEmpty()
-  codigo: string;
+  @IsOptional()
+  codigo?: string;
 
   @ApiProperty({ example: 'Cuenta Corriente Principal', description: 'Nombre descriptivo' })
   @IsString()

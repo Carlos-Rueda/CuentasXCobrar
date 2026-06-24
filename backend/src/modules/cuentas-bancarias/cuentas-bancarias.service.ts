@@ -101,14 +101,41 @@ export class CuentasBancariasService implements OnModuleInit {
   }
 
   /**
+   * Genera el siguiente código secuencial de cuenta bancaria (e.g., CTA-BAN-004).
+   */
+  private async generarSiguienteCodigo(): Promise<string> {
+    const list = await this.prismaService.cuentas_bancarias.findMany({
+      select: { codigo: true },
+    });
+
+    let maxNum = 0;
+    const prefix = 'CTA-BAN-';
+
+    for (const item of list) {
+      if (item.codigo && item.codigo.startsWith(prefix)) {
+        const numStr = item.codigo.substring(prefix.length);
+        const num = parseInt(numStr, 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    }
+
+    const nextNum = maxNum + 1;
+    const paddedNum = String(nextNum).padStart(3, '0');
+    return `${prefix}${paddedNum}`;
+  }
+
+  /**
    * Crea una nueva cuenta bancaria en la base de datos real.
    */
   async create(
     cuenta: CreateCuentaBancariaDto,
   ): Promise<CuentaBancariaEntity | null> {
+    const codigo = cuenta.codigo || (await this.generarSiguienteCodigo());
     const dbCuenta = await this.prismaService.cuentas_bancarias.create({
       data: {
-        codigo: cuenta.codigo,
+        codigo: codigo,
         nombre_cuenta: cuenta.nombreCuenta,
         entidad_bancaria: cuenta.entidadBancaria,
         titular: cuenta.titular,

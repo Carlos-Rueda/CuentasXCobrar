@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PagosService } from './pagos.service';
 import { PrismaService } from '../../prisma/prisma.service';
-import { FacturacionApiService } from '../../cxc/facturacion-api.service';
+import { FacturacionApiService } from '../cuentas-cobrar/facturacion-api.service';
 import { NotFoundException } from '@nestjs/common';
 
 describe('PagosService', () => {

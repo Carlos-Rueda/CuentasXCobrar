@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { FacturacionApiService } from '../../cxc/facturacion-api.service';
+import { FacturacionApiService } from '../cuentas-cobrar/facturacion-api.service';
 import { CreatePagoDto } from './dto/create-pago.dto';
 import { PagoEntity } from './pago.entity';
 import * as PDFDocument from 'pdfkit';

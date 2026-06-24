@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { CxcService } from './cxc/cxc.service';
+import { CuentasCobrarService } from './modules/cuentas-cobrar/cuentas-cobrar.service';
 import { FacturasService } from './modules/facturas/facturas.service';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
@@ -7,7 +7,7 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 @Controller()
 export class AppController {
   constructor(
-    private readonly cxcService: CxcService,
+    private readonly cuentasCobrarService: CuentasCobrarService,
     private readonly facturacionService: FacturasService,
   ) {}
 
@@ -26,8 +26,8 @@ export class AppController {
 
     for (const cli of clientes) {
       try {
-        const cxcInfo = await this.cxcService.generarEstadoCuenta(cli.id);
-        const valInfo = await this.cxcService.validarDeudaCliente(cli.id);
+        const cxcInfo = await this.cuentasCobrarService.generarEstadoCuenta(cli.id);
+        const valInfo = await this.cuentasCobrarService.validarDeudaCliente(cli.id);
 
         const facturas = (
           await this.facturacionService.findAllFacturas()
