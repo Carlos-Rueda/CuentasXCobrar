@@ -87,7 +87,13 @@ interface CuentaBancaria {
       const response = await fetch(`${API_URL}/facturas/clientes`, { cache: "no-store" });
       if (response.ok) {
         const data = await response.json();
-        setClientes(Array.isArray(data) ? data : []);
+        const listClients = Array.isArray(data) ? data : [];
+        // Filtrar basura, deduplicar por cédula/RUC y ordenar alfabéticamente de la A a la Z
+        const uniqueMap = new Map(listClients.map((c: any) => [c.cedula || c.ruc || c.nombre, c]));
+        const sortedUniqueCleanClients = Array.from(uniqueMap.values())
+          .filter((c: any) => c.nombre && c.nombre.trim() !== "" && c.nombre.trim() !== "undefined")
+          .sort((a: any, b: any) => (a.nombre || "").localeCompare(b.nombre || ""));
+        setClientes(sortedUniqueCleanClients);
       }
     } catch (error) {
       console.error("Error al cargar clientes:", error);
@@ -137,7 +143,7 @@ interface CuentaBancaria {
             <option value="">Buscar por cliente (Todos)</option>
             {clientes.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.nombre}
+                {c.nombre} - {c.cedula || c.ruc}
               </option>
             ))}
           </select>
@@ -155,7 +161,7 @@ interface CuentaBancaria {
               <tr>
                 <th>ID</th>
                 <th>Cliente</th>
-                <th>Cuenta Bancaria</th>
+                <th>Cuenta Bancaria de Destino</th>
                 <th>Monto Total</th>
                 <th>Fecha</th>
                 <th>Acciones</th>
@@ -166,7 +172,7 @@ interface CuentaBancaria {
               {pagosFiltrados.length > 0 ? (
                 pagosFiltrados.map((pago) => (
                   <tr key={pago.id}>
-                    <td>{pago.id}</td>
+                    <td>{pago.numeroPago}</td>
 
                     <td>
                       {clientes.find((cliente) => cliente.id === pago.clienteId)

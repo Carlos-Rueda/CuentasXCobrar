@@ -60,7 +60,12 @@ export default function FacturasPage() {
       const resClients = await fetch(`${API_URL}/facturas/clientes`, { cache: "no-store" });
       const rawClients = await resClients.json();
       const listClients = Array.isArray(rawClients) ? rawClients : [];
-      setClientes(listClients);
+      // Filtrar basura, deduplicar por cédula/RUC y ordenar alfabéticamente de la A a la Z
+      const uniqueMap = new Map(listClients.map((c: any) => [c.cedula || c.ruc || c.nombre, c]));
+      const sortedUniqueCleanClients = Array.from(uniqueMap.values())
+        .filter((c: any) => c.nombre && c.nombre.trim() !== "" && c.nombre.trim() !== "undefined")
+        .sort((a: any, b: any) => (a.nombre || "").localeCompare(b.nombre || ""));
+      setClientes(sortedUniqueCleanClients);
 
       const resFacturas = await fetch(`${API_URL}/facturas`, { cache: "no-store" });
       const rawFacturas = await resFacturas.json();
@@ -350,7 +355,9 @@ export default function FacturasPage() {
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="">Seleccione un cliente</option>
                     {clientes.map(c => (
-                      <option key={c.id} value={c.id}>{c.nombre}</option>
+                      <option key={c.id} value={c.id}>
+                        {c.nombre} - {c.cedula || c.ruc}
+                      </option>
                     ))}
                   </select>
                   {errors.cliente && <p className="text-xs text-red-600 mt-1">{errors.cliente}</p>}

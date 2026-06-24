@@ -16,7 +16,13 @@ export default function ClientesPage() {
         const response = await fetch(`${API_URL}/facturas/clientes`, { cache: "no-store" });
         if (response.ok) {
           const data = await response.json();
-          setClientes(data);
+          const listClients = Array.isArray(data) ? data : [];
+          // Filtrar basura, deduplicar por cédula/RUC y ordenar alfabéticamente de la A a la Z
+          const uniqueMap = new Map(listClients.map((c: any) => [c.cedula || c.ruc || c.nombre, c]));
+          const sortedUniqueCleanClients = Array.from(uniqueMap.values())
+            .filter((c: any) => c.nombre && c.nombre.trim() !== "" && c.nombre.trim() !== "undefined")
+            .sort((a: any, b: any) => (a.nombre || "").localeCompare(b.nombre || ""));
+          setClientes(sortedUniqueCleanClients);
         }
       } catch (error) {
         console.error("Error al cargar clientes:", error);
@@ -71,7 +77,7 @@ export default function ClientesPage() {
               <option value="">Seleccione un cliente</option>
               {clientes.map((cliente) => (
                 <option key={cliente.id} value={cliente.id}>
-                  {cliente.nombre} ({cliente.id})
+                  {cliente.nombre} - {cliente.cedula || cliente.ruc}
                 </option>
               ))}
             </select>

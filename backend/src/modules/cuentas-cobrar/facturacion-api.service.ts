@@ -66,14 +66,37 @@ export class FacturacionApiService {
   /**
    * Helper privado para realizar peticiones POST HTTP a la API de GraphQL externa.
    */
+  private cachedToken: string = '';
+
+  private async getFreshToken(): Promise<string> {
+    try {
+      const response = await fetch('https://ad-modulo-facturacion.onrender.com/auth/test-token');
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.token) {
+          this.cachedToken = data.token;
+          return data.token;
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching fresh token from test-token endpoint:', error);
+    }
+    return '';
+  }
+
+  /**
+   * Helper privado para realizar peticiones POST HTTP a la API de GraphQL externa.
+   */
   private async queryGraphQL<T>(
     query: string,
     variables: Record<string, unknown> = {},
   ): Promise<T> {
-    const token =
-      process.env.FACTURACION_JWT_TOKEN ||
-      process.env.FACTURACION_API_TOKEN ||
-      '';
+    let token = this.cachedToken || process.env.FACTURACION_JWT_TOKEN || process.env.FACTURACION_API_TOKEN || '';
+
+    if (!token) {
+      token = await this.getFreshToken();
+    }
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -82,20 +105,45 @@ export class FacturacionApiService {
     }
 
     try {
-      const response = await fetch(this.graphqlUrl, {
+      let response = await fetch(this.graphqlUrl, {
         method: 'POST',
         headers,
         body: JSON.stringify({ query, variables }),
       });
 
-      if (!response.ok) {
+      if (!response.ok && response.status !== 401) {
         throw new Error(`HTTP status ${response.status}`);
       }
 
-      const body = (await response.json()) as {
+      let body = (await response.json()) as {
         data?: T;
-        errors?: Array<{ message: string }>;
+        errors?: Array<{ message: string; code?: string }>;
       };
+
+      // Si no autorizado, renovar token e intentar de nuevo
+      const isUnauthorized = response.status === 401 || body.errors?.some(
+        (e) => e.message?.toLowerCase().includes('no autorizado') || e.code === 'UNAUTHENTICATED'
+      );
+
+      if (isUnauthorized) {
+        console.log('Token de facturación no autorizado o expirado. Obteniendo nuevo token...');
+        token = await this.getFreshToken();
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+          response = await fetch(this.graphqlUrl, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ query, variables }),
+          });
+          if (!response.ok) {
+            throw new Error(`HTTP status ${response.status}`);
+          }
+          body = (await response.json()) as {
+            data?: T;
+            errors?: Array<{ message: string }>;
+          };
+        }
+      }
 
       if (body.errors && body.errors.length > 0) {
         throw new Error(body.errors[0]?.message || 'GraphQL Error');
@@ -120,7 +168,7 @@ export class FacturacionApiService {
   async obtenerClientes(): Promise<ClienteDto[]> {
     const query = `
       query {
-        clientes {
+        clientes(limit: 1000) {
           items {
             id
             cedula
@@ -137,7 +185,7 @@ export class FacturacionApiService {
     const data = await this.queryGraphQL<ClientesResponse>(query);
     const items = data.clientes?.items || [];
 
-    return items.map((c) => ({
+    const mapped = items.map((c) => ({
       id: c.id,
       cedula: c.cedula,
       nombre: c.nombre,
@@ -146,6 +194,15 @@ export class FacturacionApiService {
       telefono: c.telefono,
       correo: c.email, // Mapeo de email a correo
     }));
+
+    const map = new Map<string, ClienteDto>();
+    for (const c of mapped) {
+      const key = c.cedula || c.nombre;
+      if (!map.has(key)) {
+        map.set(key, c);
+      }
+    }
+    return Array.from(map.values());
   }
 
   /**
@@ -218,7 +275,7 @@ export class FacturacionApiService {
       // Fallback si la API externa no soporta el filtrado directo
       const queryAll = `
         query {
-          facturas {
+          facturas(limit: 1000) {
             items {
               id
               numeroFactura
@@ -253,7 +310,7 @@ export class FacturacionApiService {
   async obtenerFacturas(): Promise<FacturaDto[]> {
     const query = `
       query {
-        facturas {
+        facturas(limit: 1000) {
           items {
             id
             numeroFactura
@@ -272,5 +329,37 @@ export class FacturacionApiService {
       total: f.total,
       estado: f.estado,
     }));
+  }
+
+  /**
+   * Obtiene una factura específica por su ID de forma individual.
+   */
+  async obtenerFacturaPorId(id: string): Promise<FacturaDto | null> {
+    const query = `
+      query($id: ID!) {
+        factura(id: $id) {
+          id
+          numeroFactura
+          clienteId
+          total
+          estado
+        }
+      }
+    `;
+    try {
+      const data = await this.queryGraphQL<any>(query, { id });
+      const f = data.factura;
+      if (!f) return null;
+      return {
+        id: f.id,
+        numeroFactura: f.numeroFactura,
+        clienteId: f.clienteId,
+        total: f.total,
+        estado: f.estado,
+      };
+    } catch (error) {
+      console.error(`Error al obtener factura ${id} desde GraphQL:`, error);
+      return null;
+    }
   }
 }

@@ -2,6 +2,7 @@
 import {
   Injectable,
   NotFoundException,
+  BadRequestException,
   Inject,
   forwardRef,
 } from '@nestjs/common';
@@ -68,19 +69,21 @@ export class PagosService {
   async create(pagoDto: CreatePagoDto): Promise<PagoEntity> {
     const { clienteId, cuentaBancariaId, descripcion, detalles } = pagoDto;
 
-    // 1. Validar que la cuenta bancaria exista usando Prisma (si se provee)
-    if (cuentaBancariaId) {
-      const cuentaExiste = await this.prismaService.cuentas_bancarias.findUnique({
-        where: { id: cuentaBancariaId },
-      });
-      if (!cuentaExiste) {
-        throw new NotFoundException(
-          `La cuenta bancaria con ID ${cuentaBancariaId} no existe`,
-        );
-      }
+    if (!cuentaBancariaId) {
+      throw new BadRequestException('El ID de la cuenta bancaria es obligatorio.');
     }
 
-    // 2. Validar que el cliente exista en el servicio externo de facturación
+    // 1. Validar Cuenta (HU2 CA4): Verificar en Prisma que la cuenta bancaria exista y esté 'ACTIVO'
+    const cuentaExiste = await this.prismaService.cuentas_bancarias.findUnique({
+      where: { id: cuentaBancariaId },
+    });
+    if (!cuentaExiste || cuentaExiste.estado?.toUpperCase() !== 'ACTIVO') {
+      throw new NotFoundException(
+        `La cuenta bancaria con ID ${cuentaBancariaId} no existe o no se encuentra activa`,
+      );
+    }
+
+    // 2. Validar Cliente (HU2 CA3): Validar que el cliente exista en el servicio externo de facturación
     const clienteExiste =
       await this.facturacionApiService.obtenerClientePorId(clienteId);
     if (!clienteExiste) {
@@ -89,41 +92,67 @@ export class PagosService {
       );
     }
 
-    // 3. Generar número de pago secuencial PAG-CLI-XXXXX
+    // 3. Validar Facturas y Saldos (HU3 CA2): Recorrer detalles y validar montos contra saldos en GraphQL
+    if (!detalles || detalles.length === 0) {
+      throw new BadRequestException('Debe proporcionar al menos un detalle de factura para registrar el pago');
+    }
+
+    for (const det of detalles) {
+        if (det.montoPagado <= 0) {
+          throw new BadRequestException(
+            `El monto pagado para la factura ${det.facturaId} debe ser mayor a 0`,
+          );
+        }
+
+        const facturaReal = await this.facturacionApiService.obtenerFacturaPorId(
+          det.facturaId,
+        );
+        if (!facturaReal) {
+          throw new NotFoundException(
+            `La factura con ID ${det.facturaId} no existe en el sistema de facturación`,
+          );
+        }
+
+        const pagadoAnteriormente = await this.calcularPagadoParaFactura(
+          det.facturaId,
+        );
+        const saldoRestante = Number(facturaReal.total) - pagadoAnteriormente;
+
+        if (det.montoPagado > saldoRestante) {
+          throw new BadRequestException(
+            `El monto a pagar ($${det.montoPagado}) sobrepasa el saldo pendiente ($${saldoRestante.toFixed(2)}) de la factura ${facturaReal.numeroFactura || det.facturaId}`,
+          );
+        }
+      }
+    // 4. Generar Secuencial (HU2 CA4)
     const count = await this.prismaService.pagos_clientes.count();
     const secuencial = String(count + 1).padStart(5, '0');
     const numeroPago = `PAG-CLI-${secuencial}`;
 
-    // 4. Guardar transaccionalmente la cabecera del pago y sus detalles si existen
+    // 5. Transacción de Base de Datos: Guardar cabecera y detalles anidados en un solo movimiento
     const dbPago = await this.prismaService.$transaction(async (tx) => {
-      const header = await tx.pagos_clientes.create({
+      return await tx.pagos_clientes.create({
         data: {
           cliente_id: clienteId,
-          cuenta_bancaria_id: cuentaBancariaId || null,
+          cuenta_bancaria_id: cuentaBancariaId,
           descripcion,
           numero_pago: numeroPago,
           estado: 'ACTIVO',
+          detalles_pago: {
+            create: (detalles || []).map((d) => ({
+              factura_id: d.facturaId,
+              monto_pagado: d.montoPagado,
+            })),
+          },
         },
-      });
-
-      if (detalles && detalles.length > 0) {
-        await tx.detalles_pago.createMany({
-          data: detalles.map((d) => ({
-            pago_id: header.id,
-            factura_id: d.facturaId,
-            monto_pagado: d.montoAbonado,
-          })),
-        });
-      }
-
-      // Volver a consultar con detalles incluidos para retornar la entidad completa
-      return await tx.pagos_clientes.findUnique({
-        where: { id: header.id },
-        include: { detalles_pago: true },
+        include: {
+          detalles_pago: true,
+          cuentas_bancarias: true,
+        },
       });
     });
 
-    return this.toEntity(dbPago!);
+    return this.toEntity(dbPago);
   }
 
   /**
@@ -157,7 +186,7 @@ export class PagosService {
    */
   async findAll(): Promise<PagoEntity[]> {
     const list = await this.prismaService.pagos_clientes.findMany({
-      include: { detalles_pago: true },
+      include: { detalles_pago: true, cuentas_bancarias: true },
       orderBy: { created_at: 'desc' },
     });
     return list.map((item) => this.toEntity(item));
@@ -169,9 +198,11 @@ export class PagosService {
   async findOne(id: string): Promise<unknown> {
     const item = await this.prismaService.pagos_clientes.findUnique({
       where: { id },
-      include: { detalles_pago: true },
+      include: { detalles_pago: true, cuentas_bancarias: true },
     });
-    if (!item) return null;
+    if (!item) {
+      throw new NotFoundException(`El pago con ID ${id} no existe`);
+    }
 
     const entity = this.toEntity(item);
 
@@ -299,12 +330,30 @@ export class PagosService {
       pago.cliente_id,
     );
 
-    // Obtener facturas de GraphQL para mapear IDs a números de factura reales
+    // Obtener facturas de GraphQL para mapear IDs a números de factura reales y saldo
     let facturas: any[] = [];
     try {
       facturas = await this.facturacionApiService.obtenerFacturas();
     } catch (error) {
       console.error('Error al obtener facturas desde GraphQL para el PDF:', error);
+    }
+
+    // Pre-calcular saldos restantes
+    const detallesConSaldos = [];
+    if (pago.detalles_pago && pago.detalles_pago.length > 0) {
+      for (const det of pago.detalles_pago) {
+        const facturaReal = facturas.find((f) => f.id === det.factura_id);
+        let saldoPendiente = 0;
+        if (facturaReal) {
+           const pagadoHistorico = await this.calcularPagadoParaFactura(det.factura_id);
+           saldoPendiente = Math.max(0, Number(facturaReal.total) - pagadoHistorico);
+        }
+        detallesConSaldos.push({
+           ...det,
+           numeroFactura: facturaReal ? facturaReal.numeroFactura : det.factura_id,
+           saldoPendiente
+        });
+      }
     }
 
     return new Promise((resolve, reject) => {
@@ -354,8 +403,10 @@ export class PagosService {
         doc.font('Helvetica').fontSize(10);
         doc.moveDown(0.5);
         doc.text(`Nombre: ${cliente?.nombre || 'N/A'}`, 320);
-        doc.text(`RUC/Cédula: ${cliente?.cedula || 'N/A'}`, 320);
+        doc.text(`RUC/Cédula: ${cliente?.cedula || cliente?.ruc || 'N/A'}`, 320);
         doc.text(`Correo: ${cliente?.correo || 'N/A'}`, 320);
+        doc.text(`Teléfono: ${cliente?.telefono || 'N/A'}`, 320);
+        doc.text(`Dirección: ${cliente?.direccion || 'N/A'}`, 320);
 
         doc.moveDown(2.5);
 
@@ -374,27 +425,28 @@ export class PagosService {
         const tableY = doc.y;
         doc.font('Helvetica-Bold').fontSize(10);
         doc.text('Número de Factura', 50, tableY);
-        doc.text('Monto Abonado', 400, tableY, { align: 'right', width: 150 });
+        doc.text('Monto Abonado', 300, tableY, { align: 'right', width: 100 });
+        doc.text('Saldo Pendiente', 450, tableY, { align: 'right', width: 100 });
         doc.moveDown(0.5);
         doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
         doc.moveDown(0.5);
 
         doc.font('Helvetica').fontSize(10);
         let total = 0;
-        if (pago.detalles_pago && pago.detalles_pago.length > 0) {
-          pago.detalles_pago.forEach((det) => {
+        if (detallesConSaldos.length > 0) {
+          detallesConSaldos.forEach((det) => {
             const monto = Number(det.monto_pagado);
             total += monto;
             const lineY = doc.y;
-            
-            // Buscar la factura por ID para mostrar el número de factura real
-            const facturaReal = facturas.find((f) => f.id === det.factura_id);
-            const facturaLabel = facturaReal ? facturaReal.numeroFactura : det.factura_id;
 
-            doc.text(facturaLabel, 50, lineY);
-            doc.text(`$${monto.toFixed(2)}`, 400, lineY, {
+            doc.text(det.numeroFactura, 50, lineY);
+            doc.text(`$${monto.toFixed(2)}`, 300, lineY, {
               align: 'right',
-              width: 150,
+              width: 100,
+            });
+            doc.text(`$${det.saldoPendiente.toFixed(2)}`, 450, lineY, {
+              align: 'right',
+              width: 100,
             });
             doc.moveDown(0.5);
           });
