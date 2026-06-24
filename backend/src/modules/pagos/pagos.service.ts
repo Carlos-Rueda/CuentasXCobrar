@@ -68,14 +68,16 @@ export class PagosService {
   async create(pagoDto: CreatePagoDto): Promise<PagoEntity> {
     const { clienteId, cuentaBancariaId, descripcion, detalles } = pagoDto;
 
-    // 1. Validar que la cuenta bancaria exista usando Prisma
-    const cuentaExiste = await this.prismaService.cuentas_bancarias.findUnique({
-      where: { id: cuentaBancariaId },
-    });
-    if (!cuentaExiste) {
-      throw new NotFoundException(
-        `La cuenta bancaria con ID ${cuentaBancariaId} no existe`,
-      );
+    // 1. Validar que la cuenta bancaria exista usando Prisma (si se provee)
+    if (cuentaBancariaId) {
+      const cuentaExiste = await this.prismaService.cuentas_bancarias.findUnique({
+        where: { id: cuentaBancariaId },
+      });
+      if (!cuentaExiste) {
+        throw new NotFoundException(
+          `La cuenta bancaria con ID ${cuentaBancariaId} no existe`,
+        );
+      }
     }
 
     // 2. Validar que el cliente exista en el servicio externo de facturación
@@ -97,7 +99,7 @@ export class PagosService {
       const header = await tx.pagos_clientes.create({
         data: {
           cliente_id: clienteId,
-          cuenta_bancaria_id: cuentaBancariaId,
+          cuenta_bancaria_id: cuentaBancariaId || null,
           descripcion,
           numero_pago: numeroPago,
           estado: 'ACTIVO',

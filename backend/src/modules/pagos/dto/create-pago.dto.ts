@@ -12,8 +12,8 @@ export class CreatePagoDto {
   @ApiProperty({ example: 'cli-001', description: 'ID del cliente' })
   clienteId: string;
 
-  @ApiProperty({ example: 'cb-001', description: 'ID de la cuenta bancaria' })
-  cuentaBancariaId: string;
+  @ApiProperty({ example: 'cb-001', description: 'ID de la cuenta bancaria', required: false })
+  cuentaBancariaId?: string;
 
   @ApiProperty({
     example: 'Pago por servicios de consultoría',

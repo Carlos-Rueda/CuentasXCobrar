@@ -31,36 +31,18 @@ export default function PagosPage({ onGuardado }: FormularioPagoProps) {
     0,
   );
 
-  const clientes = [
-    { id: "cli-001", nombre: "Carlos Rueda" },
-    { id: "cli-002", nombre: "Distribuidora Norte" },
-    { id: "cli-003", nombre: "María Andrade" },
-    { id: "cli-004", nombre: "Juan Pérez" },
-    { id: "cli-005", nombre: "María López" },
-  ];
+  const [clientes, setClientes] = useState<any[]>([]);
 
-interface CuentaBancaria {
-  id: string;
-  codigo: string;
-  nombreCuenta: string;
-  entidadBancaria: string;
-  descripcion?: string;
-  estado: string;
-  clienteId?: string;
-}
-
-  const [cuentasBancarias, setCuentasBancarias] = useState<CuentaBancaria[]>([]);
-
-  const cargarCuentasBancarias = async () => {
+  const cargarClientes = async () => {
     try {
-      const response = await fetch(`${API_URL}/cuentas-bancarias`, { cache: "no-store" });
+      const response = await fetch(`${API_URL}/facturas/clientes`, { cache: "no-store" });
       if (response.ok) {
         const data = await response.json();
-        const activas = data.filter((c: CuentaBancaria) => c.estado === "ACTIVO");
-        setCuentasBancarias(activas);
+        setClientes(Array.isArray(data) ? data : []);
       }
     } catch (error) {
-      console.error("Error al cargar cuentas bancarias:", error);
+      console.error("Error al cargar clientes:", error);
+      setClientes([]);
     }
   };
 
@@ -193,7 +175,7 @@ interface CuentaBancaria {
   useEffect(() => {
     cargarPagos();
     cargarFacturas();
-    cargarCuentasBancarias();
+    cargarClientes();
   }, []);
 
   return (
@@ -243,24 +225,7 @@ interface CuentaBancaria {
             </select>
           </div>
 
-          <div className={styles.group}>
-            <label>Cuenta Bancaria</label>
-
-            <select
-              name="cuentaBancariaId"
-              value={formData.cuentaBancariaId}
-              onChange={handleChange}
-            >
-              <option value="">Seleccione una cuenta bancaria</option>
-
-              {cuentasBancarias
-                .map((cuenta) => (
-                  <option key={cuenta.id} value={cuenta.id}>
-                    {cuenta.codigo} - {cuenta.nombreCuenta}
-                  </option>
-                ))}
-            </select>
-          </div>
+          {/* Cuenta Bancaria se maneja de forma interna y no es requerida en este formulario */}
           <div className={styles.group}>
             <label>Facturas Disponibles</label>
 

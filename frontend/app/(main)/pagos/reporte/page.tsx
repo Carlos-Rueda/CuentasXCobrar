@@ -80,16 +80,24 @@ interface CuentaBancaria {
       console.error("Error al cargar cuentas bancarias:", error);
     }
   };
-  const clientes = [
-    { id: "cli-001", nombre: "Carlos Rueda" },
-    { id: "cli-002", nombre: "Distribuidora Norte" },
-    { id: "cli-003", nombre: "María Andrade" },
-    { id: "cli-004", nombre: "Juan Pérez" },
-    { id: "cli-005", nombre: "María López" },
-  ];
+  const [clientes, setClientes] = useState<any[]>([]);
+
+  const cargarClientes = async () => {
+    try {
+      const response = await fetch(`${API_URL}/facturas/clientes`, { cache: "no-store" });
+      if (response.ok) {
+        const data = await response.json();
+        setClientes(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      console.error("Error al cargar clientes:", error);
+      setClientes([]);
+    }
+  };
 
   useEffect(() => {
     cargarPagos();
+    cargarClientes();
     cargarCuentasBancarias();
   }, []);
 
@@ -166,11 +174,13 @@ interface CuentaBancaria {
                     </td>
 
                     <td>
-                      {cuentasBancarias.find(
-                        (cuenta) =>
-                          cuenta.id.toString() ===
-                          pago.cuentaBancariaId.toString(),
-                      )?.codigo || pago.cuentaBancariaId}
+                      {pago.cuentaBancariaId && cuentasBancarias.length > 0 ? (
+                        cuentasBancarias.find(
+                          (cuenta) =>
+                            cuenta.id.toString() ===
+                            pago.cuentaBancariaId.toString(),
+                        )?.codigo || pago.cuentaBancariaId
+                      ) : "—"}
                     </td>
 
                     <td className={styles.amount}>${pago.montoTotal}</td>
