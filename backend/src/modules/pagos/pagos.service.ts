@@ -19,6 +19,7 @@ interface DbPagoWithDetalles {
   cliente_id: string;
   cuenta_bancaria_id: string | null;
   fecha_pago: Date | null;
+  estado?: string | null;
   detalles_pago?: Array<{
     factura_id: string;
     monto_pagado: any;
@@ -60,6 +61,7 @@ export class PagosService {
         ? db.fecha_pago.toISOString()
         : new Date().toISOString(),
       detalles,
+      estado: db.estado || 'activo',
     };
   }
 
@@ -137,7 +139,7 @@ export class PagosService {
           cuenta_bancaria_id: cuentaBancariaId,
           descripcion,
           numero_pago: numeroPago,
-          estado: 'ACTIVO',
+          estado: 'inactivo',
           detalles_pago: {
             create: (detalles || []).map((d) => ({
               factura_id: d.facturaId,
@@ -327,6 +329,12 @@ export class PagosService {
       throw new NotFoundException(`Pago con ID ${pagoId} no encontrado`);
     }
 
+    // Candado de impresión: una vez generado/descargado se marca con estado: 'activo'
+    await this.prismaService.pagos_clientes.update({
+      where: { id: pagoId },
+      data: { estado: 'activo' },
+    });
+
     const cliente = await this.facturacionApiService.obtenerClientePorId(
       pago.cliente_id,
     );
@@ -473,5 +481,36 @@ export class PagosService {
         reject(error instanceof Error ? error : new Error(String(error)));
       }
     });
+  }
+
+  async update(id: string, updatePagoDto: any): Promise<PagoEntity> {
+    const pago = await this.prismaService.pagos_clientes.findUnique({
+      where: { id },
+    });
+
+    if (!pago) {
+      throw new NotFoundException(`El pago con ID ${id} no existe.`);
+    }
+
+    if (pago.estado?.toLowerCase() !== 'inactivo') {
+      throw new BadRequestException(
+        `No se puede editar el pago. Solo se puede editar si el pago está inactivo (borrador/no impreso). Estado actual: '${pago.estado}'.`,
+      );
+    }
+
+    const updated = await this.prismaService.pagos_clientes.update({
+      where: { id },
+      data: {
+        descripcion: updatePagoDto.descripcion,
+        cuenta_bancaria_id: updatePagoDto.cuentaBancariaId,
+        fecha_pago: updatePagoDto.fecha ? new Date(updatePagoDto.fecha) : undefined,
+      },
+      include: {
+        detalles_pago: true,
+        cuentas_bancarias: true,
+      },
+    });
+
+    return this.toEntity(updated);
   }
 }

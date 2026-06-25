@@ -53,4 +53,10 @@ export class PagoEntity {
     description: 'Detalle de facturas abonadas',
   })
   detalles: PagoDetalle[];
+
+  @ApiProperty({
+    example: 'activo',
+    description: 'Estado del pago (activo / impreso / inactivo)',
+  })
+  estado: string;
 }

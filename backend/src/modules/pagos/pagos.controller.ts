@@ -3,6 +3,8 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Delete,
   Body,
   Param,
   Res,
@@ -148,5 +150,12 @@ export class PagosController {
     });
 
     res.end(buffer);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Editar un pago (solo inactivo)' })
+  @ApiParam({ name: 'id', description: 'ID del pago a editar' })
+  async update(@Param('id') id: string, @Body() body: any) {
+    return await this.pagosService.update(id, body);
   }
 }
