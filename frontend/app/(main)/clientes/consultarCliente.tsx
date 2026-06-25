@@ -176,14 +176,14 @@ export default function ConsultarCliente() {
                 {filteredClientes.map((c) => (
                   <div
                     key={c.id}
-                    onClick={() => {
+                    onMouseDown={() => {
                       setClienteId(c.id);
-                      setClientSearchTerm(`${c.nombre} - ${c.cedula || c.ruc || ""}`);
+                      setClientSearchTerm(`${c.nombre} - ${c.ruc || c.cedula || ""}`);
                       setClientDropdownOpen(false);
                     }}
                     className="p-2 hover:bg-blue-50 cursor-pointer text-sm text-gray-700 transition-colors border-b border-gray-100 last:border-0"
                   >
-                    {c.nombre} - {c.cedula || c.ruc}
+                    {c.nombre} - {c.ruc || c.cedula || ""}
                   </div>
                 ))}
               </div>
