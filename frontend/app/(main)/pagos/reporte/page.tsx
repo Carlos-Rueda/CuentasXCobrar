@@ -8,9 +8,22 @@ import FormularioPago from "../components/FormularioPago";
 import { API_URL } from "@/app/config";
 
 export default function ReportePagosPage() {
+  interface CuentaBancaria {
+    id: string;
+    codigo: string;
+    nombreCuenta: string;
+    entidadBancaria: string;
+    descripcion?: string;
+    estado: string;
+    clienteId?: string;
+  }
+
   const [pagos, setPagos] = useState<any[]>([]);
   const [mostrarModal, setMostrarModal] = useState(false);
   const [filtroCliente, setFiltroCliente] = useState("");
+  const [busqueda, setBusqueda] = useState("");
+  const [cuentasBancarias, setCuentasBancarias] = useState<CuentaBancaria[]>([]);
+  const [clientes, setClientes] = useState<any[]>([]);
 
   const cargarPagos = async () => {
     try {
@@ -46,9 +59,22 @@ export default function ReportePagosPage() {
       alert("Error al conectar con el servidor para descargar el PDF.");
     }
   };
+
   const pagosFiltrados = pagos.filter((pago) => {
-    if (!filtroCliente) return true;
-    return pago.clienteId === filtroCliente;
+    if (filtroCliente && pago.clienteId !== filtroCliente) {
+      return false;
+    }
+    
+    if (!busqueda) return true;
+
+    const cliente = clientes.find((c) => c.id === pago.clienteId);
+    const searchLower = busqueda.toLowerCase();
+    
+    const matchesNumeroPago = (pago.numeroPago || "").toLowerCase().includes(searchLower);
+    const matchesNombre = (cliente?.nombre || "").toLowerCase().includes(searchLower);
+    const matchesCedula = (cliente?.cedula || cliente?.ruc || "").toLowerCase().includes(searchLower);
+
+    return matchesNumeroPago || matchesNombre || matchesCedula;
   });
 
   const totalPagos = pagosFiltrados.length;
@@ -57,17 +83,6 @@ export default function ReportePagosPage() {
     (total, pago) => total + Number(pago.montoTotal),
     0,
   );
-interface CuentaBancaria {
-  id: string;
-  codigo: string;
-  nombreCuenta: string;
-  entidadBancaria: string;
-  descripcion?: string;
-  estado: string;
-  clienteId?: string;
-}
-
-  const [cuentasBancarias, setCuentasBancarias] = useState<CuentaBancaria[]>([]);
 
   const cargarCuentasBancarias = async () => {
     try {
@@ -80,7 +95,6 @@ interface CuentaBancaria {
       console.error("Error al cargar cuentas bancarias:", error);
     }
   };
-  const [clientes, setClientes] = useState<any[]>([]);
 
   const cargarClientes = async () => {
     try {
@@ -126,7 +140,14 @@ interface CuentaBancaria {
           </div>
         </div>
 
-        <div className={styles.actions} style={{ display: "flex", gap: "15px", alignItems: "center" }}>
+        <div className={styles.actions} style={{ display: "flex", gap: "15px", alignItems: "center", flexWrap: "wrap" }}>
+          <input
+            type="search"
+            placeholder="Buscar por Nº pago, cliente o cédula..."
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm w-full max-w-xs md:max-w-md transition-all"
+          />
           <select
             value={filtroCliente}
             onChange={(e) => setFiltroCliente(e.target.value)}

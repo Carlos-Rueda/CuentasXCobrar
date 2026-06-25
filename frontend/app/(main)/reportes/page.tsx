@@ -20,7 +20,6 @@ type Registro = {
 type SortKey = "cliente" | "factura" | "fecha" | "estado" | "monto";
 type SortDir = "asc" | "desc";
 
-
 const PER_PAGE = 5;
 
 function imprimirRecibo(r: Registro) {
@@ -79,7 +78,6 @@ async function descargarPDF(r: Registro) {
   }
 }
 
-// ── Icono de orden ─────────────────────────────────────────────────────────────
 function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey | null; sortDir: SortDir }) {
   if (sortKey !== col) return <span className="ml-1 text-slate-300">↕</span>;
   return <span className="ml-1 text-blue-500">{sortDir === "asc" ? "↑" : "↓"}</span>;
@@ -100,6 +98,11 @@ export default function ReportesPage() {
     try {
       const resClients = await fetch(`${API_URL}/facturas/clientes`, { cache: 'no-store' });
       const listClients = await resClients.json();
+      
+      const uniqueMap = new Map(listClients.map((c: any) => [c.cedula || c.ruc || c.nombre, c]));
+      const sortedUniqueCleanClients = Array.from(uniqueMap.values())
+        .filter((c: any) => c.nombre && c.nombre.trim() !== "" && c.nombre.trim() !== "undefined")
+        .sort((a: any, b: any) => (a.nombre || "").localeCompare(b.nombre || ""));
 
       const resFacturas = await fetch(`${API_URL}/facturas`, { cache: 'no-store' });
       const listFacturas = await resFacturas.json();
@@ -108,7 +111,7 @@ export default function ReportesPage() {
       const listPagos = await resPagos.json();
 
       const mappedRegistros: Registro[] = listFacturas.map((f: any) => {
-        const client = listClients.find((c: any) => c.id === f.clienteId);
+        const client = sortedUniqueCleanClients.find((c: any) => c.id === f.clienteId);
         
         let pagado = 0;
         let ultimoPago: string | null = null;
@@ -213,142 +216,148 @@ export default function ReportesPage() {
     `px-5 py-3 text-left text-xs font-semibold text-slate-500 tracking-wider cursor-pointer select-none hover:text-slate-700 transition-colors`;
 
   return (
-    <div>
-      <h1 className="text-4xl font-bold text-slate-800 mb-8">Reportes</h1>
-
-      {/* ── Filtros ── */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
-        <h2 className="text-xs font-semibold text-slate-400 tracking-widest mb-4 uppercase">Filtros de búsqueda</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-          <input type="text" placeholder="Cliente"    value={fCliente} onChange={e => setFCliente(e.target.value)} onKeyDown={handleKeyDown}
-            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <input type="text" placeholder="Cédula"     value={fCedula}  onChange={e => setFCedula(e.target.value)}  onKeyDown={handleKeyDown}
-            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <input type="text" placeholder="N° factura" value={fFactura} onChange={e => setFFactura(e.target.value)} onKeyDown={handleKeyDown}
-            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <select value={fEstado} onChange={e => setFEstado(e.target.value)}
-            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">Todos los estados</option>
-            <option value="Pagado">Pagado</option>
-            <option value="Parcial">Parcial</option>
-            <option value="Por Pagar">Por Pagar</option>
-          </select>
-        </div>
-        <div className="flex gap-2">
-          <button type="button" onClick={aplicarFiltros}
-            className="px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors">
-            Buscar
-          </button>
-          <button type="button" onClick={limpiarFiltros}
-            className="px-5 py-2.5 border border-slate-200 text-slate-600 text-sm font-medium rounded-xl hover:bg-slate-50 transition-colors">
-            Limpiar
-          </button>
-        </div>
+    <div className="max-w-6xl mx-auto p-4 md:p-6 bg-slate-50/50 rounded-2xl border border-slate-200/60 min-h-screen">
+      {/* Cabecera */}
+      <div className="border-b border-slate-200 pb-4 mb-6">
+        <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">Reportes</h1>
+        <p className="text-slate-500 text-sm mt-1">Gestión consolidada de cuentas por cobrar e historial de transacciones.</p>
       </div>
 
-      {/* ── Métricas ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        {[
-          { label: "Registros",  value: filtrados.length,                    color: "text-slate-800"   },
-          { label: "Total",      value: `$${totalMonto.toLocaleString()}`,   color: "text-slate-800"   },
-          { label: "Cobrado",    value: `$${totalCobrado.toLocaleString()}`, color: "text-emerald-600" },
-          { label: "Por cobrar", value: `$${totalDeuda.toLocaleString()}`,   color: "text-red-600"     },
-        ].map(({ label, value, color }) => (
-          <div key={label} className="bg-slate-50 rounded-xl p-4">
-            <p className="text-xs text-slate-500 mb-1">{label}</p>
-            <p className={`text-xl font-semibold ${color}`}>{value}</p>
+      <div>
+        {/* ── Filtros ── */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
+          <h2 className="text-xs font-semibold text-slate-400 tracking-widest mb-4 uppercase">Filtros de búsqueda</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            <input type="text" placeholder="Cliente"    value={fCliente} onChange={e => setFCliente(e.target.value)} onKeyDown={handleKeyDown}
+              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input type="text" placeholder="Cédula"     value={fCedula}  onChange={e => setFCedula(e.target.value)}  onKeyDown={handleKeyDown}
+              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input type="text" placeholder="N° factura" value={fFactura} onChange={e => setFFactura(e.target.value)} onKeyDown={handleKeyDown}
+              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <select value={fEstado} onChange={e => setFEstado(e.target.value)}
+              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">Todos los estados</option>
+              <option value="Pagado">Pagado</option>
+              <option value="Parcial">Parcial</option>
+              <option value="Por Pagar">Por Pagar</option>
+            </select>
           </div>
-        ))}
-      </div>
+          <div className="flex gap-2">
+            <button type="button" onClick={aplicarFiltros}
+              className="px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors">
+              Buscar
+            </button>
+            <button type="button" onClick={limpiarFiltros}
+              className="px-5 py-2.5 border border-slate-200 text-slate-600 text-sm font-medium rounded-xl hover:bg-slate-50 transition-colors">
+              Limpiar
+            </button>
+          </div>
+        </div>
 
-      {/* ── Tabla ── */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th className={thClass("cliente")} onClick={() => toggleSort("cliente")}>
-                Cliente <SortIcon col="cliente" sortKey={sortKey} sortDir={sortDir} />
-              </th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 tracking-wider">Cédula</th>
-              <th className={thClass("factura")} onClick={() => toggleSort("factura")}>
-                Factura <SortIcon col="factura" sortKey={sortKey} sortDir={sortDir} />
-              </th>
-              <th className={thClass("fecha")} onClick={() => toggleSort("fecha")}>
-                Fecha <SortIcon col="fecha" sortKey={sortKey} sortDir={sortDir} />
-              </th>
-              <th className={thClass("estado")} onClick={() => toggleSort("estado")}>
-                Estado <SortIcon col="estado" sortKey={sortKey} sortDir={sortDir} />
-              </th>
-              <th className={thClass("monto")} onClick={() => toggleSort("monto")}>
-                Monto <SortIcon col="monto" sortKey={sortKey} sortDir={sortDir} />
-              </th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 tracking-wider">Saldo / deuda</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 tracking-wider">Último pago</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 tracking-wider">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {slice.length === 0 ? (
-              <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400 text-sm">Sin resultados con los filtros actuales</td></tr>
-            ) : slice.map(r => {
-              const deuda = r.monto - r.pagado;
-              return (
-                <tr key={r.factura} className="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-                  <td className="px-5 py-3 font-medium text-slate-800">{r.cliente}</td>
-                  <td className="px-5 py-3 font-mono text-xs text-slate-600">{r.cedula}</td>
-                  <td className="px-5 py-3 text-slate-700">{r.factura}</td>
-                  <td className="px-5 py-3 text-slate-500 text-xs">{r.fecha}</td>
-                  <td className="px-5 py-3">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${badgeClass[r.estado]}`}>
-                      {r.estado}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 font-semibold text-slate-800">${r.monto.toLocaleString()}</td>
-                  <td className="px-5 py-3">
-                    <p className="text-xs text-slate-500">${r.pagado.toLocaleString()} de ${r.monto.toLocaleString()}</p>
-                    {deuda > 0
-                      ? <p className="text-xs font-medium text-red-600 mt-0.5">Debe ${deuda.toLocaleString()}</p>
-                      : <p className="text-xs font-medium text-emerald-600 mt-0.5">Saldo saldado ✓</p>}
-                  </td>
-                  <td className="px-5 py-3">
-                    {r.ultimoPago
-                      ? <><p className="text-xs font-medium text-slate-700">{r.ultimoPago}</p><p className="text-xs text-slate-400">último pago</p></>
-                      : <p className="text-xs text-slate-400">Sin pagos</p>}
-                  </td>
-                  <td className="px-5 py-3">
-                    <div className="flex gap-2">
-                      <button type="button" onClick={() => imprimirRecibo(r)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-medium hover:bg-slate-100 transition-colors">
-                        🖨 Imprimir
-                      </button>
-                      <button type="button" onClick={() => descargarPDF(r)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-300 text-emerald-700 text-xs font-medium hover:bg-emerald-50 transition-colors">
-                        ↓ PDF
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        {/* ── Métricas ── */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          {[
+            { label: "Registros",  value: filtrados.length,                    color: "text-slate-800"   },
+            { label: "Total",      value: `$${totalMonto.toLocaleString()}`,   color: "text-slate-800"   },
+            { label: "Cobrado",    value: `$${totalCobrado.toLocaleString()}`, color: "text-emerald-600" },
+            { label: "Por cobrar", value: `$${totalDeuda.toLocaleString()}`,   color: "text-red-600"     },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="bg-white border border-slate-200 shadow-sm rounded-xl p-4">
+              <p className="text-xs text-slate-500 mb-1">{label}</p>
+              <p className={`text-xl font-semibold ${color}`}>{value}</p>
+            </div>
+          ))}
+        </div>
 
-        {/* ── Paginación ── */}
-        <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100">
-          <p className="text-xs text-slate-500">
-            Mostrando {Math.min((pagina - 1) * PER_PAGE + 1, filtrados.length)}–{Math.min(pagina * PER_PAGE, filtrados.length)} de {filtrados.length}
-          </p>
-          <div className="flex items-center gap-1">
-            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={pagina === 1}
-              className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">‹</button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-              <button key={p} onClick={() => setPage(p)}
-                className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
-                  p === pagina ? "bg-blue-600 text-white border-blue-600" : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                }`}>{p}</button>
-            ))}
-            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={pagina === totalPages}
-              className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">›</button>
+        {/* ── Tabla ── */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th className={thClass("cliente")} onClick={() => toggleSort("cliente")}>
+                  Cliente <SortIcon col="cliente" sortKey={sortKey} sortDir={sortDir} />
+                </th>
+                <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 tracking-wider">Cédula</th>
+                <th className={thClass("factura")} onClick={() => toggleSort("factura")}>
+                  Factura <SortIcon col="factura" sortKey={sortKey} sortDir={sortDir} />
+                </th>
+                <th className={thClass("fecha")} onClick={() => toggleSort("fecha")}>
+                  Fecha <SortIcon col="fecha" sortKey={sortKey} sortDir={sortDir} />
+                </th>
+                <th className={thClass("estado")} onClick={() => toggleSort("estado")}>
+                  Estado <SortIcon col="estado" sortKey={sortKey} sortDir={sortDir} />
+                </th>
+                <th className={thClass("monto")} onClick={() => toggleSort("monto")}>
+                  Monto <SortIcon col="monto" sortKey={sortKey} sortDir={sortDir} />
+                </th>
+                <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 tracking-wider">Saldo / deuda</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 tracking-wider">Último pago</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 tracking-wider">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {slice.length === 0 ? (
+                <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400 text-sm">Sin resultados con los filtros actuales</td></tr>
+              ) : slice.map(r => {
+                const deuda = r.monto - r.pagado;
+                return (
+                  <tr key={r.factura} className="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+                    <td className="px-5 py-3 font-medium text-slate-800">{r.cliente}</td>
+                    <td className="px-5 py-3 font-mono text-xs text-slate-600">{r.cedula}</td>
+                    <td className="px-5 py-3 text-slate-700">{r.factura}</td>
+                    <td className="px-5 py-3 text-slate-500 text-xs">{r.fecha}</td>
+                    <td className="px-5 py-3">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${badgeClass[r.estado]}`}>
+                        {r.estado}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 font-semibold text-slate-800">${r.monto.toLocaleString()}</td>
+                    <td className="px-5 py-3">
+                      <p className="text-xs text-slate-500">${r.pagado.toLocaleString()} de ${r.monto.toLocaleString()}</p>
+                      {deuda > 0
+                        ? <p className="text-xs font-medium text-red-600 mt-0.5">Debe ${deuda.toLocaleString()}</p>
+                        : <p className="text-xs font-medium text-emerald-600 mt-0.5">Saldo saldado ✓</p>}
+                    </td>
+                    <td className="px-5 py-3">
+                      {r.ultimoPago
+                        ? <><p className="text-xs font-medium text-slate-700">{r.ultimoPago}</p><p className="text-xs text-slate-400">último pago</p></>
+                        : <p className="text-xs text-slate-400">Sin pagos</p>}
+                    </td>
+                    <td className="px-5 py-3">
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => imprimirRecibo(r)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-medium hover:bg-slate-100 transition-colors">
+                          🖨 Imprimir
+                        </button>
+                        <button type="button" onClick={() => descargarPDF(r)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-300 text-emerald-700 text-xs font-medium hover:bg-emerald-50 transition-colors">
+                          ↓ PDF
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          {/* ── Paginación ── */}
+          <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100">
+            <p className="text-xs text-slate-500">
+              Mostrando {Math.min((pagina - 1) * PER_PAGE + 1, filtrados.length)}–{Math.min(pagina * PER_PAGE, filtrados.length)} de {filtrados.length}
+            </p>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={pagina === 1}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">‹</button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                <button key={p} onClick={() => setPage(p)}
+                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                    p === pagina ? "bg-blue-600 text-white border-blue-600" : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}>{p}</button>
+              ))}
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={pagina === totalPages}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">›</button>
+            </div>
           </div>
         </div>
       </div>

@@ -68,6 +68,7 @@ describe('PagosService', () => {
           clienteId: 'cli-001',
           cuentaBancariaId: 'cb-invalid',
           descripcion: 'test',
+          detalles: [],
         }),
       ).rejects.toThrow(NotFoundException);
     });
@@ -83,6 +84,7 @@ describe('PagosService', () => {
           clienteId: 'cli-invalid',
           cuentaBancariaId: 'cb-001',
           descripcion: 'test',
+          detalles: [],
         }),
       ).rejects.toThrow(NotFoundException);
     });

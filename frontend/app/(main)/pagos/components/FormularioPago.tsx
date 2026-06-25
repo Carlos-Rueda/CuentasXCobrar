@@ -29,6 +29,16 @@ export default function PagosPage({ onGuardado }: FormularioPagoProps) {
   );
 
   const [clientes, setClientes] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  const filteredClientes = clientes.filter((c) => {
+    const term = searchTerm.toLowerCase();
+    return (
+      (c.nombre || "").toLowerCase().includes(term) ||
+      (c.cedula || c.ruc || "").toLowerCase().includes(term)
+    );
+  });
 
   const cargarClientes = async () => {
     try {
@@ -109,6 +119,17 @@ export default function PagosPage({ onGuardado }: FormularioPagoProps) {
 
       alert("Pago registrado correctamente");
 
+      // Limpiar formulario
+      setFormData({
+        fecha: "",
+        clienteId: "",
+        descripcion: "",
+      });
+      setCuentaBancariaId("");
+      setFacturasSeleccionadas([]);
+      setFacturas([]);
+      setSearchTerm("");
+
       if (onGuardado) {
         onGuardado();
       }
@@ -155,13 +176,25 @@ export default function PagosPage({ onGuardado }: FormularioPagoProps) {
   };
 
   useEffect(() => {
-    cargarFacturas();
     cargarClientes();
     cargarCuentasBancarias();
   }, []);
 
+  useEffect(() => {
+    if (formData.clienteId) {
+      cargarFacturas();
+    } else {
+      setFacturas([]);
+    }
+  }, [formData.clienteId]);
+
   const facturasFiltradas = facturas.filter(
-    (factura) => factura.clienteId === formData.clienteId && Number(factura.pendiente) > 0
+    (factura) =>
+      factura.clienteId === formData.clienteId &&
+      (factura.estado?.toUpperCase() === "PENDIENTE" ||
+        factura.estado?.toUpperCase() === "SALDO_A_FAVOR" ||
+        factura.estado?.toUpperCase() === "SALDO A FAVOR" ||
+        Number(factura.pendiente) > 0)
   );
 
   // Validaciones para deshabilitar el botón
@@ -208,21 +241,46 @@ export default function PagosPage({ onGuardado }: FormularioPagoProps) {
           </div>
         </div>
 
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 relative">
           <label className="text-sm font-medium text-gray-700">Cliente</label>
-          <select
-            name="clienteId"
-            value={formData.clienteId}
-            onChange={handleChange}
-            className="p-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-          >
-            <option value="">Seleccione un cliente</option>
-            {clientes.map((cliente) => (
-              <option key={cliente.id} value={cliente.id}>
-                {cliente.nombre} - {cliente.cedula || cliente.ruc}
-              </option>
-            ))}
-          </select>
+          <input
+            type="text"
+            placeholder="Buscar cliente por nombre o cédula..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setDropdownOpen(true);
+              if (formData.clienteId) {
+                setFormData({ ...formData, clienteId: "" });
+                setFacturasSeleccionadas([]);
+              }
+            }}
+            onFocus={() => setDropdownOpen(true)}
+            onBlur={() => setTimeout(() => setDropdownOpen(false), 200)}
+            className="p-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
+          />
+          {dropdownOpen && filteredClientes.length > 0 && (
+            <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto mt-1 top-full left-0">
+              {filteredClientes.map((cliente) => (
+                <div
+                  key={cliente.id}
+                  onClick={() => {
+                    setFormData({ ...formData, clienteId: cliente.id });
+                    setSearchTerm(`${cliente.nombre} - ${cliente.cedula || cliente.ruc || ""}`);
+                    setDropdownOpen(false);
+                  }}
+                  className="p-2 hover:bg-blue-50 cursor-pointer text-sm text-gray-700 transition-colors border-b border-gray-100 last:border-0"
+                >
+                  {cliente.nombre} - {cliente.cedula || cliente.ruc}
+                </div>
+              ))}
+            </div>
+          )}
+          {formData.clienteId && (
+            <span className="text-xs text-green-600 font-medium mt-1">
+              Cliente seleccionado correctamente.
+            </span>
+          )}
         </div>
 
         <div className="flex flex-col gap-1">

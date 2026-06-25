@@ -6,6 +6,7 @@ import { PagosModule } from './modules/pagos/pagos.module';
 import { CuentasCobrarModule } from './modules/cuentas-cobrar/cuentas-cobrar.module';
 import { CuentasBancariasModule } from './modules/cuentas-bancarias/cuentas-bancarias.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { ReportesModule } from './modules/reportes/reportes.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { PrismaModule } from './prisma/prisma.module';
     PagosModule,
     CuentasCobrarModule,
     CuentasBancariasModule,
+    ReportesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

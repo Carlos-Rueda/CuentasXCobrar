@@ -248,6 +248,7 @@ export class PagosService {
           clienteId: f.clienteId,
           total: f.total,
           pendiente: Math.max(0, Number(f.total) - pagado),
+          estado: f.estado,
         };
       }),
     );
@@ -339,7 +340,7 @@ export class PagosService {
     }
 
     // Pre-calcular saldos restantes
-    const detallesConSaldos = [];
+    const detallesConSaldos: any[] = [];
     if (pago.detalles_pago && pago.detalles_pago.length > 0) {
       for (const det of pago.detalles_pago) {
         const facturaReal = facturas.find((f) => f.id === det.factura_id);
@@ -403,7 +404,7 @@ export class PagosService {
         doc.font('Helvetica').fontSize(10);
         doc.moveDown(0.5);
         doc.text(`Nombre: ${cliente?.nombre || 'N/A'}`, 320);
-        doc.text(`RUC/Cédula: ${cliente?.cedula || cliente?.ruc || 'N/A'}`, 320);
+        doc.text(`RUC/Cédula: ${cliente?.cedula || (cliente as any)?.ruc || 'N/A'}`, 320);
         doc.text(`Correo: ${cliente?.correo || 'N/A'}`, 320);
         doc.text(`Teléfono: ${cliente?.telefono || 'N/A'}`, 320);
         doc.text(`Dirección: ${cliente?.direccion || 'N/A'}`, 320);
