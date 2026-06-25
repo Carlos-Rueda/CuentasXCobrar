@@ -1,0 +1,33 @@
+services:
+  # Backend NestJS Web Service
+  - type: web
+    name: cuentasxcobrar-backend
+    env: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: FACTURACION_JWT_TOKEN
+        sync: false
+
+  # Frontend Next.js Web Service
+  - type: web
+    name: cuentasxcobrar-frontend
+    env: node
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: cuentasxcobrar-backend
+          property: url

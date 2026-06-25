@@ -111,7 +111,7 @@ export default function ReportesPage() {
       const listPagos = await resPagos.json();
 
       const mappedRegistros: Registro[] = listFacturas.map((f: any) => {
-        const client = sortedUniqueCleanClients.find((c: any) => c.id === f.clienteId);
+        const client = sortedUniqueCleanClients.find((c: any) => c.id === f.clienteId) as any;
         
         let pagado = 0;
         let ultimoPago: string | null = null;
