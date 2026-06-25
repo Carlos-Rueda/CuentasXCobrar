@@ -23,18 +23,6 @@ type SortKey = "cliente" | "factura" | "fecha" | "estado" | "monto";
 type SortDir = "asc" | "desc";
 
 
-const EMPTY_FORM = {
-  clienteId:   "",
-  cliente:     "",
-  cedula:      "",
-  factura:     "",
-  fecha:       "",
-  estado:      "Por Pagar" as "Pagado" | "Por Pagar",
-  monto:       "",
-  descripcion: "",
-};
-
-type FormErrors = Partial<Record<keyof typeof EMPTY_FORM, string>>;
 
 function fmtFecha(iso: string) {
   if (!iso) return "";
@@ -44,28 +32,14 @@ function fmtFecha(iso: string) {
 
 function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey | null; sortDir: SortDir }) {
   if (sortKey !== col) return <span className="ml-1 text-slate-300">↕</span>;
-  return <span className="ml-1 text-blue-500">{sortDir === "asc" ? "↑" : "↓"}</span>;
-}
-
-export default function FacturasPage() {
+  return <span className="ml-1 text-blue-500">{sortDir === "asc" ? "↑" : "↓"}</span>;export default function FacturasPage() {
   const [facturas,   setFacturas]   = useState<Factura[]>([]);
-  const [clientes,   setClientes]   = useState<any[]>([]);
-  const [modalOpen,  setModalOpen]  = useState(false);
-  const [form,       setForm]       = useState(EMPTY_FORM);
-  const [errors,     setErrors]     = useState<FormErrors>({});
-  const [nextId,     setNextId]     = useState(1);
 
   const cargarDatos = async () => {
     try {
       const resClients = await fetch(`${API_URL}/facturas/clientes`, { cache: "no-store" });
       const rawClients = await resClients.json();
       const listClients = Array.isArray(rawClients) ? rawClients : [];
-      // Filtrar basura, deduplicar por cédula/RUC y ordenar alfabéticamente de la A a la Z
-      const uniqueMap = new Map(listClients.map((c: any) => [c.cedula || c.ruc || c.nombre, c]));
-      const sortedUniqueCleanClients = Array.from(uniqueMap.values())
-        .filter((c: any) => c.nombre && c.nombre.trim() !== "" && c.nombre.trim() !== "undefined")
-        .sort((a: any, b: any) => (a.nombre || "").localeCompare(b.nombre || ""));
-      setClientes(sortedUniqueCleanClients);
 
       const resFacturas = await fetch(`${API_URL}/facturas`, { cache: "no-store" });
       const rawFacturas = await resFacturas.json();
@@ -181,78 +155,6 @@ export default function FacturasPage() {
     return { total, cobrado, porCobrar: total - cobrado };
   }, [filtradas]);
 
-  // ── Modal ──────────────────────────────────────────────────────────────────
-  const abrirModal  = () => { setForm(EMPTY_FORM); setErrors({}); setModalOpen(true); };
-  const cerrarModal = () => setModalOpen(false);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
-    setErrors(prev => ({ ...prev, [name]: undefined }));
-  };
-
-  const handleClientSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const cid = e.target.value;
-    const client = clientes.find(c => c.id === cid);
-    setForm(prev => ({
-      ...prev,
-      clienteId: cid,
-      cliente: client ? client.nombre : "",
-      cedula: client ? client.ruc : "",
-    }));
-    setErrors(prev => ({ ...prev, cliente: undefined, cedula: undefined }));
-  };
-
-  const validar = (): boolean => {
-    const errs: FormErrors = {};
-    if (!form.cliente.trim())                          errs.cliente = "Ingrese el nombre del cliente";
-    if (/\d/.test(form.cliente))                       errs.cliente = "El nombre no puede contener números";
-    if (!/^\d{10}$/.test(form.cedula))                 errs.cedula  = "La cédula debe tener 10 dígitos";
-    if (!form.factura.trim())                          errs.factura = "Ingrese el número de factura";
-    if (!form.fecha)                                   errs.fecha   = "Seleccione una fecha";
-    if (!form.monto || Number(form.monto) <= 0)        errs.monto   = "El monto debe ser mayor a 0";
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
-
-  const guardarFactura = async () => {
-    if (!validar()) return;
-    const payload = {
-      id: `fac-${Date.now()}`,
-      numero: form.factura.trim(),
-      clienteId: form.clienteId,
-      fechaEmision: form.fecha,
-      total: Number(form.monto),
-      estado: form.estado === "Pagado" ? "PAGADA" : "PENDIENTE",
-      detalles: [
-        {
-          producto: form.descripcion.trim() || "Concepto General",
-          cantidad: 1,
-          precioUnitario: Number(form.monto)
-        }
-      ]
-    };
-
-    try {
-      const res = await fetch(`${API_URL}/facturas`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok) {
-        await cargarDatos();
-        cerrarModal();
-        alert("Factura guardada correctamente en el servidor.");
-      } else {
-        alert("Error al guardar la factura en el servidor.");
-      }
-    } catch (error) {
-      console.error(error);
-      alert("Error al conectar con el servidor.");
-    }
-  };
-
   const eliminar = (id: string) => setFacturas(prev => prev.filter(f => f.id !== id));
 
   const thSort = (col: SortKey, label: string) => (
@@ -320,109 +222,7 @@ export default function FacturasPage() {
       {/* ── Barra superior ── */}
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-slate-500">{filtradas.length} factura{filtradas.length !== 1 ? "s" : ""}</p>
-        <button type="button" onClick={abrirModal}
-          className="inline-flex items-center gap-2 bg-blue-600 text-white text-sm font-medium px-4 py-2.5 rounded-xl hover:bg-blue-700 transition-colors">
-          + Nueva factura
-        </button>
       </div>
-
-      {/* ── Modal nueva factura ── */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg mx-4 overflow-hidden">
-
-            {/* Header del modal */}
-            <div className="bg-blue-600 px-6 py-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-white">Nueva factura</h2>
-                  <p className="text-sm text-blue-100 mt-0.5">Complete los datos de la factura</p>
-                </div>
-                <button type="button" onClick={cerrarModal} aria-label="Cerrar"
-                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 text-white hover:bg-white/30 transition-colors text-lg">
-                  ✕
-                </button>
-              </div>
-            </div>
-
-            {/* Cuerpo del modal */}
-            <div className="p-6 max-h-[70vh] overflow-y-auto">
-              <div className="grid grid-cols-2 gap-4">
-
-                <div className="col-span-1">
-                  <label className="block text-xs font-medium text-slate-500 mb-1.5">Cliente *</label>
-                  <select name="clienteId" value={form.clienteId} onChange={handleClientSelectChange}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Seleccione un cliente</option>
-                    {clientes.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.nombre} - {c.cedula || c.ruc}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.cliente && <p className="text-xs text-red-600 mt-1">{errors.cliente}</p>}
-                </div>
-
-                <div className="col-span-1">
-                  <label className="block text-xs font-medium text-slate-500 mb-1.5">Cédula/RUC</label>
-                  <input name="cedula" type="text" value={form.cedula} readOnly
-                    className="w-full rounded-xl border border-slate-200 bg-slate-200 px-3 py-2.5 text-sm focus:outline-none text-slate-600 cursor-not-allowed" />
-                </div>
-
-                <div className="col-span-1">
-                  <label className="block text-xs font-medium text-slate-500 mb-1.5">N° factura *</label>
-                  <input name="factura" type="text" placeholder="FAC-001" value={form.factura}
-                    onChange={handleChange} className={inputClass("factura")} />
-                  {errors.factura && <p className="text-xs text-red-600 mt-1">{errors.factura}</p>}
-                </div>
-
-                <div className="col-span-1">
-                  <label className="block text-xs font-medium text-slate-500 mb-1.5">Fecha *</label>
-                  <input name="fecha" type="date" value={form.fecha}
-                    onChange={handleChange} className={inputClass("fecha")} />
-                  {errors.fecha && <p className="text-xs text-red-600 mt-1">{errors.fecha}</p>}
-                </div>
-
-                <div className="col-span-1">
-                  <label className="block text-xs font-medium text-slate-500 mb-1.5">Monto ($) *</label>
-                  <input name="monto" type="number" placeholder="0.00" min="0.01" step="0.01"
-                    value={form.monto} onChange={handleChange} className={inputClass("monto")} />
-                  {errors.monto && <p className="text-xs text-red-600 mt-1">{errors.monto}</p>}
-                </div>
-
-                <div className="col-span-1">
-                  <label className="block text-xs font-medium text-slate-500 mb-1.5">Estado</label>
-                  <select name="estado" value={form.estado} onChange={handleChange}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="Por Pagar">Por Pagar</option>
-                    <option value="Pagado">Pagado</option>
-                  </select>
-                </div>
-
-                <div className="col-span-2">
-                  <label className="block text-xs font-medium text-slate-500 mb-1.5">Descripción / concepto</label>
-                  <textarea name="descripcion" placeholder="Descripción opcional..." value={form.descripcion}
-                    onChange={handleChange} rows={3}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
-                </div>
-
-              </div>
-            </div>
-
-            {/* Footer del modal */}
-            <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100 bg-slate-50">
-              <button type="button" onClick={cerrarModal}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-100 transition-colors">
-                Cancelar
-              </button>
-              <button type="button" onClick={guardarFactura}
-                className="px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors">
-                Guardar factura
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── Tabla ── */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
