@@ -12,7 +12,12 @@ export class ReportesService {
 
   async calcularPagadoParaFactura(facturaId: string): Promise<number> {
     const agg = await this.prismaService.detalles_pago.aggregate({
-      where: { factura_id: facturaId },
+      where: {
+        factura_id: facturaId,
+        pagos_clientes: {
+          estado: 'activo',
+        },
+      },
       _sum: { monto_pagado: true },
     });
     return agg._sum.monto_pagado ? Number(agg._sum.monto_pagado) : 0;
@@ -57,6 +62,7 @@ export class ReportesService {
     const queryPagos: any = {
       where: {
         cliente_id: clienteId,
+        estado: 'activo',
       },
       include: {
         detalles_pago: true,

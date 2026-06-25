@@ -5,12 +5,15 @@ import {
   Post,
   Body,
   UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
 import { CuentasCobrarService } from './cuentas-cobrar.service';
 import { LoginMockDto } from './dto/login-mock.dto';
 import { ValidadorDeudaDto } from './dto/validador-deuda.dto';
 import { EstadoCuentaDto } from './dto/estado-cuenta.dto';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import * as crypto from 'crypto';
 
 @ApiTags('Cuentas por Cobrar (Módulo CXC)')
 @Controller('cxc')
@@ -87,5 +90,49 @@ export class CuentasCobrarController {
     @Param('clienteId') clienteId: string,
   ): Promise<ValidadorDeudaDto> {
     return this.cuentasCobrarService.validarDeudaCliente(clienteId);
+  }
+
+  @Get('clientes-saldos')
+  @ApiTags('API de Salida')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Listar clientes con saldo a pagar (para módulos externos)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Listado de clientes con deudas pendientes mayor a 0.',
+  })
+  async getClientesSaldos() {
+    return this.cuentasCobrarService.getClientesSaldos();
+  }
+
+  @Get('auth/generate-token')
+  @ApiTags('API de Salida')
+  @ApiOperation({ summary: 'Generar token JWT de integración para uso de módulos externos' })
+  @ApiResponse({
+    status: 200,
+    description: 'Retorna un token JWT válido generado con el secreto del sistema.',
+  })
+  generarTokenIntegracion() {
+    const secret = process.env.JWT_SECRET || 'cxc_grupo_secret_key_2026';
+    const payload = {
+      iss: 'cxc-module',
+      aud: 'facturacion-module',
+      rol: 'integrador',
+      purpose: 'facturacion-integration',
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24 * 365), // 1 año
+    };
+    const header = { alg: 'HS256', typ: 'JWT' };
+    const headerB64 = Buffer.from(JSON.stringify(header)).toString('base64url');
+    const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    const hmac = crypto.createHmac('sha256', secret);
+    hmac.update(`${headerB64}.${payloadB64}`);
+    const signatureB64 = hmac.digest('base64url');
+    const token = `${headerB64}.${payloadB64}.${signatureB64}`;
+    return {
+      success: true,
+      token,
+      message: 'Usa este token en la cabecera Authorization: Bearer <token> para consumir la API de Salida.',
+    };
   }
 }

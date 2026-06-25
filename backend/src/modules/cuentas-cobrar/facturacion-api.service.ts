@@ -18,6 +18,7 @@ export interface FacturaDto {
   total: number;
   saldo?: number;
   estado: string;
+  tipoPago?: string;
 }
 
 interface ClientesResponse {
@@ -54,6 +55,7 @@ interface FacturasResponse {
       clienteId: string;
       total: number;
       estado: string;
+      tipoPago?: string;
     }>;
   };
 }
@@ -317,6 +319,7 @@ export class FacturacionApiService {
             clienteId
             total
             estado
+            tipoPago
           }
         }
       }
@@ -328,6 +331,7 @@ export class FacturacionApiService {
       clienteId: f.clienteId,
       total: f.total,
       estado: f.estado,
+      tipoPago: f.tipoPago,
     }));
   }
 
