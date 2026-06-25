@@ -8,9 +8,10 @@ import { API_URL } from "@/app/config";
 
 type FormularioPagoProps = {
   onGuardado?: () => void;
+  pagoAEditar?: any;
 };
 
-export default function PagosPage({ onGuardado }: FormularioPagoProps) {
+export default function PagosPage({ onGuardado, pagoAEditar }: FormularioPagoProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -22,6 +23,25 @@ export default function PagosPage({ onGuardado }: FormularioPagoProps) {
   const [cuentasBancarias, setCuentasBancarias] = useState<any[]>([]);
   const [facturas, setFacturas] = useState<any[]>([]);
   const [facturasSeleccionadas, setFacturasSeleccionadas] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (pagoAEditar) {
+      setFormData({
+        fecha: pagoAEditar.fecha ? pagoAEditar.fecha.split("T")[0] : "",
+        clienteId: pagoAEditar.clienteId || "",
+        descripcion: pagoAEditar.descripcion || "",
+      });
+      setCuentaBancariaId(pagoAEditar.cuentaBancariaId || "");
+      if (pagoAEditar.detalles) {
+        setFacturasSeleccionadas(
+          pagoAEditar.detalles.map((d: any) => ({
+            facturaId: d.facturaId,
+            montoAbonado: d.montoAbonado.toString(),
+          }))
+        );
+      }
+    }
+  }, [pagoAEditar]);
 
   const montoTotalCalculado = facturasSeleccionadas.reduce(
     (total, factura) => total + (Number(factura.montoAbonado) || 0),
@@ -58,6 +78,15 @@ export default function PagosPage({ onGuardado }: FormularioPagoProps) {
     }
   };
 
+  useEffect(() => {
+    if (pagoAEditar && clientes.length > 0) {
+      const client = clientes.find((c) => c.id === pagoAEditar.clienteId);
+      if (client) {
+        setSearchTerm(`${client.nombre} - ${client.cedula || client.ruc || ""}`);
+      }
+    }
+  }, [pagoAEditar, clientes]);
+
   const cargarCuentasBancarias = async () => {
     try {
       const response = await fetch(`${API_URL}/cuentas-bancarias`, { cache: "no-store" });
@@ -65,7 +94,7 @@ export default function PagosPage({ onGuardado }: FormularioPagoProps) {
         const data = await response.json();
         const activas = data.filter((c: any) => c.estado?.toLowerCase() === "activo");
         setCuentasBancarias(activas);
-        if (activas.length > 0) {
+        if (activas.length > 0 && !pagoAEditar) {
           setCuentaBancariaId(activas[0].id);
         }
       }
@@ -97,6 +126,7 @@ export default function PagosPage({ onGuardado }: FormularioPagoProps) {
         clienteId: formData.clienteId,
         cuentaBancariaId: cuentaBancariaId,
         descripcion: formData.descripcion,
+        fecha: formData.fecha || undefined,
         detalles: facturasSeleccionadas
           .filter((f) => Number(f.montoAbonado) > 0)
           .map((f) => ({
@@ -105,8 +135,11 @@ export default function PagosPage({ onGuardado }: FormularioPagoProps) {
           })),
       };
 
-      const response = await fetch(`${API_URL}/pagos`, {
-        method: "POST",
+      const url = pagoAEditar ? `${API_URL}/pagos/${pagoAEditar.id}` : `${API_URL}/pagos`;
+      const method = pagoAEditar ? "PATCH" : "POST";
+
+      const response = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -117,7 +150,7 @@ export default function PagosPage({ onGuardado }: FormularioPagoProps) {
         throw new Error(data.message || "Error al registrar el pago");
       }
 
-      alert("Pago registrado correctamente");
+      alert(pagoAEditar ? "Pago editado correctamente" : "Pago registrado correctamente");
 
       // Limpiar formulario
       setFormData({
@@ -194,12 +227,26 @@ export default function PagosPage({ onGuardado }: FormularioPagoProps) {
       (factura.estado?.toUpperCase() === "PENDIENTE" ||
         factura.estado?.toUpperCase() === "SALDO_A_FAVOR" ||
         factura.estado?.toUpperCase() === "SALDO A FAVOR" ||
-        Number(factura.pendiente) > 0)
-  );
+        Number(factura.pendiente) > 0 ||
+        (pagoAEditar && pagoAEditar.detalles?.some((d: any) => d.facturaId === factura.id)))
+  ).map((factura) => {
+    let originalPendiente = Number(factura.pendiente);
+    if (pagoAEditar) {
+      // Si estamos editando, le sumamos el monto ya abonado por este pago para conocer el saldo pendiente original
+      const allocated = pagoAEditar.detalles?.find((d: any) => d.facturaId === factura.id || d.facturaId === factura.facturaId);
+      if (allocated) {
+        originalPendiente += Number(allocated.montoAbonado);
+      }
+    }
+    return {
+      ...factura,
+      pendiente: originalPendiente,
+    };
+  });
 
   // Validaciones para deshabilitar el botón
   const hayErrorMonto = facturasSeleccionadas.some((fs) => {
-    const original = facturas.find((f) => f.id === fs.facturaId);
+    const original = facturasFiltradas.find((f) => f.id === fs.facturaId);
     return original && Number(fs.montoAbonado) > Number(original.pendiente);
   });
   

@@ -486,6 +486,7 @@ export class PagosService {
   async update(id: string, updatePagoDto: any): Promise<PagoEntity> {
     const pago = await this.prismaService.pagos_clientes.findUnique({
       where: { id },
+      include: { detalles_pago: true },
     });
 
     if (!pago) {
@@ -498,17 +499,90 @@ export class PagosService {
       );
     }
 
-    const updated = await this.prismaService.pagos_clientes.update({
-      where: { id },
-      data: {
-        descripcion: updatePagoDto.descripcion,
-        cuenta_bancaria_id: updatePagoDto.cuentaBancariaId,
-        fecha_pago: updatePagoDto.fecha ? new Date(updatePagoDto.fecha) : undefined,
-      },
-      include: {
-        detalles_pago: true,
-        cuentas_bancarias: true,
-      },
+    const { clienteId, cuentaBancariaId, descripcion, detalles } = updatePagoDto;
+
+    // Validar Cuenta
+    if (cuentaBancariaId) {
+      const cuentaExiste = await this.prismaService.cuentas_bancarias.findUnique({
+        where: { id: cuentaBancariaId },
+      });
+      if (!cuentaExiste || cuentaExiste.estado?.toUpperCase() !== 'ACTIVO') {
+        throw new NotFoundException(
+          `La cuenta bancaria con ID ${cuentaBancariaId} no existe o no se encuentra activa`,
+        );
+      }
+    }
+
+    // Validar Cliente
+    if (clienteId) {
+      const clienteExiste = await this.facturacionApiService.obtenerClientePorId(clienteId);
+      if (!clienteExiste) {
+        throw new NotFoundException(
+          `El cliente con ID ${clienteId} no existe en el sistema de facturación`,
+        );
+      }
+    }
+
+    const updated = await this.prismaService.$transaction(async (tx) => {
+      // 1. Eliminar detalles anteriores
+      await tx.detalles_pago.deleteMany({
+        where: { pago_id: id },
+      });
+
+      // 2. Validar nuevos detalles
+      if (detalles && detalles.length > 0) {
+        for (const det of detalles) {
+          if (det.montoPagado <= 0) {
+            throw new BadRequestException(
+              `El monto pagado para la factura ${det.facturaId} debe ser mayor a 0`,
+            );
+          }
+
+          const facturaReal = await this.facturacionApiService.obtenerFacturaPorId(det.facturaId);
+          if (!facturaReal) {
+            throw new NotFoundException(
+              `La factura con ID ${det.facturaId} no existe en el sistema de facturación`,
+            );
+          }
+
+          const agg = await tx.detalles_pago.aggregate({
+            where: { factura_id: det.facturaId },
+            _sum: { monto_pagado: true },
+          });
+          const pagadoAnteriormente = agg._sum.monto_pagado ? Number(agg._sum.monto_pagado) : 0;
+          const saldoRestante = Number(facturaReal.total) - pagadoAnteriormente;
+
+          if (det.montoPagado > saldoRestante) {
+            throw new BadRequestException(
+              `El monto a pagar ($${det.montoPagado}) sobrepasa el saldo pendiente ($${saldoRestante.toFixed(2)}) de la factura ${facturaReal.numeroFactura || det.facturaId}`,
+            );
+          }
+        }
+
+        // 3. Crear los nuevos detalles
+        await tx.detalles_pago.createMany({
+          data: detalles.map((d) => ({
+            pago_id: id,
+            factura_id: d.facturaId,
+            monto_pagado: d.montoPagado,
+          })),
+        });
+      }
+
+      // 4. Actualizar cabecera
+      return await tx.pagos_clientes.update({
+        where: { id },
+        data: {
+          cliente_id: clienteId || undefined,
+          cuenta_bancaria_id: cuentaBancariaId || undefined,
+          descripcion: descripcion,
+          fecha_pago: updatePagoDto.fecha ? new Date(updatePagoDto.fecha) : undefined,
+        },
+        include: {
+          detalles_pago: true,
+          cuentas_bancarias: true,
+        },
+      });
     });
 
     return this.toEntity(updated);

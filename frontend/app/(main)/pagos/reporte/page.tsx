@@ -333,6 +333,7 @@ export default function ReportePagosPage() {
           <div className={styles.modal}>
             <div className={styles.modalHeader}>
               <h2>Editar Pago</h2>
+
               <button
                 className={styles.closeButton}
                 onClick={() => setPagoEditar(null)}
@@ -340,89 +341,15 @@ export default function ReportePagosPage() {
                 ✕
               </button>
             </div>
+
             <div className={styles.modalContent}>
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  const target = e.target as any;
-                  const payload = {
-                    descripcion: target.descripcion.value,
-                    cuentaBancariaId: target.cuentaBancariaId.value,
-                    fecha: target.fecha.value,
-                  };
-                  try {
-                    const response = await fetch(`${API_URL}/pagos/${pagoEditar.id}`, {
-                      method: "PATCH",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify(payload),
-                    });
-                    if (response.ok) {
-                      alert("Pago editado con éxito.");
-                      setPagoEditar(null);
-                      cargarPagos();
-                    } else {
-                      const err = await response.json();
-                      alert(`Error al editar el pago: ${err.message || response.statusText}`);
-                    }
-                  } catch (error) {
-                    console.error(error);
-                    alert("Error de red al editar el pago.");
-                  }
+              <FormularioPago
+                pagoAEditar={pagoEditar}
+                onGuardado={() => {
+                  setPagoEditar(null);
+                  cargarPagos();
                 }}
-                className="flex flex-col gap-4 p-4"
-              >
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-semibold text-slate-600">Fecha de Pago</label>
-                  <input
-                    type="date"
-                    name="fecha"
-                    defaultValue={pagoEditar.fecha ? pagoEditar.fecha.split("T")[0] : ""}
-                    className="p-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm"
-                    required
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-semibold text-slate-600">Cuenta Bancaria Destino</label>
-                  <select
-                    name="cuentaBancariaId"
-                    defaultValue={pagoEditar.cuentaBancariaId}
-                    className="p-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm"
-                    required
-                  >
-                    <option value="">Seleccione una cuenta</option>
-                    {cuentasBancarias.map((cuenta) => (
-                      <option key={cuenta.id} value={cuenta.id}>
-                        {cuenta.entidadBancaria} - {cuenta.nombreCuenta}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-semibold text-slate-600">Descripción / Concepto</label>
-                  <textarea
-                    name="descripcion"
-                    defaultValue={pagoEditar.descripcion}
-                    rows={3}
-                    className="p-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm resize-none"
-                    required
-                  />
-                </div>
-                <div className="flex justify-end gap-2 mt-4">
-                  <button
-                    type="button"
-                    onClick={() => setPagoEditar(null)}
-                    className="px-4 py-2 border border-slate-200 text-slate-600 text-sm font-medium rounded-xl hover:bg-slate-50"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl"
-                  >
-                    Guardar Cambios
-                  </button>
-                </div>
-              </form>
+              />
             </div>
           </div>
         </div>
