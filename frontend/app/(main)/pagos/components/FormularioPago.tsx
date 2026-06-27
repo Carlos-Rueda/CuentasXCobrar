@@ -3,6 +3,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useState } from "react";
+import DatePicker from "@/app/components/DatePicker";
 import { useRouter } from "next/navigation";
 import { API_URL } from "@/app/config";
 import { useToast } from "@/app/components/toast";
@@ -56,6 +57,7 @@ export default function PagosPage({
   const [clientes, setClientes] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [cuentaDropdownOpen, setCuentaDropdownOpen] = useState(false);
 
   const filteredClientes = clientes.filter((c) => {
     const term = searchTerm.toLowerCase();
@@ -313,36 +315,56 @@ export default function PagosPage({
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">
-              Fecha de Pago
-            </label>
-            <input
-              type="date"
-              name="fecha"
-              value={formData.fecha}
-              onChange={handleChange}
-              className="p-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
-            />
-          </div>
+          <DatePicker
+            label="Fecha de Pago"
+            value={formData.fecha}
+            onChange={(v) => setFormData({ ...formData, fecha: v })}
+          />
 
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-1 relative">
+            <label className="text-xs font-semibold text-gray-600 mb-0.5">
               Cuenta Bancaria de Destino
             </label>
-            <select
-              name="cuentaBancariaId"
-              value={cuentaBancariaId}
-              onChange={(e) => setCuentaBancariaId(e.target.value)}
-              className="p-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+            <button
+              type="button"
+              onClick={() => setCuentaDropdownOpen(!cuentaDropdownOpen)}
+              onBlur={() => setTimeout(() => setCuentaDropdownOpen(false), 150)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-left outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 transition-colors bg-white flex items-center justify-between gap-2"
             >
-              <option value="">Seleccione una cuenta bancaria</option>
-              {cuentasBancarias.map((cuenta) => (
-                <option key={cuenta.id} value={cuenta.id}>
-                  {cuenta.entidadBancaria} - {cuenta.nombreCuenta}
-                </option>
-              ))}
-            </select>
+              <span className={cuentaBancariaId ? "text-gray-800 truncate" : "text-gray-400"}>
+                {cuentaBancariaId
+                  ? cuentasBancarias.find((c) => c.id === cuentaBancariaId)
+                      ? `${cuentasBancarias.find((c) => c.id === cuentaBancariaId)?.entidadBancaria} — ${cuentasBancarias.find((c) => c.id === cuentaBancariaId)?.nombreCuenta}`
+                      : "Seleccione una cuenta bancaria"
+                  : "Seleccione una cuenta bancaria"}
+              </span>
+              <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/>
+              </svg>
+            </button>
+            {cuentaDropdownOpen && (
+              <div className="absolute z-20 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                <div
+                  onMouseDown={() => { setCuentaBancariaId(""); setCuentaDropdownOpen(false); }}
+                  className="px-3 py-2.5 text-sm text-gray-400 hover:bg-red-50 cursor-pointer transition-colors"
+                >
+                  Seleccione una cuenta bancaria
+                </div>
+                {cuentasBancarias.map((cuenta) => (
+                  <div
+                    key={cuenta.id}
+                    onMouseDown={() => { setCuentaBancariaId(cuenta.id); setCuentaDropdownOpen(false); }}
+                    className={`px-3 py-2.5 text-sm cursor-pointer transition-colors border-t border-gray-50 ${
+                      cuentaBancariaId === cuenta.id
+                        ? "bg-red-50 text-red-700 font-medium"
+                        : "text-gray-700 hover:bg-red-50"
+                    }`}
+                  >
+                    {cuenta.entidadBancaria} — {cuenta.nombreCuenta}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -504,7 +526,7 @@ export default function PagosPage({
           <span className="text-lg font-medium text-gray-700">
             Total a Pagar
           </span>
-          <span className="text-3xl font-bold text-red-700">
+          <span className="metric-value text-red-700">
             ${montoTotalCalculado.toFixed(2)}
           </span>
         </div>

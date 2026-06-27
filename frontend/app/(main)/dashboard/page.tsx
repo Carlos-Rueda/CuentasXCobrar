@@ -1,122 +1,63 @@
 export default function DashboardPage() {
+  const metricas = [
+    { label: "Clientes",  value: "120",     color: "text-gray-900"    },
+    { label: "Facturas",  value: "350",     color: "text-gray-900"    },
+    { label: "Pagos",     value: "85",      color: "text-gray-900"    },
+    { label: "Pendiente", value: "$15,000", color: "text-red-600"     },
+  ];
+
+  const ultimos = [
+    { cliente: "Juan Pérez",   factura: "FAC-001", fecha: "12/06/2026", valor: "$250" },
+    { cliente: "María López",  factura: "FAC-002", fecha: "12/06/2026", valor: "$430" },
+    { cliente: "Carlos Ruiz",  factura: "FAC-003", fecha: "11/06/2026", valor: "$180" },
+  ];
+
   return (
-    <div>
+    <div className="flex flex-col gap-6">
 
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-slate-800">
-          Dashboard
-        </h1>
-
-        <p className="text-slate-500 mt-2">
-          Resumen general del sistema
-        </p>
+      {/* ── Título de página ── */}
+      <div>
+        <h1 className="page-title">Dashboard</h1>
+        <p className="text-sm text-gray-500 mt-1">Resumen general del sistema</p>
       </div>
 
-      <div className="grid grid-cols-4 gap-6 mb-8">
-
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-          <p className="text-slate-500">
-            Clientes
-          </p>
-
-          <h2 className="text-4xl font-bold text-slate-800 mt-3">
-            120
-          </h2>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-          <p className="text-slate-500">
-            Facturas
-          </p>
-
-          <h2 className="text-4xl font-bold text-slate-800 mt-3">
-            350
-          </h2>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-          <p className="text-slate-500">
-            Pagos
-          </p>
-
-          <h2 className="text-4xl font-bold text-slate-800 mt-3">
-            85
-          </h2>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-          <p className="text-slate-500">
-            Pendiente
-          </p>
-
-          <h2 className="text-4xl font-bold text-emerald-600 mt-3">
-            $15,000
-          </h2>
-        </div>
-
+      {/* ── Métricas ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {metricas.map(({ label, value, color }) => (
+          <div key={label} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+            <p className="metric-label mb-2">{label}</p>
+            <p className={`metric-value ${color}`}>{value}</p>
+          </div>
+        ))}
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-
-        <h2 className="text-xl font-semibold text-slate-800 mb-6">
-          Últimos Pagos
-        </h2>
-
-        <table className="w-full">
-
-          <thead>
-
-            <tr className="border-b border-slate-200">
-
-              <th className="text-left py-3 text-slate-600">
-                Cliente
-              </th>
-
-              <th className="text-left py-3 text-slate-600">
-                Factura
-              </th>
-
-              <th className="text-left py-3 text-slate-600">
-                Fecha
-              </th>
-
-              <th className="text-left py-3 text-slate-600">
-                Valor
-              </th>
-
-            </tr>
-
-          </thead>
-
-          <tbody>
-
-            <tr className="border-b border-slate-100">
-              <td className="py-4">Juan Pérez</td>
-              <td>FAC-001</td>
-              <td>12/06/2026</td>
-              <td>$250</td>
-            </tr>
-
-            <tr className="border-b border-slate-100">
-              <td className="py-4">María López</td>
-              <td>FAC-002</td>
-              <td>12/06/2026</td>
-              <td>$430</td>
-            </tr>
-
+      {/* ── Últimos pagos ── */}
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100">
+          <h2 className="section-title">Últimos Pagos</h2>
+        </div>
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <td className="py-4">Carlos Ruiz</td>
-              <td>FAC-003</td>
-              <td>11/06/2026</td>
-              <td>$180</td>
+              {["Cliente", "Factura", "Fecha", "Valor"].map((h) => (
+                <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-500 tracking-wider">
+                  {h}
+                </th>
+              ))}
             </tr>
-
+          </thead>
+          <tbody>
+            {ultimos.map((r) => (
+              <tr key={r.factura} className="border-b border-gray-100 hover:bg-gray-100 transition-colors">
+                <td className="px-5 py-3 text-sm font-medium text-gray-900">{r.cliente}</td>
+                <td className="px-5 py-3 text-sm text-gray-600">{r.factura}</td>
+                <td className="px-5 py-3 text-xs text-gray-500">{r.fecha}</td>
+                <td className="px-5 py-3 text-sm font-semibold text-gray-900">{r.valor}</td>
+              </tr>
+            ))}
           </tbody>
-
         </table>
-
       </div>
-
     </div>
   );
 }

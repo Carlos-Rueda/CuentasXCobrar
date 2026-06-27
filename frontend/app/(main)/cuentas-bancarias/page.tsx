@@ -290,12 +290,12 @@ export default function CuentasBancariasPage() {
       {/* ── Encabezado ── */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <nav className="text-xs text-gray-500 mb-1">
+          <nav className="metric-label">
             <span>Inicio</span>
             <span className="mx-1">/</span>
             <span className="text-gray-700 font-medium">Cuentas Bancarias</span>
           </nav>
-          <h1 className="text-2xl font-bold text-gray-900">Cuentas Bancarias</h1>
+          <h1 className="page-title">Cuentas Bancarias</h1>
           <p className="text-sm text-gray-500 mt-0.5">
             Administración de cuentas bancarias de la empresa
           </p>

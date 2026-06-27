@@ -143,19 +143,19 @@ export default function ConsultarCliente() {
   const saldoTotalCalculado = totalFacturadoCalculado - totalPagadoCalculado;
 
   return (
-    <div className="flex flex-col gap-6 w-full max-w-5xl mx-auto p-4 md:p-6 bg-slate-50/50 rounded-2xl border border-slate-200">
+    <div className="flex flex-col gap-6 w-full max-w-5xl mx-auto p-4 md:p-6 bg-gray-50/50 rounded-2xl border border-gray-200">
       {/* Cabecera */}
-      <div className="border-b border-slate-200 pb-4">
-        <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Estado de Cuenta del Cliente</h1>
-        <p className="text-slate-500 text-sm mt-1">Consulta de facturas pendientes, abonos y reporte histórico consolidado.</p>
+      <div className="border-b border-gray-200 pb-4">
+        <h1 className="page-title">Estado de Cuenta del Cliente</h1>
+        <p className="text-gray-500 text-sm mt-1">Consulta de facturas pendientes, abonos y reporte histórico consolidado.</p>
       </div>
 
       {/* Selector y Filtros de rango */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col gap-4">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col gap-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Buscador inteligente cliente */}
           <div className="flex flex-col gap-1 relative">
-            <label className="text-xs font-semibold text-slate-500 mb-1">Buscar Cliente</label>
+            <label className="text-xs font-semibold text-gray-500 mb-1">Buscar Cliente</label>
             <input
               type="text"
               placeholder="Escriba nombre o identificación..."
@@ -170,10 +170,10 @@ export default function ConsultarCliente() {
               }}
               onFocus={() => setClientDropdownOpen(true)}
               onBlur={() => setTimeout(() => setClientDropdownOpen(false), 200)}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-600 w-full"
+              className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-600 w-full"
             />
             {clientDropdownOpen && filteredClientes.length > 0 && (
-              <div className="absolute z-10 w-full bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-y-auto mt-1 top-full left-0">
+              <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto mt-1 top-full left-0">
                 {filteredClientes.map((c) => (
                   <div
                     key={c.id}
@@ -263,7 +263,7 @@ export default function ConsultarCliente() {
             <div className="text-white rounded-2xl shadow-sm p-6 md:col-span-2 flex flex-col justify-between" style={{ background: "linear-gradient(135deg, var(--utn-red), var(--utn-red-dark))" }}>
               <span className="text-sm font-medium opacity-85 uppercase tracking-wide">Saldo Total Pendiente</span>
               <div className="mt-4">
-                <span className="text-4xl font-black">
+                <span className="metric-value">
                   ${saldoTotalCalculado.toFixed(2)}
                 </span>
                 <p className="text-xs opacity-75 mt-2">Diferencia neta entre facturas filtradas y abonos aplicados.</p>
@@ -271,24 +271,24 @@ export default function ConsultarCliente() {
             </div>
 
             {/* Total Facturado */}
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 flex flex-col justify-between">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Total Facturado</span>
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 flex flex-col justify-between">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Total Facturado</span>
               <div>
-                <span className="text-2xl font-extrabold text-slate-800">
+                <span className="text-2xl font-bold text-gray-900">
                   ${totalFacturadoCalculado.toFixed(2)}
                 </span>
-                <p className="text-xs text-slate-400 mt-1">Suma de facturas filtradas.</p>
+                <p className="text-xs text-gray-400 mt-1">Suma de facturas filtradas.</p>
               </div>
             </div>
 
             {/* Total Pagado */}
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 flex flex-col justify-between">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Total Abonado</span>
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 flex flex-col justify-between">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Total Abonado</span>
               <div>
-                <span className="text-2xl font-extrabold text-emerald-600">
+                <span className="text-2xl font-bold text-emerald-600">
                   ${totalPagadoCalculado.toFixed(2)}
                 </span>
-                <p className="text-xs text-slate-400 mt-1">Suma de abonos filtrados.</p>
+                <p className="text-xs text-gray-400 mt-1">Suma de abonos filtrados.</p>
               </div>
             </div>
           </div>
@@ -296,21 +296,21 @@ export default function ConsultarCliente() {
           {/* Tablas Detalle con filtros específicos */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Facturas */}
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
               <div className="flex flex-col sm:flex-row gap-2 mb-4 justify-between items-start sm:items-center pb-2 border-b">
-                <h3 className="text-md font-bold text-slate-800">Facturas Emitidas</h3>
+                <h3 className="text-md font-bold text-gray-900">Facturas Emitidas</h3>
                 <div className="flex gap-1.5 w-full sm:w-auto">
                   <input
                     type="text"
                     placeholder="Buscar Nº..."
                     value={busquedaFactura}
                     onChange={(e) => setBusquedaFactura(e.target.value)}
-                    className="px-2.5 py-1 border border-slate-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-red-600 w-full sm:w-28"
+                    className="px-2.5 py-1 border border-gray-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-red-600 w-full sm:w-28"
                   />
                   <select
                     value={filtroEstadoFactura}
                     onChange={(e) => setFiltroEstadoFactura(e.target.value)}
-                    className="px-2 py-1 border border-slate-200 rounded-lg text-xs bg-white outline-none focus:ring-1 focus:ring-red-600"
+                    className="px-2 py-1 border border-gray-200 rounded-lg text-xs bg-white outline-none focus:ring-1 focus:ring-red-600"
                   >
                     <option value="TODOS">Todos</option>
                     <option value="PENDIENTE">Pendientes</option>
@@ -323,7 +323,7 @@ export default function ConsultarCliente() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
                   <thead>
-                    <tr className="bg-slate-50 text-slate-500 font-semibold text-xs border-b">
+                    <tr className="bg-gray-50 text-gray-500 font-semibold text-xs border-b">
                       <th className="py-2.5 px-3">No. Factura</th>
                       <th className="py-2.5 px-3">Fecha</th>
                       <th className="py-2.5 px-3 text-right">Total</th>
@@ -334,15 +334,15 @@ export default function ConsultarCliente() {
                   <tbody>
                     {facturasFiltradas.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="py-8 text-center text-slate-400 italic">
+                        <td colSpan={5} className="py-8 text-center text-gray-400 italic">
                           Sin facturas registradas.
                         </td>
                       </tr>
                     ) : (
                       facturasFiltradas.map((f: any) => (
-                        <tr key={f.id} className="border-b last:border-0 hover:bg-slate-50/50">
-                          <td className="py-2.5 px-3 font-medium text-slate-800">{f.numero || f.id}</td>
-                          <td className="py-2.5 px-3 text-slate-500 text-xs">{f.fechaEmision || "—"}</td>
+                        <tr key={f.id} className="border-b last:border-0 hover:bg-gray-50/50">
+                          <td className="py-2.5 px-3 font-medium text-gray-900">{f.numero || f.id}</td>
+                          <td className="py-2.5 px-3 text-gray-500 text-xs">{f.fechaEmision || "—"}</td>
                           <td className="py-2.5 px-3 text-right font-mono">${f.total.toFixed(2)}</td>
                           <td className="py-2.5 px-3 text-right text-emerald-600 font-mono">${f.pagado.toFixed(2)}</td>
                           <td className="py-2.5 px-3 text-right text-red-600 font-mono font-semibold">${f.pendiente.toFixed(2)}</td>
@@ -355,22 +355,22 @@ export default function ConsultarCliente() {
             </div>
 
             {/* Pagos / Abonos */}
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
               <div className="flex flex-col sm:flex-row gap-2 mb-4 justify-between items-start sm:items-center pb-2 border-b">
-                <h3 className="text-md font-bold text-slate-800">Abonos Realizados</h3>
+                <h3 className="text-md font-bold text-gray-900">Abonos Realizados</h3>
                 <input
                   type="text"
                   placeholder="Buscar Nº transacción..."
                   value={busquedaPago}
                   onChange={(e) => setBusquedaPago(e.target.value)}
-                  className="px-2.5 py-1 border border-slate-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-red-600 w-full sm:w-44"
+                  className="px-2.5 py-1 border border-gray-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-red-600 w-full sm:w-44"
                 />
               </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
                   <thead>
-                    <tr className="bg-slate-50 text-slate-500 font-semibold text-xs border-b">
+                    <tr className="bg-gray-50 text-gray-500 font-semibold text-xs border-b">
                       <th className="py-2.5 px-3">No. Transacción</th>
                       <th className="py-2.5 px-3">Fecha</th>
                       <th className="py-2.5 px-3">Cuenta Destino</th>
@@ -380,16 +380,16 @@ export default function ConsultarCliente() {
                   <tbody>
                     {pagosFiltrados.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="py-8 text-center text-slate-400 italic">
+                        <td colSpan={4} className="py-8 text-center text-gray-400 italic">
                           Sin abonos registrados.
                         </td>
                       </tr>
                     ) : (
                       pagosFiltrados.map((p: any) => (
-                        <tr key={p.id} className="border-b last:border-0 hover:bg-slate-50/50">
-                          <td className="py-2.5 px-3 font-medium text-slate-800">{p.numeroPago}</td>
-                          <td className="py-2.5 px-3 text-slate-500 text-xs">{p.fecha}</td>
-                          <td className="py-2.5 px-3 text-slate-500 text-xs">{p.cuentaBancaria}</td>
+                        <tr key={p.id} className="border-b last:border-0 hover:bg-gray-50/50">
+                          <td className="py-2.5 px-3 font-medium text-gray-900">{p.numeroPago}</td>
+                          <td className="py-2.5 px-3 text-gray-500 text-xs">{p.fecha}</td>
+                          <td className="py-2.5 px-3 text-gray-500 text-xs">{p.cuentaBancaria}</td>
                           <td className="py-2.5 px-3 text-right text-emerald-600 font-mono font-semibold">${p.montoTotal.toFixed(2)}</td>
                         </tr>
                       ))

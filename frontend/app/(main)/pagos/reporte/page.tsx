@@ -181,7 +181,7 @@ export default function ReportePagosPage() {
                   prev.map((p) => p.id === pago.id ? { ...p, estado: "activo" } : p)
                 );
               }}
-              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-all"
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-50 text-red-700 hover:bg-red-100 transition-all"
             >
               PDF
             </button>
@@ -236,12 +236,12 @@ export default function ReportePagosPage() {
       {/* ── Encabezado ── */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <nav className="text-xs text-gray-500 mb-1">
+          <nav className="metric-label">
             <span>Inicio</span>
             <span className="mx-1">/</span>
             <span className="text-gray-700 font-medium">Pagos</span>
           </nav>
-          <h1 className="text-2xl font-bold text-gray-900">Pagos</h1>
+          <h1 className="page-title">Pagos</h1>
         </div>
         <button
           onClick={() => setMostrarModal(true)}
@@ -261,39 +261,51 @@ export default function ReportePagosPage() {
           { label: "Monto recaudado",  value: `$${montoTotal.toLocaleString()}`, color: "text-emerald-600" },
         ].map(({ label, value, color }) => (
           <div key={label} className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
-            <p className="text-xs text-gray-500 mb-1">{label}</p>
-            <p className={`text-xl font-semibold ${color}`}>{value}</p>
+            <p className="metric-label mb-2">{label}</p>
+            <p className={`metric-value ${color}`}>{value}</p>
           </div>
         ))}
+      </div>
+
+      {/* ── Filtro de fechas ── */}
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5">
+        <h2 className="section-title mb-4">Rango de fechas</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <DatePicker
+            label="Fecha de Inicio"
+            value={fechaInicio}
+            onChange={(v) => setFechaInicio(v)}
+          />
+          <DatePicker
+            label="Fecha de Fin"
+            value={fechaFin}
+            onChange={(v) => setFechaFin(v)}
+          />
+          <button
+            type="button"
+            onClick={() => { setFechaInicio(""); setFechaFin(""); }}
+            disabled={!fechaInicio && !fechaFin}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-red-50 text-red-700 text-sm font-semibold hover:bg-red-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Limpiar fechas
+          </button>
+        </div>
+        {(fechaInicio || fechaFin) && (
+          <p className="mt-3 text-xs text-gray-500">
+            Mostrando <strong className="text-gray-700">{pagosFiltrados.length}</strong> de {pagos.length} pagos
+            {fechaInicio && <> desde <strong className="text-gray-700">{fechaInicio}</strong></>}
+            {fechaFin && <> hasta <strong className="text-gray-700">{fechaFin}</strong></>}
+          </p>
+        )}
       </div>
 
       {/* ── DataTable ── */}
       <DataTable
         columns={columns}
         data={pagosEnriquecidos}
-        extraFilters={
-          <div className="flex items-center gap-2">
-            <DatePicker
-              value={fechaInicio}
-              onChange={(v) => setFechaInicio(v)}
-              placeholder="Desde"
-            />
-            <DatePicker
-              value={fechaFin}
-              onChange={(v) => setFechaFin(v)}
-              placeholder="Hasta"
-            />
-            {(fechaInicio || fechaFin) && (
-              <button
-                type="button"
-                onClick={() => { setFechaInicio(""); setFechaFin(""); }}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all whitespace-nowrap"
-              >
-                Limpiar
-              </button>
-            )}
-          </div>
-        }
         rowKey={(row) => row.id}
         searchKeys={["numeroPago", "clienteNombre", "cuentaCodigo"]}
         pageOptions={[5, 10, 25, 50]}

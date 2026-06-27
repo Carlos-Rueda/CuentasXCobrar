@@ -50,9 +50,20 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         {/* Logo */}
         <div className="px-6 py-5 border-b border-gray-100">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ background: "var(--utn-red)" }}>
-              <span className="text-white font-black text-sm">CXC</span>
+            {/* Logo UTN — usar imagen real desde /public/utn.png */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/utn.png"
+              alt="UTN"
+              className="w-10 h-10 rounded-xl object-contain flex-shrink-0"
+              onError={(e) => {
+                // Fallback mientras no esté el archivo
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+                (e.currentTarget.nextSibling as HTMLElement).style.display = "flex";
+              }}
+            />
+            <div className="w-10 h-10 rounded-xl flex-shrink-0 items-center justify-center" style={{ display: "none", background: "var(--utn-red)" }}>
+              <span className="text-white font-black text-sm">UTN</span>
             </div>
             <div>
               <h1 className="text-sm font-bold leading-tight" style={{ color: "var(--utn-gray-dark)" }}>
@@ -119,12 +130,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
       {/* ── Contenido ── */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-6 shadow-sm flex-shrink-0">
-          <h2 className="text-sm font-semibold" style={{ color: "var(--utn-gray-dark)" }}>
-            Sistema de Cuentas por Cobrar — UTN
-          </h2>
-          <span className="text-xs" style={{ color: "var(--utn-gray)" }}>Universidad Técnica del Norte</span>
-        </header>
+        <header className="h-14 bg-white border-b border-gray-200 flex-shrink-0" />
         <main className="flex-1 overflow-auto p-6">
           {children}
         </main>

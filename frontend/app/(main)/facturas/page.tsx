@@ -253,12 +253,12 @@ export default function FacturasPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <nav className="text-xs text-gray-500 mb-1">
+        <nav className="metric-label">
           <span>Inicio</span>
           <span className="mx-1">/</span>
           <span className="text-gray-700 font-medium">Facturas</span>
         </nav>
-        <h1 className="text-2xl font-bold text-gray-900">Facturas</h1>
+        <h1 className="page-title">Facturas</h1>
       </div>
 
       {/* ── Métricas ── */}
@@ -270,8 +270,8 @@ export default function FacturasPage() {
           { label: "Por cobrar",     value: `$${porCobrar.toLocaleString()}`, color: "text-red-600"   },
         ].map(({ label, value, color }) => (
           <div key={label} className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
-            <p className="text-xs text-gray-500 mb-1">{label}</p>
-            <p className={`text-xl font-semibold ${color}`}>{value}</p>
+            <p className="metric-label mb-2">{label}</p>
+            <p className={`metric-value ${color}`}>{value}</p>
           </div>
         ))}
       </div>

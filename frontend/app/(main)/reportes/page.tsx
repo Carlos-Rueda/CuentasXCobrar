@@ -321,12 +321,12 @@ export default function ReportesPage() {
       {/* ── Encabezado ── */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <nav className="text-xs text-gray-500 mb-1">
+          <nav className="metric-label">
             <span>Inicio</span>
             <span className="mx-1">/</span>
             <span className="text-gray-700 font-medium">Reportes</span>
           </nav>
-          <h1 className="text-2xl font-bold text-gray-900">Reporte Empresarial</h1>
+          <h1 className="page-title">Reporte Empresarial</h1>
           <p className="text-gray-500 text-sm mt-0.5">
             Consolidado de cuentas por cobrar. Usa el buscador para filtrar y luego descarga el informe.
           </p>
@@ -417,8 +417,8 @@ export default function ReportesPage() {
           { label: "Por cobrar", value: `$${totalDeuda.toLocaleString()}`,                color: "text-red-700"     },
         ].map(({ label, value, color }) => (
           <div key={label} className="bg-white border border-gray-200 shadow-sm rounded-2xl p-4">
-            <p className="text-xs text-gray-500 mb-1">{label}</p>
-            <p className={`text-xl font-semibold ${color}`}>{value}</p>
+            <p className="metric-label mb-2">{label}</p>
+            <p className={`metric-value ${color}`}>{value}</p>
           </div>
         ))}
       </div>
