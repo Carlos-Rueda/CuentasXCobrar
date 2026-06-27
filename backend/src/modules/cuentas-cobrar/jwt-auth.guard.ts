@@ -19,7 +19,7 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     const token = parts[1];
-    const secret = process.env.JWT_SECRET || 'fallback_secret';
+    const secret = process.env.JWT_SECRET || 'cxc_grupo_secret_key_2026';
 
     try {
       const payload = this.verifyJwt(token, secret);
