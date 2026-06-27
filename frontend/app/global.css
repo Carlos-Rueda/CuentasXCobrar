@@ -1,20 +1,113 @@
 @import "tailwindcss";
 
+/* ── Paleta UTN ─────────────────────────────────────────────────────────────
+   Rojo      #BE0022  →  acciones primarias, activos, botones
+   Rojo dark #9A001B  →  hover
+   Rojo light #FEE2E2 →  fondos sutiles
+   Gris oscuro  #374151 → texto principal
+   Gris medio   #6B7280 → texto secundario
+   Gris claro   #F1F5F9 → fondo de página
+   Blanco       #FFFFFF → cards
+───────────────────────────────────────────────────────────────────────────── */
+
 :root {
-  --background: #f1f5f9;
-  --foreground: #0f172a;
+  --utn-red:        #BE0022;
+  --utn-red-dark:   #9A001B;
+  --utn-red-light:  #FEE2E2;
+  --utn-gray-dark:  #374151;
+  --utn-gray:       #6B7280;
+  --utn-gray-light: #F1F5F9;
+  --background:     #F1F5F9;
+  --foreground:     #1F2937;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
 }
 
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--utn-gray-dark);
+}
+
+/* ── Utilidades UTN (usadas en clases Tailwind custom) ─────────────────── */
+
+.btn-utn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  background: var(--utn-red);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  font-family: inherit;
+}
+
+.btn-utn:hover { background: var(--utn-red-dark); }
+.btn-utn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  background: #fff;
+  color: var(--utn-gray-dark);
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  border: 1px solid #D1D5DB;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  font-family: inherit;
+}
+
+.btn-outline:hover { background: #F9FAFB; }
+
+/* ── Card base ─────────────────────────────────────────────────────────── */
 .card {
   background: white;
   border-radius: 1rem;
   padding: 1.5rem;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
+  border: 1px solid #E5E7EB;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.06);
+}
+
+/* ── Focus global con color UTN ───────────────────────────────────────── */
+*:focus-visible {
+  outline: 2px solid var(--utn-red);
+  outline-offset: 2px;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--utn-red) !important;
+  box-shadow: 0 0 0 3px rgba(190, 0, 34, 0.12) !important;
 }

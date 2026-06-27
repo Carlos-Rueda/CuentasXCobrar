@@ -1,13 +1,14 @@
 "use client";
-/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { API_URL } from "@/app/config";
 import { useToast } from "@/app/components/toast";
+import DataTable, { ColumnDef } from "@/app/components/DataTable";
 
 export default function CuentasBancariasPage() {
   const { showToast } = useToast();
+
   const [formData, setFormData] = useState({
     codigo: "",
     nombreCuenta: "",
@@ -22,12 +23,9 @@ export default function CuentasBancariasPage() {
   const [mostrarModal, setMostrarModal] = useState(false);
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [cuentas, setCuentas] = useState<any[]>([]);
-
-  // Estados de filtros
-  const [filtroTexto, setFiltroTexto] = useState("");
-  const [filtroBanco, setFiltroBanco] = useState("");
-  const [filtroEstado, setFiltroEstado] = useState("TODOS");
-  const [filtroTipo, setFiltroTipo] = useState("TODOS");
+  const [errores, setErrores] = useState<Record<string, string>>({});
+  const [guardando, setGuardando] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const cargarCuentas = async () => {
     try {
@@ -45,76 +43,102 @@ export default function CuentasBancariasPage() {
     cargarCuentas();
   }, []);
 
-  // Extraer bancos disponibles para el filtro dinámico
-  const bancosDisponibles = useMemo(() => {
-    const listaBancos = cuentas.map((c) => c.entidadBancaria).filter(Boolean);
-    return Array.from(new Set(listaBancos)) as string[];
-  }, [cuentas]);
-
-  // Filtrado de cuentas en memoria
-  const cuentasFiltradas = useMemo(() => {
-    return cuentas.filter((cuenta) => {
-      const matchTexto =
-        !filtroTexto.trim() ||
-        cuenta.codigo?.toLowerCase().includes(filtroTexto.toLowerCase()) ||
-        cuenta.nombreCuenta
-          ?.toLowerCase()
-          .includes(filtroTexto.toLowerCase()) ||
-        cuenta.titular?.toLowerCase().includes(filtroTexto.toLowerCase()) ||
-        cuenta.nroCuenta?.toLowerCase().includes(filtroTexto.toLowerCase());
-
-      const matchBanco = !filtroBanco || cuenta.entidadBancaria === filtroBanco;
-
-      const matchEstado =
-        filtroEstado === "TODOS" || cuenta.estado === filtroEstado;
-
-      const matchTipo =
-        filtroTipo === "TODOS" || cuenta.tipoCuenta === filtroTipo;
-
-      return matchTexto && matchBanco && matchEstado && matchTipo;
-    });
-  }, [cuentas, filtroTexto, filtroBanco, filtroEstado, filtroTipo]);
+  // ── Reglas de validación ────────────────────────────────────────────────
+  const validarCampo = useCallback((name: string, value: string): string => {
+    switch (name) {
+      case "nombreCuenta":
+        if (!value.trim()) return "El nombre de la cuenta es obligatorio";
+        if (value.trim().length < 3) return "Mínimo 3 caracteres";
+        if (value.trim().length > 100) return "Máximo 100 caracteres";
+        return "";
+      case "entidadBancaria":
+        if (!value.trim()) return "La entidad bancaria es obligatoria";
+        if (value.trim().length < 3) return "Mínimo 3 caracteres";
+        return "";
+      case "titular":
+        if (!value.trim()) return "El titular es obligatorio";
+        if (value.trim().length < 3) return "Mínimo 3 caracteres";
+        return "";
+      case "nroCuenta":
+        if (!value.trim()) return "El número de cuenta es obligatorio";
+        if (!/^\d{8,20}$/.test(value.trim())) return "Debe contener entre 8 y 20 dígitos numéricos";
+        return "";
+      case "ruc":
+        if (!value.trim()) return "El RUC es obligatorio";
+        if (!/^\d{13}$/.test(value.trim())) return "El RUC debe tener exactamente 13 dígitos";
+        return "";
+      case "codigo":
+        if (value && !/^[A-Za-z0-9\-_]{2,20}$/.test(value.trim()))
+          return "Solo letras, números, guiones (máx. 20 caracteres)";
+        return "";
+      default:
+        return "";
+    }
+  }, []);
 
   const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >,
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
   ) => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (touched[name]) {
+      setErrores((prev) => ({ ...prev, [name]: validarCampo(name, value) }));
+    }
   };
 
-  const limpiarFiltros = () => {
-    setFiltroTexto("");
-    setFiltroBanco("");
-    setFiltroEstado("TODOS");
-    setFiltroTipo("TODOS");
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setTouched((prev) => ({ ...prev, [name]: true }));
+    setErrores((prev) => ({ ...prev, [name]: validarCampo(name, value) }));
+  };
+
+  const validarTodo = (): boolean => {
+    const campos = ["nombreCuenta", "entidadBancaria", "titular", "nroCuenta", "ruc", "codigo"];
+    const nuevosErrores: Record<string, string> = {};
+    const nuevosTouched: Record<string, boolean> = {};
+    campos.forEach((campo) => {
+      nuevosTouched[campo] = true;
+      nuevosErrores[campo] = validarCampo(campo, (formData as any)[campo] ?? "");
+    });
+    setTouched(nuevosTouched);
+    setErrores(nuevosErrores);
+    return Object.values(nuevosErrores).every((e) => !e);
+  };
+
+  const abrirModalNueva = () => {
+    setEditandoId(null);
+    setFormData({
+      codigo: "",
+      nombreCuenta: "",
+      entidadBancaria: "",
+      titular: "",
+      tipoCuenta: "Corriente",
+      nroCuenta: "",
+      ruc: "",
+      descripcion: "",
+      estado: true,
+    });
+    setErrores({});
+    setTouched({});
+    setMostrarModal(true);
   };
 
   const guardarCuenta = async () => {
-    if (
-      !formData.nombreCuenta ||
-      !formData.entidadBancaria ||
-      !formData.titular ||
-      !formData.nroCuenta ||
-      !formData.ruc
-    ) {
-      showToast("Por favor rellene los campos obligatorios", "error");
+    if (!validarTodo()) {
+      showToast("Corrija los errores antes de guardar", "error");
       return;
     }
 
+    setGuardando(true);
     const payload = {
-      codigo: formData.codigo,
-      nombreCuenta: formData.nombreCuenta,
-      entidadBancaria: formData.entidadBancaria,
-      titular: formData.titular,
+      codigo: formData.codigo.trim(),
+      nombreCuenta: formData.nombreCuenta.trim(),
+      entidadBancaria: formData.entidadBancaria.trim(),
+      titular: formData.titular.trim(),
       tipoCuenta: formData.tipoCuenta,
-      nroCuenta: formData.nroCuenta,
-      ruc: formData.ruc,
-      descripcion: formData.descripcion,
+      nroCuenta: formData.nroCuenta.trim(),
+      ruc: formData.ruc.trim(),
+      descripcion: formData.descripcion.trim(),
       estado: formData.estado ? "ACTIVO" : "INACTIVO",
     };
 
@@ -123,39 +147,23 @@ export default function CuentasBancariasPage() {
       if (editandoId) {
         response = await fetch(`${API_URL}/cuentas-bancarias/${editandoId}`, {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
       } else {
         response = await fetch(`${API_URL}/cuentas-bancarias`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            id: `CB-${Date.now()}`,
-            ...payload,
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: `CB-${Date.now()}`, ...payload }),
         });
       }
 
       if (response.ok) {
         await cargarCuentas();
-        setFormData({
-          codigo: "",
-          nombreCuenta: "",
-          entidadBancaria: "",
-          titular: "",
-          tipoCuenta: "Corriente",
-          nroCuenta: "",
-          ruc: "",
-          descripcion: "",
-          estado: true,
-        });
         setEditandoId(null);
         setMostrarModal(false);
+        setErrores({});
+        setTouched({});
         showToast(
           editandoId
             ? "Cuenta bancaria actualizada correctamente"
@@ -163,19 +171,23 @@ export default function CuentasBancariasPage() {
           "success",
         );
       } else {
-        showToast("Error al guardar la cuenta bancaria", "error");
+        const err = await response.json().catch(() => ({}));
+        const msg = err?.message || "Error al guardar la cuenta bancaria";
+        showToast(msg, "error");
       }
     } catch (error) {
       console.error(error);
-      showToast("Error al conectar con el servidor", "error");
+      showToast("Error de conexión. Verifique que el servidor esté activo.", "error");
+    } finally {
+      setGuardando(false);
     }
   };
 
   const editarCuenta = (cuenta: any) => {
     setFormData({
-      codigo: cuenta.codigo,
-      nombreCuenta: cuenta.nombreCuenta,
-      entidadBancaria: cuenta.entidadBancaria,
+      codigo: cuenta.codigo || "",
+      nombreCuenta: cuenta.nombreCuenta || "",
+      entidadBancaria: cuenta.entidadBancaria || "",
       titular: cuenta.titular || "",
       tipoCuenta: cuenta.tipoCuenta || "Corriente",
       nroCuenta: cuenta.nroCuenta || "",
@@ -183,11 +195,13 @@ export default function CuentasBancariasPage() {
       descripcion: cuenta.descripcion || "",
       estado: cuenta.estado === "ACTIVO",
     });
+    setErrores({});
+    setTouched({});
     setEditandoId(cuenta.id);
     setMostrarModal(true);
   };
 
-  const inactivarCuenta = async (id: string) => {
+  const eliminarCuenta = async (id: string) => {
     if (!confirm("¿Está seguro de eliminar esta cuenta bancaria?")) return;
     try {
       const response = await fetch(`${API_URL}/cuentas-bancarias/${id}`, {
@@ -205,437 +219,327 @@ export default function CuentasBancariasPage() {
     }
   };
 
+  // ── Definición de columnas para DataTable ────────────────────────────────
+  const columns: ColumnDef<any>[] = [
+    {
+      key: "acciones",
+      label: "Acciones",
+      sortable: false,
+      render: (row) => (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => editarCuenta(row)}
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 active:scale-[0.98] transition-all"
+          >
+            Editar
+          </button>
+          <button
+            type="button"
+            onClick={() => eliminarCuenta(row.id)}
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-red-200 text-red-600 hover:bg-red-50 active:scale-[0.98] transition-all"
+          >
+            Eliminar
+          </button>
+        </div>
+      ),
+    },
+    {
+      key: "codigo",
+      label: "Código",
+      sortable: true,
+    },
+    {
+      key: "nombreCuenta",
+      label: "Nombre Cuenta",
+      sortable: true,
+      render: (row) => (
+        <div>
+          <p className="font-medium text-gray-900">{row.nombreCuenta}</p>
+          <p className="text-xs text-gray-500 mt-0.5">{row.tipoCuenta}</p>
+        </div>
+      ),
+    },
+    {
+      key: "entidadBancaria",
+      label: "Banco",
+      sortable: true,
+      render: (row) => (
+        <div>
+          <p className="font-medium text-gray-900">{row.entidadBancaria}</p>
+          <p className="text-xs text-gray-500 mt-0.5">{row.titular}</p>
+        </div>
+      ),
+    },
+    {
+      key: "nroCuenta",
+      label: "Nro. Cuenta",
+      sortable: false,
+      render: (row) => (
+        <div className="font-mono text-xs">
+          <p className="text-gray-900">{row.nroCuenta}</p>
+          <p className="text-gray-500">RUC: {row.ruc}</p>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-6">
-      {/* ── Encabezado de página ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+
+      {/* ── Encabezado ── */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 leading-tight">
-            Cuentas Bancarias
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Administración, registro y visualización de las cuentas bancarias de
-            la empresa.
+          <nav className="text-xs text-gray-500 mb-1">
+            <span>Inicio</span>
+            <span className="mx-1">/</span>
+            <span className="text-gray-700 font-medium">Cuentas Bancarias</span>
+          </nav>
+          <h1 className="text-2xl font-bold text-gray-900">Cuentas Bancarias</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Administración de cuentas bancarias de la empresa
           </p>
         </div>
         <button
           type="button"
-          onClick={() => {
-            setEditandoId(null);
-            setFormData({
-              codigo: "",
-              nombreCuenta: "",
-              entidadBancaria: "",
-              titular: "",
-              tipoCuenta: "Corriente",
-              nroCuenta: "",
-              ruc: "",
-              descripcion: "",
-              estado: true,
-            });
-            setMostrarModal(true);
-          }}
-          className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors shadow-sm"
+          onClick={abrirModalNueva}
+          className="inline-flex items-center gap-2 bg-red-700 hover:bg-red-800 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors shadow-sm"
         >
-          + Registrar cuenta
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          Nueva Cuenta
         </button>
       </div>
 
-      {/* ── Panel de Filtros de Búsqueda (Diseño Premium) ── */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
-          Filtros de Búsqueda
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-          {/* Búsqueda General */}
-          <div className="col-span-1 md:col-span-2">
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5">
-              Búsqueda General
-            </label>
-            <input
-              type="text"
-              value={filtroTexto}
-              onChange={(e) => setFiltroTexto(e.target.value)}
-              placeholder="Buscar por código, nombre, titular o nro..."
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-colors"
-            />
-          </div>
-
-          {/* Filtro Banco */}
-          <div className="col-span-1">
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5">
-              Banco
-            </label>
-            <select
-              value={filtroBanco}
-              onChange={(e) => setFiltroBanco(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-colors"
-            >
-              <option value="">Todos los bancos</option>
-              {bancosDisponibles.map((banco) => (
-                <option key={banco} value={banco}>
-                  {banco}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Filtro Tipo de Cuenta */}
-          <div className="col-span-1">
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5">
-              Tipo de Cuenta
-            </label>
-            <select
-              value={filtroTipo}
-              onChange={(e) => setFiltroTipo(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-colors"
-            >
-              <option value="TODOS">Todos los tipos</option>
-              <option value="Corriente">Corriente</option>
-              <option value="Ahorros">Ahorros</option>
-            </select>
-          </div>
-
-          {/* Filtro Estado */}
-          <div className="col-span-1">
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5">
-              Estado
-            </label>
-            <select
-              value={filtroEstado}
-              onChange={(e) => setFiltroEstado(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-colors"
-            >
-              <option value="TODOS">Todos los estados</option>
-              <option value="ACTIVO">ACTIVO</option>
-              <option value="INACTIVO">INACTIVO</option>
-            </select>
-          </div>
-        </div>
-
-        {(filtroTexto ||
-          filtroBanco ||
-          filtroEstado !== "TODOS" ||
-          filtroTipo !== "TODOS") && (
-          <div className="flex justify-end mt-4">
-            <button
-              type="button"
-              onClick={limpiarFiltros}
-              className="text-xs text-emerald-600 hover:text-emerald-800 hover:underline font-semibold"
-            >
-              Limpiar Filtros
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* ── Tabla de cuentas bancarias (Diseño Stacked Profesional sin Desplazamiento) ── */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="px-5 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider w-[12%]">
-                  Código
-                </th>
-                <th className="px-5 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider w-[23%]">
-                  Cuenta
-                </th>
-                <th className="px-5 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider w-[25%]">
-                  Banco / Titular
-                </th>
-                <th className="px-5 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider w-[20%]">
-                  Datos Cuenta
-                </th>
-                <th className="px-5 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider w-[25%]">
-                  Descripción
-                </th>
-                <th className="px-5 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider w-[10%]">
-                  Estado
-                </th>
-                <th className="px-5 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider text-right w-[15%]">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {cuentasFiltradas.length > 0 ? (
-                cuentasFiltradas.map((cuenta) => (
-                  <tr
-                    key={cuenta.id}
-                    className="hover:bg-slate-50/40 transition-colors"
-                  >
-                    {/* Código */}
-                    <td className="px-5 py-4 text-sm font-semibold text-slate-700 whitespace-nowrap">
-                      {cuenta.codigo}
-                    </td>
-
-                    {/* Cuenta */}
-                    <td className="px-5 py-4">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-semibold text-slate-800 break-words leading-tight">
-                          {cuenta.nombreCuenta}
-                        </span>
-                        <span className="text-xs text-slate-400 mt-1 font-medium italic">
-                          {cuenta.tipoCuenta}
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* Banco / Titular */}
-                    <td className="px-5 py-4">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-semibold text-slate-700 break-words leading-tight">
-                          {cuenta.entidadBancaria}
-                        </span>
-                        <span className="text-xs text-slate-400 mt-1 break-words">
-                          {cuenta.titular}
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* Datos Cuenta */}
-                    <td className="px-5 py-4">
-                      <div className="flex flex-col gap-1 font-mono text-xs">
-                        <div className="flex items-center gap-1">
-                          <span className="text-slate-400 font-sans font-semibold">
-                            Nro:
-                          </span>
-                          <span className="text-slate-700 font-semibold">
-                            {cuenta.nroCuenta}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-slate-400 font-sans font-semibold">
-                            RUC:
-                          </span>
-                          <span className="text-slate-500">{cuenta.ruc}</span>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Descripción */}
-                    <td className="px-5 py-4">
-                      <p
-                        className="text-xs text-slate-500 break-words leading-relaxed max-w-[240px] line-clamp-2 cursor-help"
-                        title={cuenta.descripcion}
-                      >
-                        {cuenta.descripcion || (
-                          <span className="text-slate-300 italic">
-                            Sin descripción
-                          </span>
-                        )}
-                      </p>
-                    </td>
-
-                    {/* Estado */}
-                    <td className="px-5 py-4 whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold leading-none ${
-                          cuenta.estado === "ACTIVO"
-                            ? "bg-emerald-50 text-emerald-700"
-                            : "bg-red-50 text-red-700"
-                        }`}
-                      >
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${cuenta.estado === "ACTIVO" ? "bg-emerald-500" : "bg-red-500"}`}
-                        />
-                        {cuenta.estado}
-                      </span>
-                    </td>
-
-                    {/* Acciones */}
-                    <td className="px-5 py-4 whitespace-nowrap text-right space-x-3 text-sm">
-                      <button
-                        type="button"
-                        onClick={() => editarCuenta(cuenta)}
-                        className="text-emerald-600 hover:text-emerald-800 hover:underline font-semibold"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => inactivarCuenta(cuenta.id)}
-                        className="text-red-600 hover:text-red-800 hover:underline font-semibold"
-                      >
-                        Eliminar
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-5 py-16 text-center text-sm text-slate-400"
-                  >
-                    No hay cuentas bancarias que coincidan con los filtros
-                    aplicados.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* ── DataTable ── */}
+      <DataTable
+        columns={columns}
+        data={cuentas}
+        rowKey={(row) => row.id}
+        searchKeys={["codigo", "nombreCuenta", "entidadBancaria", "titular", "nroCuenta", "ruc"]}
+        pageOptions={[5, 10, 25, 50]}
+        emptyMessage="No hay cuentas bancarias registradas."
+      />
 
       {/* ── Modal Nueva / Editar Cuenta ── */}
       {mostrarModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col">
-            {/* Modal Header */}
-            <div className="bg-emerald-600 px-6 py-5 flex items-center justify-between text-white">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-lg overflow-hidden">
+
+            <div className="bg-red-700 px-6 py-5 flex items-center justify-between text-white">
               <div>
                 <h2 className="text-lg font-bold">
-                  {editandoId
-                    ? "Editar Cuenta Bancaria"
-                    : "Nueva Cuenta Bancaria"}
+                  {editandoId ? "Editar Cuenta Bancaria" : "Nueva Cuenta Bancaria"}
                 </h2>
-                <p className="text-xs text-emerald-100 mt-0.5">
-                  Complete los datos obligatorios marcados con asterisco (*)
+                <p className="text-xs text-blue-100 mt-0.5">
+                  Los campos marcados con * son obligatorios
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setMostrarModal(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors text-lg"
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors"
               >
-                ✕
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+            <div className="p-6 max-h-[75vh] overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
+
                 {/* Nombre Cuenta */}
-                <div className="col-span-1">
-                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">
-                    Nombre Cuenta *
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                    Nombre Cuenta <span className="text-red-600">*</span>
                   </label>
                   <input
-                    name="nombreCuenta"
-                    value={formData.nombreCuenta}
-                    onChange={handleChange}
-                    placeholder="e.g. Cuenta Corriente"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-colors"
+                    name="nombreCuenta" value={formData.nombreCuenta}
+                    onChange={handleChange} onBlur={handleBlur}
+                    placeholder="Ej. Cuenta Corriente Principal"
+                    className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-colors ${
+                      errores.nombreCuenta && touched.nombreCuenta
+                        ? "border-red-400 bg-red-50 focus:ring-2 focus:ring-red-300"
+                        : "border-gray-300 focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                    }`}
                   />
+                  {errores.nombreCuenta && touched.nombreCuenta && (
+                    <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                      <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>
+                      {errores.nombreCuenta}
+                    </p>
+                  )}
                 </div>
 
                 {/* Entidad Bancaria */}
-                <div className="col-span-1">
-                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">
-                    Entidad Bancaria *
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                    Entidad Bancaria <span className="text-red-600">*</span>
                   </label>
                   <input
-                    name="entidadBancaria"
-                    value={formData.entidadBancaria}
-                    onChange={handleChange}
-                    placeholder="e.g. Banco Pichincha"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-colors"
+                    name="entidadBancaria" value={formData.entidadBancaria}
+                    onChange={handleChange} onBlur={handleBlur}
+                    placeholder="Ej. Banco Pichincha"
+                    className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-colors ${
+                      errores.entidadBancaria && touched.entidadBancaria
+                        ? "border-red-400 bg-red-50 focus:ring-2 focus:ring-red-300"
+                        : "border-gray-300 focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                    }`}
                   />
+                  {errores.entidadBancaria && touched.entidadBancaria && (
+                    <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                      <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>
+                      {errores.entidadBancaria}
+                    </p>
+                  )}
                 </div>
 
                 {/* Titular */}
-                <div className="col-span-1">
-                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">
-                    Titular de la Cuenta *
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                    Titular <span className="text-red-600">*</span>
                   </label>
                   <input
-                    name="titular"
-                    value={formData.titular}
-                    onChange={handleChange}
-                    placeholder="e.g. Empresa Integrador S.A."
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-colors"
+                    name="titular" value={formData.titular}
+                    onChange={handleChange} onBlur={handleBlur}
+                    placeholder="Ej. Universidad Técnica del Norte"
+                    className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-colors ${
+                      errores.titular && touched.titular
+                        ? "border-red-400 bg-red-50 focus:ring-2 focus:ring-red-300"
+                        : "border-gray-300 focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                    }`}
                   />
+                  {errores.titular && touched.titular && (
+                    <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                      <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>
+                      {errores.titular}
+                    </p>
+                  )}
                 </div>
 
                 {/* Tipo de Cuenta */}
-                <div className="col-span-1">
-                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">
-                    Tipo de Cuenta *
-                  </label>
-                  <select
-                    name="tipoCuenta"
-                    value={formData.tipoCuenta}
-                    onChange={handleChange}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-colors"
-                  >
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Tipo de Cuenta</label>
+                  <select name="tipoCuenta" value={formData.tipoCuenta} onChange={handleChange}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100 transition-colors">
                     <option value="Corriente">Corriente</option>
                     <option value="Ahorros">Ahorros</option>
                   </select>
                 </div>
 
                 {/* Número de Cuenta */}
-                <div className="col-span-1">
-                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">
-                    Número de Cuenta *
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                    Número de Cuenta <span className="text-red-600">*</span>
                   </label>
                   <input
-                    name="nroCuenta"
-                    value={formData.nroCuenta}
-                    onChange={handleChange}
-                    placeholder="e.g. 2100456789"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-colors"
+                    name="nroCuenta" value={formData.nroCuenta}
+                    onChange={handleChange} onBlur={handleBlur}
+                    placeholder="Ej. 2100456789" maxLength={20}
+                    className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none font-mono transition-colors ${
+                      errores.nroCuenta && touched.nroCuenta
+                        ? "border-red-400 bg-red-50 focus:ring-2 focus:ring-red-300"
+                        : "border-gray-300 focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                    }`}
                   />
+                  {errores.nroCuenta && touched.nroCuenta && (
+                    <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                      <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>
+                      {errores.nroCuenta}
+                    </p>
+                  )}
                 </div>
 
-                {/* RUC Asociado */}
-                <div className="col-span-1">
-                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">
-                    RUC Asociado *
+                {/* RUC */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                    RUC <span className="text-red-600">*</span>
                   </label>
                   <input
-                    name="ruc"
-                    value={formData.ruc}
-                    onChange={handleChange}
-                    placeholder="e.g. 1790011223001"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-colors"
+                    name="ruc" value={formData.ruc}
+                    onChange={handleChange} onBlur={handleBlur}
+                    placeholder="Ej. 1790011223001" maxLength={13}
+                    className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none font-mono transition-colors ${
+                      errores.ruc && touched.ruc
+                        ? "border-red-400 bg-red-50 focus:ring-2 focus:ring-red-300"
+                        : "border-gray-300 focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                    }`}
                   />
+                  {errores.ruc && touched.ruc && (
+                    <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                      <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>
+                      {errores.ruc}
+                    </p>
+                  )}
+                </div>
+
+                {/* Código */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Código</label>
+                  <input
+                    name="codigo" value={formData.codigo}
+                    onChange={handleChange} onBlur={handleBlur}
+                    placeholder="Ej. CB-001" maxLength={20}
+                    className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-colors ${
+                      errores.codigo && touched.codigo
+                        ? "border-red-400 bg-red-50"
+                        : "border-gray-300 focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                    }`}
+                  />
+                  {errores.codigo && touched.codigo && (
+                    <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                      <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>
+                      {errores.codigo}
+                    </p>
+                  )}
+                </div>
+
+                {/* Estado */}
+                <div className="flex items-center gap-2 self-end pb-1">
+                  <input
+                    type="checkbox"
+                    id="estado_chk"
+                    checked={formData.estado}
+                    onChange={(e) => setFormData({ ...formData, estado: e.target.checked })}
+                    className="w-4 h-4 rounded cursor-pointer accent-red-700"
+                  />
+                  <label htmlFor="estado_chk" className="text-sm text-gray-700 font-medium cursor-pointer">
+                    Cuenta Activa
+                  </label>
                 </div>
 
                 {/* Descripción */}
                 <div className="col-span-2">
-                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">
-                    Descripción
-                  </label>
-                  <textarea
-                    name="descripcion"
-                    value={formData.descripcion}
-                    onChange={handleChange}
-                    placeholder="Descripción opcional de la cuenta..."
-                    rows={2}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-colors"
-                  />
-                </div>
-
-                {/* Estado Checkbox */}
-                <div className="col-span-2 flex items-center gap-2 py-1">
-                  <input
-                    type="checkbox"
-                    name="estado"
-                    id="estado_chk"
-                    checked={formData.estado}
-                    onChange={(e) =>
-                      setFormData({ ...formData, estado: e.target.checked })
-                    }
-                    className="rounded text-emerald-600 focus:ring-emerald-500 border-slate-200 w-4 h-4 cursor-pointer"
-                  />
-                  <label
-                    htmlFor="estado_chk"
-                    className="text-sm text-slate-600 font-medium cursor-pointer select-none"
-                  >
-                    Cuenta Activa
-                  </label>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Descripción</label>
+                  <textarea name="descripcion" value={formData.descripcion}
+                    onChange={handleChange} placeholder="Descripción opcional..." rows={2}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100 transition-colors resize-none" />
                 </div>
               </div>
+            </div>
 
-              {/* Guardar Button */}
+            <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50">
+              <button type="button" onClick={() => setMostrarModal(false)}
+                className="px-4 py-2.5 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
+                Cancelar
+              </button>
               <button
                 type="button"
                 onClick={guardarCuenta}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm transition-colors shadow-sm mt-2"
+                disabled={guardando}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-red-700 hover:bg-red-800 text-white text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Guardar Cuenta
+                {guardando ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Guardando...
+                  </>
+                ) : "Guardar"}
               </button>
             </div>
           </div>

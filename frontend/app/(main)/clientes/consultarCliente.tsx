@@ -169,7 +169,7 @@ export default function ConsultarCliente() {
               }}
               onFocus={() => setClientDropdownOpen(true)}
               onBlur={() => setTimeout(() => setClientDropdownOpen(false), 200)}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-600 w-full"
             />
             {clientDropdownOpen && filteredClientes.length > 0 && (
               <div className="absolute z-10 w-full bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-y-auto mt-1 top-full left-0">
@@ -181,7 +181,7 @@ export default function ConsultarCliente() {
                       setClientSearchTerm(`${c.nombre} - ${c.ruc || c.cedula || ""}`);
                       setClientDropdownOpen(false);
                     }}
-                    className="p-2 hover:bg-blue-50 cursor-pointer text-sm text-gray-700 transition-colors border-b border-gray-100 last:border-0"
+                    className="p-2 hover:bg-red-50 cursor-pointer text-sm text-gray-700 transition-colors border-b border-gray-100 last:border-0"
                   >
                     {c.nombre} - {c.ruc || c.cedula || ""}
                   </div>
@@ -197,7 +197,7 @@ export default function ConsultarCliente() {
               type="date"
               value={fechaInicio}
               onChange={(e) => setFechaInicio(e.target.value)}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-600 w-full"
             />
           </div>
 
@@ -208,7 +208,7 @@ export default function ConsultarCliente() {
               type="date"
               value={fechaFin}
               onChange={(e) => setFechaFin(e.target.value)}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-600 w-full"
             />
           </div>
         </div>
@@ -227,7 +227,7 @@ export default function ConsultarCliente() {
             className={`px-5 py-2.5 text-white text-sm font-semibold rounded-xl transition-all ${
               !clienteId || loadingStatement
                 ? "bg-slate-400 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700 active:scale-[0.98]"
+                : "bg-red-700 hover:bg-red-800 active:scale-[0.98]"
             }`}
           >
             {loadingStatement ? "Consultando..." : "Consultar"}
@@ -238,11 +238,24 @@ export default function ConsultarCliente() {
               type="button"
               onClick={descargarEstadoCuentaPdf}
               disabled={isDownloadingPdf}
-              className={`px-5 py-2.5 border border-emerald-500 text-emerald-700 hover:bg-emerald-50 text-sm font-semibold rounded-xl flex items-center gap-1.5 transition-all ${
-                isDownloadingPdf ? "opacity-50 cursor-not-allowed" : "active:scale-[0.98]"
-              }`}
+              className="inline-flex items-center gap-2 px-5 py-2.5 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
             >
-              {isDownloadingPdf ? "Generando PDF..." : "📥 Descargar Estado de Cuenta PDF"}
+              {isDownloadingPdf ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                  </svg>
+                  Generando PDF...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/>
+                  </svg>
+                  Descargar Estado de Cuenta PDF
+                </>
+              )}
             </button>
           )}
         </div>
@@ -299,12 +312,12 @@ export default function ConsultarCliente() {
                     placeholder="Buscar Nº..."
                     value={busquedaFactura}
                     onChange={(e) => setBusquedaFactura(e.target.value)}
-                    className="px-2.5 py-1 border border-slate-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-blue-500 w-full sm:w-28"
+                    className="px-2.5 py-1 border border-slate-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-red-600 w-full sm:w-28"
                   />
                   <select
                     value={filtroEstadoFactura}
                     onChange={(e) => setFiltroEstadoFactura(e.target.value)}
-                    className="px-2 py-1 border border-slate-200 rounded-lg text-xs bg-white outline-none focus:ring-1 focus:ring-blue-500"
+                    className="px-2 py-1 border border-slate-200 rounded-lg text-xs bg-white outline-none focus:ring-1 focus:ring-red-600"
                   >
                     <option value="TODOS">Todos</option>
                     <option value="PENDIENTE">Pendientes</option>
@@ -357,7 +370,7 @@ export default function ConsultarCliente() {
                   placeholder="Buscar Nº transacción..."
                   value={busquedaPago}
                   onChange={(e) => setBusquedaPago(e.target.value)}
-                  className="px-2.5 py-1 border border-slate-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-blue-500 w-full sm:w-44"
+                  className="px-2.5 py-1 border border-slate-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-red-600 w-full sm:w-44"
                 />
               </div>
 

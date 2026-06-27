@@ -1,6 +1,14 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./global.css";
 import { ToastProvider } from "./components/toast";
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
+  variable: "--font-inter",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Sistema de Cuentas por Cobrar",
@@ -13,8 +21,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es">
-      <body>
+    <html lang="es" className={inter.variable}>
+      <body style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>

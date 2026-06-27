@@ -64,7 +64,7 @@ export default function LoginPage() {
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-emerald-600 leading-tight">
+          <h1 className="text-2xl font-bold text-red-700 leading-tight">
             Cuentas por<br />Cobrar
           </h1>
           <p className="text-sm text-slate-500 mt-1">Sistema Financiero</p>
@@ -94,7 +94,7 @@ export default function LoginPage() {
               onChange={e => { setUsuario(e.target.value); setError(""); }}
               onKeyDown={handleKeyDown}
               autoComplete="username"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
             />
           </div>
 
@@ -110,7 +110,7 @@ export default function LoginPage() {
               onChange={e => { setContrasena(e.target.value); setError(""); }}
               onKeyDown={handleKeyDown}
               autoComplete="current-password"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
             />
           </div>
 
@@ -119,19 +119,19 @@ export default function LoginPage() {
             type="button"
             onClick={handleLogin}
             disabled={loading}
-            className="w-full bg-emerald-600 text-white font-medium py-3 rounded-xl hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+            className="w-full bg-red-700 text-white font-medium py-3 rounded-xl hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
           >
             {loading ? "Verificando..." : "Ingresar"}
           </button>
         </div>
 
         {/* Credencial de prueba */}
-        <div className="mt-4 bg-blue-50 border border-blue-100 rounded-xl p-4">
-          <p className="text-xs font-medium text-blue-700 mb-2">Credencial de prueba:</p>
+        <div className="mt-4 bg-red-50 border border-red-100 rounded-xl p-4">
+          <p className="text-xs font-medium text-red-700 mb-2">Credencial de prueba:</p>
           <button
             type="button"
             onClick={() => { setUsuario("admin"); setContrasena("admin123"); setError(""); }}
-            className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+            className="text-xs text-red-700 hover:text-red-900 hover:underline"
           >
             usuario: admin / contraseña: admin123
           </button>

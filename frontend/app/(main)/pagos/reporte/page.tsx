@@ -3,9 +3,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useState } from "react";
-import styles from "./page.module.css";
 import FormularioPago from "../components/FormularioPago";
 import { API_URL } from "@/app/config";
+import DataTable, { ColumnDef } from "@/app/components/DataTable";
 
 export default function ReportePagosPage() {
   interface CuentaBancaria {
@@ -141,214 +141,178 @@ export default function ReportePagosPage() {
     cargarCuentasBancarias();
   }, []);
 
+  const columns: ColumnDef<any>[] = [
+    {
+      key: "acciones",
+      label: "Acciones",
+      sortable: false,
+      render: (pago) => {
+        const isActivo = pago.estado?.toLowerCase() === "activo" || pago.estado?.toLowerCase() === "impreso";
+        return (
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPagoEditar(pago)}
+              disabled={isActivo}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                isActivo
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  : "bg-red-50 text-red-700 hover:bg-red-100"
+              }`}
+            >
+              Editar
+            </button>
+            <button
+              onClick={() => {
+                descargarPDFPago(pago.id);
+                setPagos((prev: any[]) =>
+                  prev.map((p) => p.id === pago.id ? { ...p, estado: "activo" } : p)
+                );
+              }}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-all"
+            >
+              PDF
+            </button>
+          </div>
+        );
+      },
+    },
+    {
+      key: "numeroPago",
+      label: "N° Pago",
+      sortable: true,
+    },
+    {
+      key: "clienteId",
+      label: "Cliente",
+      sortable: true,
+      render: (pago) => (
+        <span className="font-medium text-gray-900">
+          {clientes.find((c) => c.id === pago.clienteId)?.nombre || pago.clienteId}
+        </span>
+      ),
+    },
+    {
+      key: "cuentaBancariaId",
+      label: "Cuenta Bancaria",
+      sortable: false,
+      render: (pago) => (
+        <span className="text-gray-700">
+          {pago.cuentaBancariaId && cuentasBancarias.length > 0
+            ? cuentasBancarias.find((c: any) => c.id.toString() === pago.cuentaBancariaId.toString())?.codigo || pago.cuentaBancariaId
+            : "—"}
+        </span>
+      ),
+    },
+    {
+      key: "montoTotal",
+      label: "Monto Total",
+      sortable: true,
+      render: (pago) => (
+        <span className="font-semibold text-gray-900">${Number(pago.montoTotal).toLocaleString()}</span>
+      ),
+    },
+    {
+      key: "fecha",
+      label: "Fecha",
+      sortable: true,
+      render: (pago) => (
+        <span className="text-xs text-gray-600">
+          {pago.fecha ? new Date(pago.fecha).toLocaleDateString() : "—"}
+        </span>
+      ),
+    },
+  ];
+
   return (
-    <div className={styles.page}>
-      <div className={styles.container}>
-        <div className={styles.titleSection}>
-          <h1>Pagos</h1>
+    <div className="flex flex-col gap-6">
+
+      {/* ── Encabezado ── */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <nav className="text-xs text-gray-500 mb-1">
+            <span>Inicio</span>
+            <span className="mx-1">/</span>
+            <span className="text-gray-700 font-medium">Pagos</span>
+          </nav>
+          <h1 className="text-2xl font-bold text-gray-900">Pagos</h1>
         </div>
-
-        <div className={styles.stats}>
-          <div className={styles.statCard}>
-            <span>Total pagos</span>
-            <strong>{totalPagos}</strong>
-          </div>
-
-          <div className={styles.statCard}>
-            <span>Monto recaudado</span>
-            <strong>${montoTotal}</strong>
-          </div>
-        </div>
-
-        <div className={styles.actions} style={{ display: "flex", gap: "15px", alignItems: "center", flexWrap: "wrap" }}>
-          <input
-            type="search"
-            placeholder="Buscar por Nº pago, cliente o cédula..."
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm w-full max-w-xs md:max-w-md transition-all"
-          />
-          <select
-            value={filtroCliente}
-            onChange={(e) => setFiltroCliente(e.target.value)}
-            style={{
-              padding: "10px",
-              borderRadius: "8px",
-              border: "1px solid #cbd5e1",
-              backgroundColor: "#fff",
-              fontSize: "14px",
-              outline: "none",
-              minWidth: "200px"
-            }}
-          >
-            <option value="">Buscar por cliente (Todos)</option>
-            {clientes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nombre} - {c.cedula || c.ruc}
-              </option>
-            ))}
-          </select>
-          <button
-            className={styles.newButton}
-            onClick={() => setMostrarModal(true)}
-          >
-            + Nuevo Pago
-          </button>
-        </div>
-
-        <div className={styles.tableContainer}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Cliente</th>
-                <th>Cuenta Bancaria de Destino</th>
-                <th>Monto Total</th>
-                <th>Fecha</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {pagosFiltrados.length > 0 ? (
-                pagosFiltrados.map((pago) => {
-                  const isActivo = pago.estado?.toLowerCase() === "activo" || pago.estado?.toLowerCase() === "impreso";
-                  const isInactivo = pago.estado?.toLowerCase() === "inactivo";
-
-                  const disableEdit = isActivo;
-                  const disablePdf = false;
-
-                  return (
-                    <tr key={pago.id}>
-                      <td>{pago.numeroPago}</td>
-
-                      <td>
-                        {clientes.find((cliente) => cliente.id === pago.clienteId)
-                          ?.nombre || pago.clienteId}
-                      </td>
-
-                      <td>
-                        {pago.cuentaBancariaId && cuentasBancarias.length > 0 ? (
-                          cuentasBancarias.find(
-                            (cuenta) =>
-                              cuenta.id.toString() ===
-                              pago.cuentaBancariaId.toString(),
-                          )?.codigo || pago.cuentaBancariaId
-                        ) : "—"}
-                      </td>
-
-                      <td className={styles.amount}>${pago.montoTotal}</td>
-
-                      <td>{new Date(pago.fecha).toLocaleDateString()}</td>
-
-                      <td>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                          isActivo
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-gray-100 text-gray-700"
-                        }`}>
-                          {pago.estado?.toUpperCase() || "INACTIVO"}
-                        </span>
-                      </td>
-
-                      <td>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => setPagoEditar(pago)}
-                            disabled={disableEdit}
-                            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                              disableEdit
-                                ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                                : "bg-blue-50 text-blue-600 hover:bg-blue-100 active:scale-[0.98]"
-                            }`}
-                          >
-                            Editar
-                          </button>
-                          <button
-                            onClick={() => {
-                              descargarPDFPago(pago.id);
-                              // Actualizar estado local para reflejar que cambió a activo
-                              setPagos((prev) =>
-                                prev.map((p) =>
-                                  p.id === pago.id ? { ...p, estado: "activo" } : p
-                                )
-                              );
-                            }}
-                            disabled={disablePdf}
-                            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                              disablePdf
-                                ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                                : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 active:scale-[0.98]"
-                            }`}
-                            title="Descargar Comprobante PDF"
-                          >
-                            ↓ PDF
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={7} className={styles.empty}>
-                    No existen pagos registrados.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <button
+          onClick={() => setMostrarModal(true)}
+          className="inline-flex items-center gap-2 bg-red-700 hover:bg-red-800 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors shadow-sm"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          Nuevo Pago
+        </button>
       </div>
 
-      {mostrarModal && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modal}>
-            <div className={styles.modalHeader}>
-              <h2>Registro de Pagos</h2>
+      {/* ── Métricas ── */}
+      <div className="grid grid-cols-2 gap-3">
+        {[
+          { label: "Total pagos",      value: totalPagos,             color: "text-gray-900"    },
+          { label: "Monto recaudado",  value: `$${montoTotal.toLocaleString()}`, color: "text-emerald-600" },
+        ].map(({ label, value, color }) => (
+          <div key={label} className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+            <p className="text-xs text-gray-500 mb-1">{label}</p>
+            <p className={`text-xl font-semibold ${color}`}>{value}</p>
+          </div>
+        ))}
+      </div>
 
+      {/* ── DataTable ── */}
+      <DataTable
+        columns={columns}
+        data={pagosFiltrados}
+        rowKey={(row) => row.id}
+        searchKeys={["numeroPago"]}
+        pageOptions={[5, 10, 25, 50]}
+        emptyMessage="No existen pagos registrados."
+      />
+
+      {/* ── Modal Nuevo Pago ── */}
+      {mostrarModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-2xl overflow-hidden">
+            <div className="bg-red-700 px-6 py-5 flex items-center justify-between text-white">
+              <h2 className="text-lg font-bold">Registro de Pagos</h2>
               <button
-                className={styles.closeButton}
                 onClick={() => setMostrarModal(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 transition-colors"
               >
-                ✕
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
-
-            <div className={styles.modalContent}>
+            <div className="p-6 max-h-[80vh] overflow-y-auto">
               <FormularioPago
-                onGuardado={() => {
-                  setMostrarModal(false);
-                  cargarPagos();
-                }}
+                onGuardado={() => { setMostrarModal(false); cargarPagos(); }}
               />
             </div>
           </div>
         </div>
       )}
 
+      {/* ── Modal Editar Pago ── */}
       {pagoEditar && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modal}>
-            <div className={styles.modalHeader}>
-              <h2>Editar Pago</h2>
-
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-2xl overflow-hidden">
+            <div className="bg-red-700 px-6 py-5 flex items-center justify-between text-white">
+              <h2 className="text-lg font-bold">Editar Pago</h2>
               <button
-                className={styles.closeButton}
                 onClick={() => setPagoEditar(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 transition-colors"
               >
-                ✕
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
-
-            <div className={styles.modalContent}>
+            <div className="p-6 max-h-[80vh] overflow-y-auto">
               <FormularioPago
                 pagoAEditar={pagoEditar}
-                onGuardado={() => {
-                  setPagoEditar(null);
-                  cargarPagos();
-                }}
+                onGuardado={() => { setPagoEditar(null); cargarPagos(); }}
               />
             </div>
           </div>
