@@ -123,7 +123,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           <h2 className="text-sm font-semibold" style={{ color: "var(--utn-gray-dark)" }}>
             Sistema de Cuentas por Cobrar — UTN
           </h2>
-          <span className="text-xs" style={{ color: "var(--utn-gray)" }}>Proyecto Integrador</span>
+          <span className="text-xs" style={{ color: "var(--utn-gray)" }}>Universidad Técnica del Norte</span>
         </header>
         <main className="flex-1 overflow-auto p-6">
           {children}

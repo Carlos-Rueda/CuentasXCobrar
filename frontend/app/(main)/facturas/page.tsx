@@ -185,7 +185,7 @@ export default function FacturasPage() {
         <button
           type="button"
           onClick={() => eliminar(row.id)}
-          className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-red-200 text-red-600 hover:bg-red-50 active:scale-[0.98] transition-all"
+          className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-50 text-red-700 hover:bg-red-100 active:scale-[0.98] transition-all"
         >
           Eliminar
         </button>

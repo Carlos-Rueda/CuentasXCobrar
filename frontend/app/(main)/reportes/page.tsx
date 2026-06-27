@@ -5,6 +5,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { API_URL } from "@/app/config";
 import DataTable, { ColumnDef } from "@/app/components/DataTable";
+import DatePicker from "@/app/components/DatePicker";
 
 type Registro = {
   id: string;
@@ -368,24 +369,16 @@ export default function ReportesPage() {
           Rango de fechas
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Fecha de Inicio</label>
-            <input
-              type="date"
-              value={fechaInicio}
-              onChange={(e) => { setFechaInicio(e.target.value); setDateError(""); }}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100 transition-colors"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Fecha de Fin</label>
-            <input
-              type="date"
-              value={fechaFin}
-              onChange={(e) => { setFechaFin(e.target.value); setDateError(""); }}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100 transition-colors"
-            />
-          </div>
+          <DatePicker
+            label="Fecha de Inicio"
+            value={fechaInicio}
+            onChange={(v) => { setFechaInicio(v); setDateError(""); }}
+          />
+          <DatePicker
+            label="Fecha de Fin"
+            value={fechaFin}
+            onChange={(v) => { setFechaFin(v); setDateError(""); }}
+          />
           <button
             type="button"
             onClick={() => { setFechaInicio(""); setFechaFin(""); setDateError(""); }}

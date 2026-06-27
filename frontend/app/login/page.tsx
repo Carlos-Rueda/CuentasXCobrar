@@ -119,7 +119,7 @@ export default function LoginPage() {
             type="button"
             onClick={handleLogin}
             disabled={loading}
-            className="w-full bg-red-700 text-white font-medium py-3 rounded-xl hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+            className="w-full bg-[var(--utn-red)] text-white font-medium py-3 rounded-xl hover:bg-[var(--utn-red-dark)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
           >
             {loading ? "Verificando..." : "Ingresar"}
           </button>
@@ -138,7 +138,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-xs text-slate-400 mt-6">
-          Proyecto Integrador · Sistema CXC
+          Universidad Técnica del Norte · Sistema CXC
         </p>
       </div>
     </div>

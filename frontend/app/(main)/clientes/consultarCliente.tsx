@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import { API_URL } from "@/app/config";
+import DatePicker from "@/app/components/DatePicker";
 
 export default function ConsultarCliente() {
   const [clienteId, setClienteId] = useState("");
@@ -191,26 +192,18 @@ export default function ConsultarCliente() {
           </div>
 
           {/* Fecha de Inicio */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-500 mb-1">Fecha de Inicio</label>
-            <input
-              type="date"
-              value={fechaInicio}
-              onChange={(e) => setFechaInicio(e.target.value)}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-600 w-full"
-            />
-          </div>
+          <DatePicker
+            label="Fecha de Inicio"
+            value={fechaInicio}
+            onChange={setFechaInicio}
+          />
 
           {/* Fecha de Fin */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-500 mb-1">Fecha de Fin</label>
-            <input
-              type="date"
-              value={fechaFin}
-              onChange={(e) => setFechaFin(e.target.value)}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-600 w-full"
-            />
-          </div>
+          <DatePicker
+            label="Fecha de Fin"
+            value={fechaFin}
+            onChange={setFechaFin}
+          />
         </div>
 
         {dateError && (
@@ -227,7 +220,7 @@ export default function ConsultarCliente() {
             className={`px-5 py-2.5 text-white text-sm font-semibold rounded-xl transition-all ${
               !clienteId || loadingStatement
                 ? "bg-slate-400 cursor-not-allowed"
-                : "bg-red-700 hover:bg-red-800 active:scale-[0.98]"
+                : "bg-[var(--utn-red)] hover:bg-[var(--utn-red-dark)] active:scale-[0.98]"
             }`}
           >
             {loadingStatement ? "Consultando..." : "Consultar"}
@@ -267,7 +260,7 @@ export default function ConsultarCliente() {
           {/* Métricas de Resumen */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Saldo Total */}
-            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-2xl shadow-sm p-6 md:col-span-2 flex flex-col justify-between">
+            <div className="text-white rounded-2xl shadow-sm p-6 md:col-span-2 flex flex-col justify-between" style={{ background: "linear-gradient(135deg, var(--utn-red), var(--utn-red-dark))" }}>
               <span className="text-sm font-medium opacity-85 uppercase tracking-wide">Saldo Total Pendiente</span>
               <div className="mt-4">
                 <span className="text-4xl font-black">

@@ -23,6 +23,7 @@ interface DataTableProps<T> {
   onDownload?: () => void;
   onFilteredChange?: (filtered: T[]) => void;
   emptyMessage?: string;
+  extraFilters?: React.ReactNode; // elementos extra al lado del buscador
 }
 
 // ── Ícono de orden ───────────────────────────────────────────────────────────
@@ -57,6 +58,7 @@ export default function DataTable<T extends Record<string, any>>({
   onDownload,
   onFilteredChange,
   emptyMessage = "No hay registros disponibles.",
+  extraFilters,
 }: DataTableProps<T>) {
   const [search, setSearch] = useState("");
   const [pageSize, setPageSize] = useState(pageOptions[0]);
@@ -160,7 +162,8 @@ export default function DataTable<T extends Record<string, any>>({
           <span>registros</span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {extraFilters}
           {onDownload && (
             <button
               type="button"
@@ -223,7 +226,7 @@ export default function DataTable<T extends Record<string, any>>({
               pageData.map((row) => (
                 <tr
                   key={rowKey(row)}
-                  className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
+                  className="border-b border-gray-200 hover:bg-gray-100 transition-colors duration-100 cursor-default"
                 >
                   {columns.map((col) => (
                     <td

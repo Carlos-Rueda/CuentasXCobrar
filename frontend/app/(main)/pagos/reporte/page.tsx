@@ -2,10 +2,11 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import FormularioPago from "../components/FormularioPago";
 import { API_URL } from "@/app/config";
 import DataTable, { ColumnDef } from "@/app/components/DataTable";
+import DatePicker from "@/app/components/DatePicker";
 
 export default function ReportePagosPage() {
   interface CuentaBancaria {
@@ -25,6 +26,10 @@ export default function ReportePagosPage() {
   const [busqueda, setBusqueda] = useState("");
   const [cuentasBancarias, setCuentasBancarias] = useState<CuentaBancaria[]>([]);
   const [clientes, setClientes] = useState<any[]>([]);
+
+  // ── Filtro de fechas ─────────────────────────────────────────────────────
+  const [fechaInicio, setFechaInicio] = useState("");
+  const [fechaFin, setFechaFin] = useState("");
 
   const anularPago = async (id: string) => {
     if (!confirm("¿Está seguro de que desea anular este pago?")) return;
@@ -81,21 +86,29 @@ export default function ReportePagosPage() {
   };
 
   const pagosFiltrados = pagos.filter((pago) => {
-    if (filtroCliente && pago.clienteId !== filtroCliente) {
-      return false;
+    if (filtroCliente && pago.clienteId !== filtroCliente) return false;
+
+    // Filtro por rango de fechas usando hora LOCAL (no UTC) para evitar
+    // el desfase de -5h que desplaza la fecha al día anterior en Ecuador
+    if ((fechaInicio || fechaFin) && pago.fecha) {
+      const d = new Date(pago.fecha);
+      const local = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      if (fechaInicio && local < fechaInicio) return false;
+      if (fechaFin   && local > fechaFin)   return false;
     }
-    
-    if (!busqueda) return true;
 
-    const cliente = clientes.find((c) => c.id === pago.clienteId);
-    const searchLower = busqueda.toLowerCase();
-    
-    const matchesNumeroPago = (pago.numeroPago || "").toLowerCase().includes(searchLower);
-    const matchesNombre = (cliente?.nombre || "").toLowerCase().includes(searchLower);
-    const matchesCedula = (cliente?.cedula || cliente?.ruc || "").toLowerCase().includes(searchLower);
-
-    return matchesNumeroPago || matchesNombre || matchesCedula;
+    return true;
   });
+
+  // Enriquecer pagos con campos de texto resueltos para que el DataTable
+  // pueda buscar por nombre de cliente, código de cuenta, monto y fecha
+  const pagosEnriquecidos = pagosFiltrados.map((pago) => ({
+    ...pago,
+    clienteNombre: clientes.find((c) => c.id === pago.clienteId)?.nombre || pago.clienteId,
+    cuentaCodigo: cuentasBancarias.find((c: any) => c.id?.toString() === pago.cuentaBancariaId?.toString())?.codigo || pago.cuentaBancariaId || "—",
+    montoTexto: `$${Number(pago.montoTotal).toLocaleString()}`,
+    fechaTexto: pago.fecha ? new Date(pago.fecha).toLocaleDateString() : "—",
+  }));
 
   const totalPagos = pagosFiltrados.length;
 
@@ -186,9 +199,7 @@ export default function ReportePagosPage() {
       label: "Cliente",
       sortable: true,
       render: (pago) => (
-        <span className="font-medium text-gray-900">
-          {clientes.find((c) => c.id === pago.clienteId)?.nombre || pago.clienteId}
-        </span>
+        <span className="font-medium text-gray-900">{pago.clienteNombre}</span>
       ),
     },
     {
@@ -196,11 +207,7 @@ export default function ReportePagosPage() {
       label: "Cuenta Bancaria",
       sortable: false,
       render: (pago) => (
-        <span className="text-gray-700">
-          {pago.cuentaBancariaId && cuentasBancarias.length > 0
-            ? cuentasBancarias.find((c: any) => c.id.toString() === pago.cuentaBancariaId.toString())?.codigo || pago.cuentaBancariaId
-            : "—"}
-        </span>
+        <span className="text-gray-700">{pago.cuentaCodigo}</span>
       ),
     },
     {
@@ -238,7 +245,7 @@ export default function ReportePagosPage() {
         </div>
         <button
           onClick={() => setMostrarModal(true)}
-          className="inline-flex items-center gap-2 bg-red-700 hover:bg-red-800 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors shadow-sm"
+          className="inline-flex items-center gap-2 bg-[var(--utn-red)] hover:bg-[var(--utn-red-dark)] text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors shadow-sm"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -263,9 +270,32 @@ export default function ReportePagosPage() {
       {/* ── DataTable ── */}
       <DataTable
         columns={columns}
-        data={pagosFiltrados}
+        data={pagosEnriquecidos}
+        extraFilters={
+          <div className="flex items-center gap-2">
+            <DatePicker
+              value={fechaInicio}
+              onChange={(v) => setFechaInicio(v)}
+              placeholder="Desde"
+            />
+            <DatePicker
+              value={fechaFin}
+              onChange={(v) => setFechaFin(v)}
+              placeholder="Hasta"
+            />
+            {(fechaInicio || fechaFin) && (
+              <button
+                type="button"
+                onClick={() => { setFechaInicio(""); setFechaFin(""); }}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all whitespace-nowrap"
+              >
+                Limpiar
+              </button>
+            )}
+          </div>
+        }
         rowKey={(row) => row.id}
-        searchKeys={["numeroPago"]}
+        searchKeys={["numeroPago", "clienteNombre", "cuentaCodigo"]}
         pageOptions={[5, 10, 25, 50]}
         emptyMessage="No existen pagos registrados."
       />
@@ -274,7 +304,7 @@ export default function ReportePagosPage() {
       {mostrarModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-2xl overflow-hidden">
-            <div className="bg-red-700 px-6 py-5 flex items-center justify-between text-white">
+            <div className="bg-[var(--utn-red)] px-6 py-5 flex items-center justify-between text-white">
               <h2 className="text-lg font-bold">Registro de Pagos</h2>
               <button
                 onClick={() => setMostrarModal(false)}
@@ -298,7 +328,7 @@ export default function ReportePagosPage() {
       {pagoEditar && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-2xl overflow-hidden">
-            <div className="bg-red-700 px-6 py-5 flex items-center justify-between text-white">
+            <div className="bg-[var(--utn-red)] px-6 py-5 flex items-center justify-between text-white">
               <h2 className="text-lg font-bold">Editar Pago</h2>
               <button
                 onClick={() => setPagoEditar(null)}

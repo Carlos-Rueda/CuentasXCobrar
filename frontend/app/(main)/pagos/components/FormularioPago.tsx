@@ -322,7 +322,7 @@ export default function PagosPage({
               name="fecha"
               value={formData.fecha}
               onChange={handleChange}
-              className="p-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              className="p-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
             />
           </div>
 
@@ -334,7 +334,7 @@ export default function PagosPage({
               name="cuentaBancariaId"
               value={cuentaBancariaId}
               onChange={(e) => setCuentaBancariaId(e.target.value)}
-              className="p-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              className="p-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
             >
               <option value="">Seleccione una cuenta bancaria</option>
               {cuentasBancarias.map((cuenta) => (
@@ -362,7 +362,7 @@ export default function PagosPage({
             }}
             onFocus={() => setDropdownOpen(true)}
             onBlur={() => setTimeout(() => setDropdownOpen(false), 200)}
-            className="p-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
+            className="p-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all text-sm"
           />
           {dropdownOpen && filteredClientes.length > 0 && (
             <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto mt-1 top-full left-0">
@@ -376,7 +376,7 @@ export default function PagosPage({
                     );
                     setDropdownOpen(false);
                   }}
-                  className="p-2 hover:bg-blue-50 cursor-pointer text-sm text-gray-700 transition-colors border-b border-gray-100 last:border-0"
+                  className="p-2 hover:bg-red-50 cursor-pointer text-sm text-gray-700 transition-colors border-b border-gray-100 last:border-0"
                 >
                   {cliente.nombre} - {cliente.cedula || cliente.ruc}
                 </div>
@@ -400,7 +400,7 @@ export default function PagosPage({
             value={formData.descripcion}
             onChange={handleChange}
             placeholder="Ej. Pago de mensualidad..."
-            className="p-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
+            className="p-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all resize-none"
           />
         </div>
       </div>
@@ -480,7 +480,7 @@ export default function PagosPage({
                             className={`w-full text-right pl-8 pr-3 py-1.5 border rounded-md outline-none transition-all text-sm ${
                               errorMonto
                                 ? "border-red-500 bg-red-50 text-red-700 focus:ring-2 focus:ring-red-200"
-                                : "border-gray-300 focus:ring-2 focus:ring-blue-500"
+                                : "border-gray-300 focus:ring-2 focus:ring-red-500"
                             }`}
                           />
                         </div>
@@ -500,11 +500,11 @@ export default function PagosPage({
           Resumen de Pago
         </h2>
 
-        <div className="flex items-center justify-between bg-blue-50/50 p-4 rounded-lg border border-blue-100">
+        <div className="flex items-center justify-between bg-red-50/50 p-4 rounded-lg border border-red-100">
           <span className="text-lg font-medium text-gray-700">
             Total a Pagar
           </span>
-          <span className="text-3xl font-bold text-blue-600">
+          <span className="text-3xl font-bold text-red-700">
             ${montoTotalCalculado.toFixed(2)}
           </span>
         </div>
@@ -515,7 +515,7 @@ export default function PagosPage({
           className={`w-full py-3 rounded-lg font-medium text-white transition-all shadow-sm mt-2 ${
             isSubmitDisabled || isSubmitting
               ? "bg-gray-400 cursor-not-allowed opacity-70"
-              : "bg-blue-600 hover:bg-blue-700 hover:shadow-md active:transform active:scale-[0.99]"
+              : "bg-[var(--utn-red)] hover:bg-[var(--utn-red-dark)] hover:shadow-md active:transform active:scale-[0.99]"
           }`}
         >
           {isSubmitting ? (

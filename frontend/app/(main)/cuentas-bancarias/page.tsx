@@ -230,14 +230,14 @@ export default function CuentasBancariasPage() {
           <button
             type="button"
             onClick={() => editarCuenta(row)}
-            className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 active:scale-[0.98] transition-all"
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 active:scale-[0.98] transition-all"
           >
             Editar
           </button>
           <button
             type="button"
             onClick={() => eliminarCuenta(row.id)}
-            className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-red-200 text-red-600 hover:bg-red-50 active:scale-[0.98] transition-all"
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-50 text-red-700 hover:bg-red-100 active:scale-[0.98] transition-all"
           >
             Eliminar
           </button>
@@ -303,7 +303,7 @@ export default function CuentasBancariasPage() {
         <button
           type="button"
           onClick={abrirModalNueva}
-          className="inline-flex items-center gap-2 bg-red-700 hover:bg-red-800 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors shadow-sm"
+          className="inline-flex items-center gap-2 bg-[var(--utn-red)] hover:bg-[var(--utn-red-dark)] text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors shadow-sm"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -327,12 +327,12 @@ export default function CuentasBancariasPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-lg overflow-hidden">
 
-            <div className="bg-red-700 px-6 py-5 flex items-center justify-between text-white">
+            <div className="bg-[var(--utn-red)] px-6 py-5 flex items-center justify-between text-white">
               <div>
                 <h2 className="text-lg font-bold">
                   {editandoId ? "Editar Cuenta Bancaria" : "Nueva Cuenta Bancaria"}
                 </h2>
-                <p className="text-xs text-blue-100 mt-0.5">
+                <p className="text-xs text-red-100 mt-0.5">
                   Los campos marcados con * son obligatorios
                 </p>
               </div>
@@ -529,7 +529,7 @@ export default function CuentasBancariasPage() {
                 type="button"
                 onClick={guardarCuenta}
                 disabled={guardando}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-red-700 hover:bg-red-800 text-white text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[var(--utn-red)] hover:bg-[var(--utn-red-dark)] text-white text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {guardando ? (
                   <>
