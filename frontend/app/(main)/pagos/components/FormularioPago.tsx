@@ -5,14 +5,19 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { API_URL } from "@/app/config";
+import { useToast } from "@/app/components/toast";
 
 type FormularioPagoProps = {
   onGuardado?: () => void;
   pagoAEditar?: any;
 };
 
-export default function PagosPage({ onGuardado, pagoAEditar }: FormularioPagoProps) {
+export default function PagosPage({
+  onGuardado,
+  pagoAEditar,
+}: FormularioPagoProps) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     fecha: "",
@@ -37,7 +42,7 @@ export default function PagosPage({ onGuardado, pagoAEditar }: FormularioPagoPro
           pagoAEditar.detalles.map((d: any) => ({
             facturaId: d.facturaId,
             montoAbonado: d.montoAbonado.toString(),
-          }))
+          })),
         );
       }
     }
@@ -62,14 +67,25 @@ export default function PagosPage({ onGuardado, pagoAEditar }: FormularioPagoPro
 
   const cargarClientes = async () => {
     try {
-      const response = await fetch(`${API_URL}/facturas/clientes`, { cache: "no-store" });
+      const response = await fetch(`${API_URL}/facturas/clientes`, {
+        cache: "no-store",
+      });
       if (response.ok) {
         const data = await response.json();
         const listClients = Array.isArray(data) ? data : [];
-        const uniqueMap = new Map(listClients.map((c: any) => [c.cedula || c.ruc || c.nombre, c]));
+        const uniqueMap = new Map(
+          listClients.map((c: any) => [c.cedula || c.ruc || c.nombre, c]),
+        );
         const sortedUniqueCleanClients = Array.from(uniqueMap.values())
-          .filter((c: any) => c.nombre && c.nombre.trim() !== "" && c.nombre.trim() !== "undefined")
-          .sort((a: any, b: any) => (a.nombre || "").localeCompare(b.nombre || ""));
+          .filter(
+            (c: any) =>
+              c.nombre &&
+              c.nombre.trim() !== "" &&
+              c.nombre.trim() !== "undefined",
+          )
+          .sort((a: any, b: any) =>
+            (a.nombre || "").localeCompare(b.nombre || ""),
+          );
         setClientes(sortedUniqueCleanClients);
       }
     } catch (error) {
@@ -82,17 +98,23 @@ export default function PagosPage({ onGuardado, pagoAEditar }: FormularioPagoPro
     if (pagoAEditar && clientes.length > 0) {
       const client = clientes.find((c) => c.id === pagoAEditar.clienteId);
       if (client) {
-        setSearchTerm(`${client.nombre} - ${client.cedula || client.ruc || ""}`);
+        setSearchTerm(
+          `${client.nombre} - ${client.cedula || client.ruc || ""}`,
+        );
       }
     }
   }, [pagoAEditar, clientes]);
 
   const cargarCuentasBancarias = async () => {
     try {
-      const response = await fetch(`${API_URL}/cuentas-bancarias`, { cache: "no-store" });
+      const response = await fetch(`${API_URL}/cuentas-bancarias`, {
+        cache: "no-store",
+      });
       if (response.ok) {
         const data = await response.json();
-        const activas = data.filter((c: any) => c.estado?.toLowerCase() === "activo");
+        const activas = data.filter(
+          (c: any) => c.estado?.toLowerCase() === "activo",
+        );
         setCuentasBancarias(activas);
         if (activas.length > 0 && !pagoAEditar) {
           setCuentaBancariaId(activas[0].id);
@@ -103,7 +125,11 @@ export default function PagosPage({ onGuardado, pagoAEditar }: FormularioPagoPro
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
+  ) => {
     const { name, value } = e.target;
     if (name === "clienteId") {
       setFormData({ ...formData, clienteId: value });
@@ -118,7 +144,7 @@ export default function PagosPage({ onGuardado, pagoAEditar }: FormularioPagoPro
       alert("Por favor, seleccione una cuenta bancaria.");
       return;
     }
-    
+
     setIsSubmitting(true);
 
     try {
@@ -135,7 +161,9 @@ export default function PagosPage({ onGuardado, pagoAEditar }: FormularioPagoPro
           })),
       };
 
-      const url = pagoAEditar ? `${API_URL}/pagos/${pagoAEditar.id}` : `${API_URL}/pagos`;
+      const url = pagoAEditar
+        ? `${API_URL}/pagos/${pagoAEditar.id}`
+        : `${API_URL}/pagos`;
       const method = pagoAEditar ? "PATCH" : "POST";
 
       const response = await fetch(url, {
@@ -150,7 +178,12 @@ export default function PagosPage({ onGuardado, pagoAEditar }: FormularioPagoPro
         throw new Error(data.message || "Error al registrar el pago");
       }
 
-      alert(pagoAEditar ? "Pago editado correctamente" : "Pago registrado correctamente");
+      showToast(
+        pagoAEditar
+          ? "Pago editado correctamente"
+          : "Pago registrado correctamente",
+        "success",
+      );
 
       // Limpiar formulario
       setFormData({
@@ -166,13 +199,16 @@ export default function PagosPage({ onGuardado, pagoAEditar }: FormularioPagoPro
       if (onGuardado) {
         onGuardado();
       }
-      
-      router.push("/pagos/reporte");
+
+      setTimeout(() => {
+        router.push("/pagos/reporte");
+        router.refresh();
+      }, 1500);
+
       router.refresh();
-      
     } catch (error: any) {
       console.error(error);
-      alert(error.message || "Error al registrar el pago");
+      showToast(error.message || "Error al registrar el pago", "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -180,7 +216,9 @@ export default function PagosPage({ onGuardado, pagoAEditar }: FormularioPagoPro
 
   const cargarFacturas = async () => {
     try {
-      const response = await fetch(`${API_URL}/pagos/facturas`, { cache: "no-store" });
+      const response = await fetch(`${API_URL}/pagos/facturas`, {
+        cache: "no-store",
+      });
       const data = await response.json();
       setFacturas(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -197,13 +235,15 @@ export default function PagosPage({ onGuardado, pagoAEditar }: FormularioPagoPro
     if (exists) {
       setFacturasSeleccionadas(
         facturasSeleccionadas.map((factura) =>
-          factura.facturaId === facturaId ? { ...factura, montoAbonado: montoStr } : factura
-        )
+          factura.facturaId === facturaId
+            ? { ...factura, montoAbonado: montoStr }
+            : factura,
+        ),
       );
     } else {
       setFacturasSeleccionadas([
         ...facturasSeleccionadas,
-        { facturaId, montoAbonado: montoStr }
+        { facturaId, montoAbonado: montoStr },
       ]);
     }
   };
@@ -221,46 +261,62 @@ export default function PagosPage({ onGuardado, pagoAEditar }: FormularioPagoPro
     }
   }, [formData.clienteId]);
 
-  const facturasFiltradas = facturas.filter(
-    (factura) =>
-      factura.clienteId === formData.clienteId &&
-      (factura.estado?.toUpperCase() === "PENDIENTE" ||
-        factura.estado?.toUpperCase() === "SALDO_A_FAVOR" ||
-        factura.estado?.toUpperCase() === "SALDO A FAVOR" ||
-        Number(factura.pendiente) > 0 ||
-        (pagoAEditar && pagoAEditar.detalles?.some((d: any) => d.facturaId === factura.id)))
-  ).map((factura) => {
-    let originalPendiente = Number(factura.pendiente);
-    if (pagoAEditar) {
-      // Si estamos editando, le sumamos el monto ya abonado por este pago para conocer el saldo pendiente original
-      const allocated = pagoAEditar.detalles?.find((d: any) => d.facturaId === factura.id || d.facturaId === factura.facturaId);
-      if (allocated) {
-        originalPendiente += Number(allocated.montoAbonado);
+  const facturasFiltradas = facturas
+    .filter(
+      (factura) =>
+        factura.clienteId === formData.clienteId &&
+        (factura.estado?.toUpperCase() === "PENDIENTE" ||
+          factura.estado?.toUpperCase() === "SALDO_A_FAVOR" ||
+          factura.estado?.toUpperCase() === "SALDO A FAVOR" ||
+          Number(factura.pendiente) > 0 ||
+          (pagoAEditar &&
+            pagoAEditar.detalles?.some(
+              (d: any) => d.facturaId === factura.id,
+            ))),
+    )
+    .map((factura) => {
+      let originalPendiente = Number(factura.pendiente);
+      if (pagoAEditar) {
+        // Si estamos editando, le sumamos el monto ya abonado por este pago para conocer el saldo pendiente original
+        const allocated = pagoAEditar.detalles?.find(
+          (d: any) =>
+            d.facturaId === factura.id || d.facturaId === factura.facturaId,
+        );
+        if (allocated) {
+          originalPendiente += Number(allocated.montoAbonado);
+        }
       }
-    }
-    return {
-      ...factura,
-      pendiente: originalPendiente,
-    };
-  });
+      return {
+        ...factura,
+        pendiente: originalPendiente,
+      };
+    });
 
   // Validaciones para deshabilitar el botón
   const hayErrorMonto = facturasSeleccionadas.some((fs) => {
     const original = facturasFiltradas.find((f) => f.id === fs.facturaId);
     return original && Number(fs.montoAbonado) > Number(original.pendiente);
   });
-  
-  const isSubmitDisabled = montoTotalCalculado === 0 || !cuentaBancariaId || hayErrorMonto || !formData.clienteId;
+
+  const isSubmitDisabled =
+    montoTotalCalculado === 0 ||
+    !cuentaBancariaId ||
+    hayErrorMonto ||
+    !formData.clienteId;
 
   return (
     <div className="flex flex-col gap-6 w-full max-w-4xl mx-auto p-2 bg-gray-50/50">
       {/* Tarjeta 1: Datos Generales */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col gap-4">
-        <h2 className="text-xl font-semibold text-gray-800 border-b pb-2 mb-2">Datos Generales</h2>
-        
+        <h2 className="text-xl font-semibold text-gray-800 border-b pb-2 mb-2">
+          Datos Generales
+        </h2>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">Fecha de Pago</label>
+            <label className="text-sm font-medium text-gray-700">
+              Fecha de Pago
+            </label>
             <input
               type="date"
               name="fecha"
@@ -271,7 +327,9 @@ export default function PagosPage({ onGuardado, pagoAEditar }: FormularioPagoPro
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">Cuenta Bancaria de Destino</label>
+            <label className="text-sm font-medium text-gray-700">
+              Cuenta Bancaria de Destino
+            </label>
             <select
               name="cuentaBancariaId"
               value={cuentaBancariaId}
@@ -313,7 +371,9 @@ export default function PagosPage({ onGuardado, pagoAEditar }: FormularioPagoPro
                   key={cliente.id}
                   onClick={() => {
                     setFormData({ ...formData, clienteId: cliente.id });
-                    setSearchTerm(`${cliente.nombre} - ${cliente.cedula || cliente.ruc || ""}`);
+                    setSearchTerm(
+                      `${cliente.nombre} - ${cliente.cedula || cliente.ruc || ""}`,
+                    );
                     setDropdownOpen(false);
                   }}
                   className="p-2 hover:bg-blue-50 cursor-pointer text-sm text-gray-700 transition-colors border-b border-gray-100 last:border-0"
@@ -331,7 +391,9 @@ export default function PagosPage({ onGuardado, pagoAEditar }: FormularioPagoPro
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700">Descripción del Pago</label>
+          <label className="text-sm font-medium text-gray-700">
+            Descripción del Pago
+          </label>
           <textarea
             name="descripcion"
             rows={2}
@@ -345,47 +407,79 @@ export default function PagosPage({ onGuardado, pagoAEditar }: FormularioPagoPro
 
       {/* Tarjeta 2: Facturas Pendientes */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col gap-4">
-        <h2 className="text-xl font-semibold text-gray-800 border-b pb-2 mb-2">Facturas Pendientes</h2>
-        
+        <h2 className="text-xl font-semibold text-gray-800 border-b pb-2 mb-2">
+          Facturas Pendientes
+        </h2>
+
         {!formData.clienteId ? (
-          <p className="text-gray-500 text-sm italic text-center py-4">Seleccione un cliente para ver sus facturas pendientes.</p>
+          <p className="text-gray-500 text-sm italic text-center py-4">
+            Seleccione un cliente para ver sus facturas pendientes.
+          </p>
         ) : facturasFiltradas.length === 0 ? (
-          <p className="text-gray-500 text-sm italic text-center py-4">El cliente no tiene facturas pendientes.</p>
+          <p className="text-gray-500 text-sm italic text-center py-4">
+            El cliente no tiene facturas pendientes.
+          </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[600px] text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="p-3 text-sm font-semibold text-gray-600 whitespace-nowrap">Factura</th>
-                  <th className="p-3 text-sm font-semibold text-gray-600 whitespace-nowrap">Total</th>
-                  <th className="p-3 text-sm font-semibold text-gray-600 whitespace-nowrap">Pendiente</th>
-                  <th className="p-3 text-sm font-semibold text-gray-600 w-48 text-right whitespace-nowrap">Monto a Abonar</th>
+                  <th className="p-3 text-sm font-semibold text-gray-600 whitespace-nowrap">
+                    Factura
+                  </th>
+                  <th className="p-3 text-sm font-semibold text-gray-600 whitespace-nowrap">
+                    Total
+                  </th>
+                  <th className="p-3 text-sm font-semibold text-gray-600 whitespace-nowrap">
+                    Pendiente
+                  </th>
+                  <th className="p-3 text-sm font-semibold text-gray-600 w-48 text-right whitespace-nowrap">
+                    Monto a Abonar
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {facturasFiltradas.map((factura) => {
-                  const sel = facturasSeleccionadas.find((fs) => fs.facturaId === factura.id);
+                  const sel = facturasSeleccionadas.find(
+                    (fs) => fs.facturaId === factura.id,
+                  );
                   const montoActual = sel?.montoAbonado ?? "";
-                  const errorMonto = Number(montoActual) > Number(factura.pendiente);
+                  const errorMonto =
+                    Number(montoActual) > Number(factura.pendiente);
 
                   return (
-                    <tr key={factura.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
-                      <td className="p-3 text-sm font-medium text-gray-700 whitespace-nowrap">{factura.id}</td>
-                      <td className="p-3 text-sm text-gray-600 whitespace-nowrap">${Number(factura.total).toFixed(2)}</td>
-                      <td className="p-3 text-sm font-semibold text-orange-600 whitespace-nowrap">${Number(factura.pendiente).toFixed(2)}</td>
+                    <tr
+                      key={factura.id}
+                      className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors"
+                    >
+                      <td className="p-3 text-sm font-medium text-gray-700 whitespace-nowrap">
+                        {factura.id}
+                      </td>
+                      <td className="p-3 text-sm text-gray-600 whitespace-nowrap">
+                        ${Number(factura.total).toFixed(2)}
+                      </td>
+                      <td className="p-3 text-sm font-semibold text-orange-600 whitespace-nowrap">
+                        ${Number(factura.pendiente).toFixed(2)}
+                      </td>
                       <td className="p-3">
                         <div className="relative flex items-center justify-end">
-                          <span className="absolute left-4 text-gray-500 text-sm">$</span>
+                          <span className="absolute left-4 text-gray-500 text-sm">
+                            $
+                          </span>
                           <input
                             type="number"
                             min="0"
                             placeholder="0.00"
                             value={montoActual}
-                            onChange={(e) => actualizarMonto(factura.id, e.target.value)}
-                            onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                            onChange={(e) =>
+                              actualizarMonto(factura.id, e.target.value)
+                            }
+                            onWheel={(e) =>
+                              (e.target as HTMLInputElement).blur()
+                            }
                             className={`w-full text-right pl-8 pr-3 py-1.5 border rounded-md outline-none transition-all text-sm ${
-                              errorMonto 
-                                ? "border-red-500 bg-red-50 text-red-700 focus:ring-2 focus:ring-red-200" 
+                              errorMonto
+                                ? "border-red-500 bg-red-50 text-red-700 focus:ring-2 focus:ring-red-200"
                                 : "border-gray-300 focus:ring-2 focus:ring-blue-500"
                             }`}
                           />
@@ -402,10 +496,14 @@ export default function PagosPage({ onGuardado, pagoAEditar }: FormularioPagoPro
 
       {/* Tarjeta 3: Resumen de Pago */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col gap-4">
-        <h2 className="text-xl font-semibold text-gray-800 border-b pb-2 mb-2">Resumen de Pago</h2>
-        
+        <h2 className="text-xl font-semibold text-gray-800 border-b pb-2 mb-2">
+          Resumen de Pago
+        </h2>
+
         <div className="flex items-center justify-between bg-blue-50/50 p-4 rounded-lg border border-blue-100">
-          <span className="text-lg font-medium text-gray-700">Total a Pagar</span>
+          <span className="text-lg font-medium text-gray-700">
+            Total a Pagar
+          </span>
           <span className="text-3xl font-bold text-blue-600">
             ${montoTotalCalculado.toFixed(2)}
           </span>
@@ -422,9 +520,25 @@ export default function PagosPage({ onGuardado, pagoAEditar }: FormularioPagoPro
         >
           {isSubmitting ? (
             <span className="flex items-center justify-center gap-2">
-              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              <svg
+                className="animate-spin h-5 w-5 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
               </svg>
               Procesando pago...
             </span>

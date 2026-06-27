@@ -4,8 +4,10 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { API_URL } from "@/app/config";
+import { useToast } from "@/app/components/toast";
 
 export default function CuentasBancariasPage() {
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     codigo: "",
     nombreCuenta: "",
@@ -55,12 +57,13 @@ export default function CuentasBancariasPage() {
       const matchTexto =
         !filtroTexto.trim() ||
         cuenta.codigo?.toLowerCase().includes(filtroTexto.toLowerCase()) ||
-        cuenta.nombreCuenta?.toLowerCase().includes(filtroTexto.toLowerCase()) ||
+        cuenta.nombreCuenta
+          ?.toLowerCase()
+          .includes(filtroTexto.toLowerCase()) ||
         cuenta.titular?.toLowerCase().includes(filtroTexto.toLowerCase()) ||
         cuenta.nroCuenta?.toLowerCase().includes(filtroTexto.toLowerCase());
 
-      const matchBanco =
-        !filtroBanco || cuenta.entidadBancaria === filtroBanco;
+      const matchBanco = !filtroBanco || cuenta.entidadBancaria === filtroBanco;
 
       const matchEstado =
         filtroEstado === "TODOS" || cuenta.estado === filtroEstado;
@@ -73,7 +76,9 @@ export default function CuentasBancariasPage() {
   }, [cuentas, filtroTexto, filtroBanco, filtroEstado, filtroTipo]);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
   ) => {
     const { name, value } = e.target;
     setFormData({
@@ -97,7 +102,7 @@ export default function CuentasBancariasPage() {
       !formData.nroCuenta ||
       !formData.ruc
     ) {
-      alert("Por favor rellene los campos obligatorios");
+      showToast("Por favor rellene los campos obligatorios", "error");
       return;
     }
 
@@ -116,30 +121,24 @@ export default function CuentasBancariasPage() {
     try {
       let response;
       if (editandoId) {
-        response = await fetch(
-          `${API_URL}/cuentas-bancarias/${editandoId}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
+        response = await fetch(`${API_URL}/cuentas-bancarias/${editandoId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
           },
-        );
+          body: JSON.stringify(payload),
+        });
       } else {
-        response = await fetch(
-          `${API_URL}/cuentas-bancarias`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              id: `CB-${Date.now()}`,
-              ...payload
-            }),
+        response = await fetch(`${API_URL}/cuentas-bancarias`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
-        );
+          body: JSON.stringify({
+            id: `CB-${Date.now()}`,
+            ...payload,
+          }),
+        });
       }
 
       if (response.ok) {
@@ -157,17 +156,18 @@ export default function CuentasBancariasPage() {
         });
         setEditandoId(null);
         setMostrarModal(false);
-        alert(
+        showToast(
           editandoId
             ? "Cuenta bancaria actualizada correctamente"
-            : "Cuenta bancaria guardada correctamente",
+            : "Cuenta bancaria registrada correctamente",
+          "success",
         );
       } else {
-        alert("Error al guardar la cuenta bancaria");
+        showToast("Error al guardar la cuenta bancaria", "error");
       }
     } catch (error) {
       console.error(error);
-      alert("Error al conectar con el servidor");
+      showToast("Error al conectar con el servidor", "error");
     }
   };
 
@@ -191,17 +191,17 @@ export default function CuentasBancariasPage() {
     if (!confirm("¿Está seguro de eliminar esta cuenta bancaria?")) return;
     try {
       const response = await fetch(`${API_URL}/cuentas-bancarias/${id}`, {
-        method: "DELETE"
+        method: "DELETE",
       });
       if (response.ok || response.status === 204) {
         await cargarCuentas();
-        alert("Cuenta bancaria eliminada correctamente");
+        showToast("Cuenta bancaria eliminada correctamente", "success");
       } else {
-        alert("Error al eliminar la cuenta bancaria");
+        showToast("Error al eliminar la cuenta bancaria", "error");
       }
     } catch (error) {
       console.error(error);
-      alert("Error al conectar con el servidor");
+      showToast("Error al conectar con el servidor", "error");
     }
   };
 
@@ -214,7 +214,8 @@ export default function CuentasBancariasPage() {
             Cuentas Bancarias
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Administración, registro y visualización de las cuentas bancarias de la empresa.
+            Administración, registro y visualización de las cuentas bancarias de
+            la empresa.
           </p>
         </div>
         <button
@@ -242,11 +243,15 @@ export default function CuentasBancariasPage() {
 
       {/* ── Panel de Filtros de Búsqueda (Diseño Premium) ── */}
       <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Filtros de Búsqueda</h2>
+        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
+          Filtros de Búsqueda
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
           {/* Búsqueda General */}
           <div className="col-span-1 md:col-span-2">
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Búsqueda General</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+              Búsqueda General
+            </label>
             <input
               type="text"
               value={filtroTexto}
@@ -258,7 +263,9 @@ export default function CuentasBancariasPage() {
 
           {/* Filtro Banco */}
           <div className="col-span-1">
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Banco</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+              Banco
+            </label>
             <select
               value={filtroBanco}
               onChange={(e) => setFiltroBanco(e.target.value)}
@@ -275,7 +282,9 @@ export default function CuentasBancariasPage() {
 
           {/* Filtro Tipo de Cuenta */}
           <div className="col-span-1">
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Tipo de Cuenta</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+              Tipo de Cuenta
+            </label>
             <select
               value={filtroTipo}
               onChange={(e) => setFiltroTipo(e.target.value)}
@@ -289,7 +298,9 @@ export default function CuentasBancariasPage() {
 
           {/* Filtro Estado */}
           <div className="col-span-1">
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Estado</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+              Estado
+            </label>
             <select
               value={filtroEstado}
               onChange={(e) => setFiltroEstado(e.target.value)}
@@ -302,7 +313,10 @@ export default function CuentasBancariasPage() {
           </div>
         </div>
 
-        {(filtroTexto || filtroBanco || filtroEstado !== "TODOS" || filtroTipo !== "TODOS") && (
+        {(filtroTexto ||
+          filtroBanco ||
+          filtroEstado !== "TODOS" ||
+          filtroTipo !== "TODOS") && (
           <div className="flex justify-end mt-4">
             <button
               type="button"
@@ -321,19 +335,36 @@ export default function CuentasBancariasPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="px-5 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider w-[12%]">Código</th>
-                <th className="px-5 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider w-[23%]">Cuenta</th>
-                <th className="px-5 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider w-[25%]">Banco / Titular</th>
-                <th className="px-5 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider w-[20%]">Datos Cuenta</th>
-                <th className="px-5 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider w-[25%]">Descripción</th>
-                <th className="px-5 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider w-[10%]">Estado</th>
-                <th className="px-5 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider text-right w-[15%]">Acciones</th>
+                <th className="px-5 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider w-[12%]">
+                  Código
+                </th>
+                <th className="px-5 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider w-[23%]">
+                  Cuenta
+                </th>
+                <th className="px-5 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider w-[25%]">
+                  Banco / Titular
+                </th>
+                <th className="px-5 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider w-[20%]">
+                  Datos Cuenta
+                </th>
+                <th className="px-5 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider w-[25%]">
+                  Descripción
+                </th>
+                <th className="px-5 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider w-[10%]">
+                  Estado
+                </th>
+                <th className="px-5 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider text-right w-[15%]">
+                  Acciones
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {cuentasFiltradas.length > 0 ? (
                 cuentasFiltradas.map((cuenta) => (
-                  <tr key={cuenta.id} className="hover:bg-slate-50/40 transition-colors">
+                  <tr
+                    key={cuenta.id}
+                    className="hover:bg-slate-50/40 transition-colors"
+                  >
                     {/* Código */}
                     <td className="px-5 py-4 text-sm font-semibold text-slate-700 whitespace-nowrap">
                       {cuenta.codigo}
@@ -342,16 +373,24 @@ export default function CuentasBancariasPage() {
                     {/* Cuenta */}
                     <td className="px-5 py-4">
                       <div className="flex flex-col">
-                        <span className="text-sm font-semibold text-slate-800 break-words leading-tight">{cuenta.nombreCuenta}</span>
-                        <span className="text-xs text-slate-400 mt-1 font-medium italic">{cuenta.tipoCuenta}</span>
+                        <span className="text-sm font-semibold text-slate-800 break-words leading-tight">
+                          {cuenta.nombreCuenta}
+                        </span>
+                        <span className="text-xs text-slate-400 mt-1 font-medium italic">
+                          {cuenta.tipoCuenta}
+                        </span>
                       </div>
                     </td>
 
                     {/* Banco / Titular */}
                     <td className="px-5 py-4">
                       <div className="flex flex-col">
-                        <span className="text-sm font-semibold text-slate-700 break-words leading-tight">{cuenta.entidadBancaria}</span>
-                        <span className="text-xs text-slate-400 mt-1 break-words">{cuenta.titular}</span>
+                        <span className="text-sm font-semibold text-slate-700 break-words leading-tight">
+                          {cuenta.entidadBancaria}
+                        </span>
+                        <span className="text-xs text-slate-400 mt-1 break-words">
+                          {cuenta.titular}
+                        </span>
                       </div>
                     </td>
 
@@ -359,11 +398,17 @@ export default function CuentasBancariasPage() {
                     <td className="px-5 py-4">
                       <div className="flex flex-col gap-1 font-mono text-xs">
                         <div className="flex items-center gap-1">
-                          <span className="text-slate-400 font-sans font-semibold">Nro:</span>
-                          <span className="text-slate-700 font-semibold">{cuenta.nroCuenta}</span>
+                          <span className="text-slate-400 font-sans font-semibold">
+                            Nro:
+                          </span>
+                          <span className="text-slate-700 font-semibold">
+                            {cuenta.nroCuenta}
+                          </span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <span className="text-slate-400 font-sans font-semibold">RUC:</span>
+                          <span className="text-slate-400 font-sans font-semibold">
+                            RUC:
+                          </span>
                           <span className="text-slate-500">{cuenta.ruc}</span>
                         </div>
                       </div>
@@ -371,8 +416,15 @@ export default function CuentasBancariasPage() {
 
                     {/* Descripción */}
                     <td className="px-5 py-4">
-                      <p className="text-xs text-slate-500 break-words leading-relaxed max-w-[240px] line-clamp-2 cursor-help" title={cuenta.descripcion}>
-                        {cuenta.descripcion || <span className="text-slate-300 italic">Sin descripción</span>}
+                      <p
+                        className="text-xs text-slate-500 break-words leading-relaxed max-w-[240px] line-clamp-2 cursor-help"
+                        title={cuenta.descripcion}
+                      >
+                        {cuenta.descripcion || (
+                          <span className="text-slate-300 italic">
+                            Sin descripción
+                          </span>
+                        )}
                       </p>
                     </td>
 
@@ -385,7 +437,9 @@ export default function CuentasBancariasPage() {
                             : "bg-red-50 text-red-700"
                         }`}
                       >
-                        <span className={`w-1.5 h-1.5 rounded-full ${cuenta.estado === "ACTIVO" ? "bg-emerald-500" : "bg-red-500"}`} />
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${cuenta.estado === "ACTIVO" ? "bg-emerald-500" : "bg-red-500"}`}
+                        />
                         {cuenta.estado}
                       </span>
                     </td>
@@ -411,8 +465,12 @@ export default function CuentasBancariasPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-5 py-16 text-center text-sm text-slate-400">
-                    No hay cuentas bancarias que coincidan con los filtros aplicados.
+                  <td
+                    colSpan={7}
+                    className="px-5 py-16 text-center text-sm text-slate-400"
+                  >
+                    No hay cuentas bancarias que coincidan con los filtros
+                    aplicados.
                   </td>
                 </tr>
               )}
@@ -429,7 +487,9 @@ export default function CuentasBancariasPage() {
             <div className="bg-emerald-600 px-6 py-5 flex items-center justify-between text-white">
               <div>
                 <h2 className="text-lg font-bold">
-                  {editandoId ? "Editar Cuenta Bancaria" : "Nueva Cuenta Bancaria"}
+                  {editandoId
+                    ? "Editar Cuenta Bancaria"
+                    : "Nueva Cuenta Bancaria"}
                 </h2>
                 <p className="text-xs text-emerald-100 mt-0.5">
                   Complete los datos obligatorios marcados con asterisco (*)
@@ -449,7 +509,9 @@ export default function CuentasBancariasPage() {
               <div className="grid grid-cols-2 gap-4">
                 {/* Nombre Cuenta */}
                 <div className="col-span-1">
-                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">Nombre Cuenta *</label>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+                    Nombre Cuenta *
+                  </label>
                   <input
                     name="nombreCuenta"
                     value={formData.nombreCuenta}
@@ -461,7 +523,9 @@ export default function CuentasBancariasPage() {
 
                 {/* Entidad Bancaria */}
                 <div className="col-span-1">
-                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">Entidad Bancaria *</label>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+                    Entidad Bancaria *
+                  </label>
                   <input
                     name="entidadBancaria"
                     value={formData.entidadBancaria}
@@ -473,7 +537,9 @@ export default function CuentasBancariasPage() {
 
                 {/* Titular */}
                 <div className="col-span-1">
-                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">Titular de la Cuenta *</label>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+                    Titular de la Cuenta *
+                  </label>
                   <input
                     name="titular"
                     value={formData.titular}
@@ -485,7 +551,9 @@ export default function CuentasBancariasPage() {
 
                 {/* Tipo de Cuenta */}
                 <div className="col-span-1">
-                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">Tipo de Cuenta *</label>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+                    Tipo de Cuenta *
+                  </label>
                   <select
                     name="tipoCuenta"
                     value={formData.tipoCuenta}
@@ -499,7 +567,9 @@ export default function CuentasBancariasPage() {
 
                 {/* Número de Cuenta */}
                 <div className="col-span-1">
-                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">Número de Cuenta *</label>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+                    Número de Cuenta *
+                  </label>
                   <input
                     name="nroCuenta"
                     value={formData.nroCuenta}
@@ -511,7 +581,9 @@ export default function CuentasBancariasPage() {
 
                 {/* RUC Asociado */}
                 <div className="col-span-1">
-                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">RUC Asociado *</label>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+                    RUC Asociado *
+                  </label>
                   <input
                     name="ruc"
                     value={formData.ruc}
@@ -523,7 +595,9 @@ export default function CuentasBancariasPage() {
 
                 {/* Descripción */}
                 <div className="col-span-2">
-                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">Descripción</label>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+                    Descripción
+                  </label>
                   <textarea
                     name="descripcion"
                     value={formData.descripcion}
@@ -541,10 +615,15 @@ export default function CuentasBancariasPage() {
                     name="estado"
                     id="estado_chk"
                     checked={formData.estado}
-                    onChange={(e) => setFormData({ ...formData, estado: e.target.checked })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, estado: e.target.checked })
+                    }
                     className="rounded text-emerald-600 focus:ring-emerald-500 border-slate-200 w-4 h-4 cursor-pointer"
                   />
-                  <label htmlFor="estado_chk" className="text-sm text-slate-600 font-medium cursor-pointer select-none">
+                  <label
+                    htmlFor="estado_chk"
+                    className="text-sm text-slate-600 font-medium cursor-pointer select-none"
+                  >
                     Cuenta Activa
                   </label>
                 </div>

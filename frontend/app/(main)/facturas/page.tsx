@@ -32,7 +32,9 @@ function fmtFecha(iso: string) {
 
 function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey | null; sortDir: SortDir }) {
   if (sortKey !== col) return <span className="ml-1 text-slate-300">↕</span>;
-  return <span className="ml-1 text-blue-500">{sortDir === "asc" ? "↑" : "↓"}</span>;export default function FacturasPage() {
+  return <span className="ml-1 text-blue-500">{sortDir === "asc" ? "↑" : "↓"}</span>;
+}
+export default function FacturasPage() {
   const [facturas,   setFacturas]   = useState<Factura[]>([]);
 
   const cargarDatos = async () => {
