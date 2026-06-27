@@ -6,6 +6,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { API_URL } from "@/app/config";
 import DataTable, { ColumnDef } from "@/app/components/DataTable";
 import DatePicker from "@/app/components/DatePicker";
+import { useToast } from "@/app/components/toast";
 
 type Registro = {
   id: string;
@@ -47,36 +48,21 @@ function imprimirRecibo(r: Registro) {
   <div class="footer">Generado el ${new Date().toLocaleDateString("es-EC")}</div>
   </body></html>`;
   const w = window.open("", "_blank", "width=600,height=700");
-  if (!w) { alert("El navegador bloqueó la ventana emergente."); return; }
+  if (!w) {
+    alert("El navegador bloqueó la ventana emergente.");
+    return;
+  }
   w.document.write(html);
   w.document.close();
-  setTimeout(() => { w.focus(); w.print(); }, 800);
-}
-
-async function descargarPDF(r: Registro) {
-  try {
-    const res = await fetch(`${API_URL}/facturas/${r.id}/pdf`);
-    if (!res.ok) {
-      alert(`No se encontró el comprobante para la factura "${r.factura}" en el servidor.`);
-      return;
-    }
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Factura-${r.factura}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error(error);
-    alert("Error al conectar con el servidor para descargar el PDF.");
-  }
+  setTimeout(() => {
+    w.focus();
+    w.print();
+  }, 800);
 }
 
 export default function ReportesPage() {
   const [registros, setRegistros] = useState<Registro[]>([]);
+  const { showToast } = useToast();
   const [filtradosActuales, setFiltradosActuales] = useState<Registro[]>([]);
   const [descargando, setDescargando] = useState(false);
 
@@ -88,7 +74,9 @@ export default function ReportesPage() {
   const registrosPorFecha = useMemo(() => {
     if (!fechaInicio && !fechaFin) return registros;
     if (fechaInicio && fechaFin && fechaInicio > fechaFin) {
-      setDateError("La fecha de inicio no puede ser posterior a la fecha de fin.");
+      setDateError(
+        "La fecha de inicio no puede ser posterior a la fecha de fin.",
+      );
       return registros;
     }
     setDateError("");
@@ -96,7 +84,7 @@ export default function ReportesPage() {
       if (!r.fecha) return true;
       const f = r.fecha.slice(0, 10); // YYYY-MM-DD
       if (fechaInicio && f < fechaInicio) return false;
-      if (fechaFin   && f > fechaFin)   return false;
+      if (fechaFin && f > fechaFin) return false;
       return true;
     });
   }, [registros, fechaInicio, fechaFin]);
@@ -122,14 +110,17 @@ export default function ReportesPage() {
     ]);
 
     const uniqueMap = new Map(
-      rawClients.map((c: any) => [c.cedula || c.ruc || c.nombre, c])
+      rawClients.map((c: any) => [c.cedula || c.ruc || c.nombre, c]),
     );
     const clientesLimpios = Array.from(uniqueMap.values()).filter(
-      (c: any) => c.nombre && c.nombre.trim() !== "" && c.nombre.trim() !== "undefined"
+      (c: any) =>
+        c.nombre && c.nombre.trim() !== "" && c.nombre.trim() !== "undefined",
     );
 
     const mappedRegistros: Registro[] = listFacturas.map((f: any) => {
-      const client = clientesLimpios.find((c: any) => c.id === f.clienteId) as any;
+      const client = clientesLimpios.find(
+        (c: any) => c.id === f.clienteId,
+      ) as any;
 
       let pagado = 0;
       let ultimoPago: string | null = null;
@@ -175,9 +166,34 @@ export default function ReportesPage() {
     cargarDatos();
   }, []);
 
-  const totalMonto   = filtradosActuales.reduce((s, r) => s + r.monto,  0);
+  async function descargarPDF(r: Registro) {
+    try {
+      const res = await fetch(`${API_URL}/facturas/${r.id}/pdf`);
+      if (!res.ok) {
+        showToast(
+          `No se encontró el comprobante para la factura ${r.factura}.`,
+          "error",
+        );
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Factura-${r.factura}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      showToast("No fue posible descargar el comprobante PDF.", "error");
+    }
+  }
+
+  const totalMonto = filtradosActuales.reduce((s, r) => s + r.monto, 0);
   const totalCobrado = filtradosActuales.reduce((s, r) => s + r.pagado, 0);
-  const totalDeuda   = totalMonto - totalCobrado;
+  const totalDeuda = totalMonto - totalCobrado;
 
   // ── Generar PDF empresarial ────────────────────────────────────────────────
   const generarPDF = async () => {
@@ -187,8 +203,16 @@ export default function ReportesPage() {
       const { jsPDF } = await import("jspdf");
       const autoTable = (await import("jspdf-autotable")).default;
 
-      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-      const fecha = new Date().toLocaleDateString("es-EC", { day: "2-digit", month: "long", year: "numeric" });
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+      });
+      const fecha = new Date().toLocaleDateString("es-EC", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      });
 
       // ── Encabezado ────────────────────────────────────────────────────────
       doc.setFillColor(190, 0, 34); // UTN rojo
@@ -210,9 +234,18 @@ export default function ReportesPage() {
       doc.setFont("helvetica", "normal");
       const y = 30;
       const metrics = [
-        { label: "Total facturado", value: `$${totalMonto.toLocaleString("es-EC", { minimumFractionDigits: 2 })}` },
-        { label: "Total cobrado",   value: `$${totalCobrado.toLocaleString("es-EC", { minimumFractionDigits: 2 })}` },
-        { label: "Por cobrar",      value: `$${totalDeuda.toLocaleString("es-EC", { minimumFractionDigits: 2 })}` },
+        {
+          label: "Total facturado",
+          value: `$${totalMonto.toLocaleString("es-EC", { minimumFractionDigits: 2 })}`,
+        },
+        {
+          label: "Total cobrado",
+          value: `$${totalCobrado.toLocaleString("es-EC", { minimumFractionDigits: 2 })}`,
+        },
+        {
+          label: "Por cobrar",
+          value: `$${totalDeuda.toLocaleString("es-EC", { minimumFractionDigits: 2 })}`,
+        },
       ];
       metrics.forEach((m, i) => {
         const x = 14 + i * 90;
@@ -231,7 +264,17 @@ export default function ReportesPage() {
       // ── Tabla ─────────────────────────────────────────────────────────────
       autoTable(doc, {
         startY: 50,
-        head: [["N° Factura", "Cliente", "Cédula / RUC", "Fecha Emisión", "Monto ($)", "Cobrado ($)", "Último Pago"]],
+        head: [
+          [
+            "N° Factura",
+            "Cliente",
+            "Cédula / RUC",
+            "Fecha Emisión",
+            "Monto ($)",
+            "Cobrado ($)",
+            "Último Pago",
+          ],
+        ],
         body: filtradosActuales.map((r) => [
           r.factura || "—",
           r.cliente,
@@ -241,9 +284,29 @@ export default function ReportesPage() {
           r.pagado.toLocaleString("es-EC", { minimumFractionDigits: 2 }),
           r.ultimoPago || "Sin pagos",
         ]),
-        foot: [["", "", "", "TOTALES", `$${totalMonto.toLocaleString("es-EC", { minimumFractionDigits: 2 })}`, `$${totalCobrado.toLocaleString("es-EC", { minimumFractionDigits: 2 })}`, ""]],
-        headStyles: { fillColor: [190, 0, 34], textColor: 255, fontSize: 8, fontStyle: "bold" },
-        footStyles: { fillColor: [55, 65, 81], textColor: 255, fontSize: 8, fontStyle: "bold" },
+        foot: [
+          [
+            "",
+            "",
+            "",
+            "TOTALES",
+            `$${totalMonto.toLocaleString("es-EC", { minimumFractionDigits: 2 })}`,
+            `$${totalCobrado.toLocaleString("es-EC", { minimumFractionDigits: 2 })}`,
+            "",
+          ],
+        ],
+        headStyles: {
+          fillColor: [190, 0, 34],
+          textColor: 255,
+          fontSize: 8,
+          fontStyle: "bold",
+        },
+        footStyles: {
+          fillColor: [55, 65, 81],
+          textColor: 255,
+          fontSize: 8,
+          fontStyle: "bold",
+        },
         bodyStyles: { fontSize: 7.5, textColor: [55, 65, 81] },
         alternateRowStyles: { fillColor: [249, 250, 251] },
         columnStyles: {
@@ -261,14 +324,18 @@ export default function ReportesPage() {
         doc.setPage(i);
         doc.setFontSize(7);
         doc.setTextColor(156, 163, 175);
-        doc.text(`Página ${i} de ${pages} — Documento confidencial, uso interno`, 14, 205);
+        doc.text(
+          `Página ${i} de ${pages} — Documento confidencial, uso interno`,
+          14,
+          205,
+        );
         doc.text("UTN — Sistema CXC", 270, 205);
       }
 
       doc.save(`Reporte-CXC-${new Date().toISOString().slice(0, 10)}.pdf`);
     } catch (err) {
       console.error("Error generando PDF:", err);
-      alert("No se pudo generar el PDF. Verifique que hay datos disponibles.");
+      showToast("No existen datos para generar el reporte PDF.", "error");
     } finally {
       setDescargando(false);
     }
@@ -297,27 +364,39 @@ export default function ReportesPage() {
       key: "monto",
       label: "Total ($)",
       sortable: true,
-      render: (r) => <span className="font-semibold text-gray-900">${r.monto.toLocaleString()}</span>,
+      render: (r) => (
+        <span className="font-semibold text-gray-900">
+          ${r.monto.toLocaleString()}
+        </span>
+      ),
     },
     {
       key: "pagado",
       label: "Cobrado ($)",
       sortable: true,
-      render: (r) => <span className="text-emerald-700 font-medium">${r.pagado.toLocaleString()}</span>,
+      render: (r) => (
+        <span className="text-emerald-700 font-medium">
+          ${r.pagado.toLocaleString()}
+        </span>
+      ),
     },
     {
       key: "ultimoPago",
       label: "Último Pago",
       sortable: false,
-      render: (r) => r.ultimoPago
-        ? <span className="text-xs font-medium text-gray-700">{r.ultimoPago}</span>
-        : <span className="text-xs text-gray-400">Sin pagos</span>,
+      render: (r) =>
+        r.ultimoPago ? (
+          <span className="text-xs font-medium text-gray-700">
+            {r.ultimoPago}
+          </span>
+        ) : (
+          <span className="text-xs text-gray-400">Sin pagos</span>
+        ),
     },
   ];
 
   return (
     <div className="flex flex-col gap-6">
-
       {/* ── Encabezado ── */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -326,9 +405,12 @@ export default function ReportesPage() {
             <span className="mx-1">/</span>
             <span className="text-gray-700 font-medium">Reportes</span>
           </nav>
-          <h1 className="text-2xl font-bold text-gray-900">Reporte Empresarial</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Reporte Empresarial
+          </h1>
           <p className="text-gray-500 text-sm mt-0.5">
-            Consolidado de cuentas por cobrar. Usa el buscador para filtrar y luego descarga el informe.
+            Consolidado de cuentas por cobrar. Usa el buscador para filtrar y
+            luego descarga el informe.
           </p>
         </div>
 
@@ -341,16 +423,41 @@ export default function ReportesPage() {
         >
           {descargando ? (
             <>
-              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              <svg
+                className="w-4 h-4 animate-spin"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
               </svg>
               Generando PDF...
             </>
           ) : (
             <>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"
+                />
               </svg>
               Descargar Informe PDF
               {filtradosActuales.length > 0 && (
@@ -372,38 +479,80 @@ export default function ReportesPage() {
           <DatePicker
             label="Fecha de Inicio"
             value={fechaInicio}
-            onChange={(v) => { setFechaInicio(v); setDateError(""); }}
+            onChange={(v) => {
+              setFechaInicio(v);
+              setDateError("");
+            }}
           />
           <DatePicker
             label="Fecha de Fin"
             value={fechaFin}
-            onChange={(v) => { setFechaFin(v); setDateError(""); }}
+            onChange={(v) => {
+              setFechaFin(v);
+              setDateError("");
+            }}
           />
           <button
             type="button"
-            onClick={() => { setFechaInicio(""); setFechaFin(""); setDateError(""); }}
+            onClick={() => {
+              setFechaInicio("");
+              setFechaFin("");
+              setDateError("");
+            }}
             disabled={!fechaInicio && !fechaFin}
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-300 text-sm text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
             Limpiar fechas
           </button>
         </div>
         {dateError && (
           <p className="mt-3 text-xs font-medium text-red-600 flex items-center gap-1">
-            <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+            <svg
+              className="w-3.5 h-3.5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z"
+                clipRule="evenodd"
+              />
             </svg>
             {dateError}
           </p>
         )}
         {(fechaInicio || fechaFin) && !dateError && (
           <p className="mt-3 text-xs text-gray-500">
-            Mostrando <strong className="text-gray-700">{registrosPorFecha.length}</strong> de {registros.length} registros
-            {fechaInicio && <> desde <strong className="text-gray-700">{fechaInicio}</strong></>}
-            {fechaFin && <> hasta <strong className="text-gray-700">{fechaFin}</strong></>}
+            Mostrando{" "}
+            <strong className="text-gray-700">
+              {registrosPorFecha.length}
+            </strong>{" "}
+            de {registros.length} registros
+            {fechaInicio && (
+              <>
+                {" "}
+                desde <strong className="text-gray-700">{fechaInicio}</strong>
+              </>
+            )}
+            {fechaFin && (
+              <>
+                {" "}
+                hasta <strong className="text-gray-700">{fechaFin}</strong>
+              </>
+            )}
           </p>
         )}
       </div>
@@ -411,12 +560,31 @@ export default function ReportesPage() {
       {/* ── Métricas (reflejan la búsqueda actual) ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Registros",  value: filtradosActuales.length,                         color: "text-gray-900"    },
-          { label: "Total",      value: `$${totalMonto.toLocaleString()}`,                color: "text-gray-900"    },
-          { label: "Cobrado",    value: `$${totalCobrado.toLocaleString()}`,              color: "text-emerald-600" },
-          { label: "Por cobrar", value: `$${totalDeuda.toLocaleString()}`,                color: "text-red-700"     },
+          {
+            label: "Registros",
+            value: filtradosActuales.length,
+            color: "text-gray-900",
+          },
+          {
+            label: "Total",
+            value: `$${totalMonto.toLocaleString()}`,
+            color: "text-gray-900",
+          },
+          {
+            label: "Cobrado",
+            value: `$${totalCobrado.toLocaleString()}`,
+            color: "text-emerald-600",
+          },
+          {
+            label: "Por cobrar",
+            value: `$${totalDeuda.toLocaleString()}`,
+            color: "text-red-700",
+          },
         ].map(({ label, value, color }) => (
-          <div key={label} className="bg-white border border-gray-200 shadow-sm rounded-2xl p-4">
+          <div
+            key={label}
+            className="bg-white border border-gray-200 shadow-sm rounded-2xl p-4"
+          >
             <p className="text-xs text-gray-500 mb-1">{label}</p>
             <p className={`text-xl font-semibold ${color}`}>{value}</p>
           </div>

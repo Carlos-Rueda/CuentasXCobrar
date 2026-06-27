@@ -7,8 +7,10 @@ import FormularioPago from "../components/FormularioPago";
 import { API_URL } from "@/app/config";
 import DataTable, { ColumnDef } from "@/app/components/DataTable";
 import DatePicker from "@/app/components/DatePicker";
+import { useToast } from "@/app/components/toast";
 
 export default function ReportePagosPage() {
+  const { showToast } = useToast();
   interface CuentaBancaria {
     id: string;
     codigo: string;
@@ -24,7 +26,9 @@ export default function ReportePagosPage() {
   const [pagoEditar, setPagoEditar] = useState<any>(null);
   const [filtroCliente, setFiltroCliente] = useState("");
   const [busqueda, setBusqueda] = useState("");
-  const [cuentasBancarias, setCuentasBancarias] = useState<CuentaBancaria[]>([]);
+  const [cuentasBancarias, setCuentasBancarias] = useState<CuentaBancaria[]>(
+    [],
+  );
   const [clientes, setClientes] = useState<any[]>([]);
 
   // ── Filtro de fechas ─────────────────────────────────────────────────────
@@ -38,15 +42,15 @@ export default function ReportePagosPage() {
         method: "DELETE",
       });
       if (response.ok) {
-        alert("Pago anulado correctamente.");
+        showToast("Pago anulado correctamente.", "success");
         cargarPagos();
       } else {
         const err = await response.json();
-        alert(`Error al anular el pago: ${err.message || response.statusText}`);
+        showToast("No fue posible anular el pago.", "error");
       }
     } catch (error) {
       console.error(error);
-      alert("Error al conectar con el servidor.");
+      showToast("No fue posible anular el pago.", "error");
     }
   };
 
@@ -67,7 +71,7 @@ export default function ReportePagosPage() {
     try {
       const response = await fetch(`${API_URL}/pagos/${id}/pdf`);
       if (!response.ok) {
-        alert("No se pudo descargar el PDF de este pago.");
+        showToast("No fue posible descargar el comprobante del pago.", "error");
         return;
       }
       const blob = await response.blob();
@@ -76,12 +80,22 @@ export default function ReportePagosPage() {
       a.href = url;
       a.download = `Comprobante-Pago-${id}.pdf`;
       document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      
+
+      setTimeout(() => {
+        a.click();
+
+        document.body.removeChild(a);
+
+        window.URL.revokeObjectURL(url);
+      }, 500);
+      showToast("Comprobante PDF generado correctamente.", "success");
     } catch (error) {
       console.error(error);
-      alert("Error al conectar con el servidor para descargar el PDF.");
+      showToast(
+        "No fue posible conectar con el servidor para descargar el PD.",
+        "error",
+      );
     }
   };
 
@@ -94,7 +108,7 @@ export default function ReportePagosPage() {
       const d = new Date(pago.fecha);
       const local = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       if (fechaInicio && local < fechaInicio) return false;
-      if (fechaFin   && local > fechaFin)   return false;
+      if (fechaFin && local > fechaFin) return false;
     }
 
     return true;
@@ -104,8 +118,14 @@ export default function ReportePagosPage() {
   // pueda buscar por nombre de cliente, código de cuenta, monto y fecha
   const pagosEnriquecidos = pagosFiltrados.map((pago) => ({
     ...pago,
-    clienteNombre: clientes.find((c) => c.id === pago.clienteId)?.nombre || pago.clienteId,
-    cuentaCodigo: cuentasBancarias.find((c: any) => c.id?.toString() === pago.cuentaBancariaId?.toString())?.codigo || pago.cuentaBancariaId || "—",
+    clienteNombre:
+      clientes.find((c) => c.id === pago.clienteId)?.nombre || pago.clienteId,
+    cuentaCodigo:
+      cuentasBancarias.find(
+        (c: any) => c.id?.toString() === pago.cuentaBancariaId?.toString(),
+      )?.codigo ||
+      pago.cuentaBancariaId ||
+      "—",
     montoTexto: `$${Number(pago.montoTotal).toLocaleString()}`,
     fechaTexto: pago.fecha ? new Date(pago.fecha).toLocaleDateString() : "—",
   }));
@@ -131,15 +151,26 @@ export default function ReportePagosPage() {
 
   const cargarClientes = async () => {
     try {
-      const response = await fetch(`${API_URL}/facturas/clientes`, { cache: "no-store" });
+      const response = await fetch(`${API_URL}/facturas/clientes`, {
+        cache: "no-store",
+      });
       if (response.ok) {
         const data = await response.json();
         const listClients = Array.isArray(data) ? data : [];
         // Filtrar basura, deduplicar por cédula/RUC y ordenar alfabéticamente de la A a la Z
-        const uniqueMap = new Map(listClients.map((c: any) => [c.cedula || c.ruc || c.nombre, c]));
+        const uniqueMap = new Map(
+          listClients.map((c: any) => [c.cedula || c.ruc || c.nombre, c]),
+        );
         const sortedUniqueCleanClients = Array.from(uniqueMap.values())
-          .filter((c: any) => c.nombre && c.nombre.trim() !== "" && c.nombre.trim() !== "undefined")
-          .sort((a: any, b: any) => (a.nombre || "").localeCompare(b.nombre || ""));
+          .filter(
+            (c: any) =>
+              c.nombre &&
+              c.nombre.trim() !== "" &&
+              c.nombre.trim() !== "undefined",
+          )
+          .sort((a: any, b: any) =>
+            (a.nombre || "").localeCompare(b.nombre || ""),
+          );
         setClientes(sortedUniqueCleanClients);
       }
     } catch (error) {
@@ -160,7 +191,9 @@ export default function ReportePagosPage() {
       label: "Acciones",
       sortable: false,
       render: (pago) => {
-        const isActivo = pago.estado?.toLowerCase() === "activo" || pago.estado?.toLowerCase() === "impreso";
+        const isActivo =
+          pago.estado?.toLowerCase() === "activo" ||
+          pago.estado?.toLowerCase() === "impreso";
         return (
           <div className="flex gap-2">
             <button
@@ -178,7 +211,9 @@ export default function ReportePagosPage() {
               onClick={() => {
                 descargarPDFPago(pago.id);
                 setPagos((prev: any[]) =>
-                  prev.map((p) => p.id === pago.id ? { ...p, estado: "activo" } : p)
+                  prev.map((p) =>
+                    p.id === pago.id ? { ...p, estado: "activo" } : p,
+                  ),
                 );
               }}
               className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-all"
@@ -215,7 +250,9 @@ export default function ReportePagosPage() {
       label: "Monto Total",
       sortable: true,
       render: (pago) => (
-        <span className="font-semibold text-gray-900">${Number(pago.montoTotal).toLocaleString()}</span>
+        <span className="font-semibold text-gray-900">
+          ${Number(pago.montoTotal).toLocaleString()}
+        </span>
       ),
     },
     {
@@ -232,7 +269,6 @@ export default function ReportePagosPage() {
 
   return (
     <div className="flex flex-col gap-6">
-
       {/* ── Encabezado ── */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -247,8 +283,18 @@ export default function ReportePagosPage() {
           onClick={() => setMostrarModal(true)}
           className="inline-flex items-center gap-2 bg-[var(--utn-red)] hover:bg-[var(--utn-red-dark)] text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors shadow-sm"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 4.5v15m7.5-7.5h-15"
+            />
           </svg>
           Nuevo Pago
         </button>
@@ -257,10 +303,17 @@ export default function ReportePagosPage() {
       {/* ── Métricas ── */}
       <div className="grid grid-cols-2 gap-3">
         {[
-          { label: "Total pagos",      value: totalPagos,             color: "text-gray-900"    },
-          { label: "Monto recaudado",  value: `$${montoTotal.toLocaleString()}`, color: "text-emerald-600" },
+          { label: "Total pagos", value: totalPagos, color: "text-gray-900" },
+          {
+            label: "Monto recaudado",
+            value: `$${montoTotal.toLocaleString()}`,
+            color: "text-emerald-600",
+          },
         ].map(({ label, value, color }) => (
-          <div key={label} className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+          <div
+            key={label}
+            className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm"
+          >
             <p className="text-xs text-gray-500 mb-1">{label}</p>
             <p className={`text-xl font-semibold ${color}`}>{value}</p>
           </div>
@@ -286,7 +339,10 @@ export default function ReportePagosPage() {
             {(fechaInicio || fechaFin) && (
               <button
                 type="button"
-                onClick={() => { setFechaInicio(""); setFechaFin(""); }}
+                onClick={() => {
+                  setFechaInicio("");
+                  setFechaFin("");
+                }}
                 className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all whitespace-nowrap"
               >
                 Limpiar
@@ -310,14 +366,27 @@ export default function ReportePagosPage() {
                 onClick={() => setMostrarModal(false)}
                 className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 transition-colors"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
             <div className="p-6 max-h-[80vh] overflow-y-auto">
               <FormularioPago
-                onGuardado={() => { setMostrarModal(false); cargarPagos(); }}
+                onGuardado={() => {
+                  setMostrarModal(false);
+                  cargarPagos();
+                }}
               />
             </div>
           </div>
@@ -334,15 +403,28 @@ export default function ReportePagosPage() {
                 onClick={() => setPagoEditar(null)}
                 className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 transition-colors"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
             <div className="p-6 max-h-[80vh] overflow-y-auto">
               <FormularioPago
                 pagoAEditar={pagoEditar}
-                onGuardado={() => { setPagoEditar(null); cargarPagos(); }}
+                onGuardado={() => {
+                  setPagoEditar(null);
+                  cargarPagos();
+                }}
               />
             </div>
           </div>
