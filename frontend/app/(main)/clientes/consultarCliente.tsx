@@ -5,15 +5,17 @@
 import { useEffect, useState } from "react";
 import { API_URL } from "@/app/config";
 import DatePicker from "@/app/components/DatePicker";
+import { useToast } from "@/app/components/toast";
 
 export default function ConsultarCliente() {
+  const { showToast } = useToast();
   const [clienteId, setClienteId] = useState("");
   const [clientSearchTerm, setClientSearchTerm] = useState("");
   const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
   const [dateError, setDateError] = useState("");
-  
+
   const [clientes, setClientes] = useState<any[]>([]);
   const [statementData, setStatementData] = useState<any>(null);
   const [loadingStatement, setLoadingStatement] = useState(false);
@@ -27,15 +29,26 @@ export default function ConsultarCliente() {
   useEffect(() => {
     const cargarClientes = async () => {
       try {
-        const response = await fetch(`${API_URL}/facturas/clientes`, { cache: "no-store" });
+        const response = await fetch(`${API_URL}/facturas/clientes`, {
+          cache: "no-store",
+        });
         if (response.ok) {
           const data = await response.json();
           const listClients = Array.isArray(data) ? data : [];
           // Filtrar basura, deduplicar por cédula/RUC y ordenar alfabéticamente
-          const uniqueMap = new Map(listClients.map((c: any) => [c.cedula || c.ruc || c.nombre, c]));
+          const uniqueMap = new Map(
+            listClients.map((c: any) => [c.cedula || c.ruc || c.nombre, c]),
+          );
           const sortedUniqueCleanClients = Array.from(uniqueMap.values())
-            .filter((c: any) => c.nombre && c.nombre.trim() !== "" && c.nombre.trim() !== "undefined")
-            .sort((a: any, b: any) => (a.nombre || "").localeCompare(b.nombre || ""));
+            .filter(
+              (c: any) =>
+                c.nombre &&
+                c.nombre.trim() !== "" &&
+                c.nombre.trim() !== "undefined",
+            )
+            .sort((a: any, b: any) =>
+              (a.nombre || "").localeCompare(b.nombre || ""),
+            );
           setClientes(sortedUniqueCleanClients);
         }
       } catch (error) {
@@ -55,11 +68,13 @@ export default function ConsultarCliente() {
 
   const consultarEstadoCuenta = async () => {
     if (!clienteId) {
-      alert("Por favor, seleccione un cliente.");
+      showToast("Seleccione un cliente para continuar.", "error");
       return;
     }
     if (fechaInicio && fechaFin && new Date(fechaInicio) > new Date(fechaFin)) {
-      setDateError("La fecha de inicio no puede ser posterior a la fecha de fin.");
+      setDateError(
+        "La fecha de inicio no puede ser posterior a la fecha de fin.",
+      );
       return;
     }
     setDateError("");
@@ -70,7 +85,9 @@ export default function ConsultarCliente() {
         ...(fechaInicio && { fechaInicio }),
         ...(fechaFin && { fechaFin }),
       });
-      const res = await fetch(`${API_URL}/reportes/estado-cuenta?${queryParams}`);
+      const res = await fetch(
+        `${API_URL}/reportes/estado-cuenta?${queryParams}`,
+      );
       if (res.ok) {
         const data = await res.json();
         setStatementData(data);
@@ -79,11 +96,14 @@ export default function ConsultarCliente() {
         setBusquedaFactura("");
         setBusquedaPago("");
       } else {
-        alert("No se encontró el estado de cuenta.");
+        showToast(
+          "No se encontró información para el cliente seleccionado.",
+          "error",
+        );
       }
     } catch (error) {
       console.error(error);
-      alert("Error al conectar con el servidor.");
+      showToast("No fue posible conectar con el servidor.", "error");
     } finally {
       setLoadingStatement(false);
     }
@@ -98,9 +118,11 @@ export default function ConsultarCliente() {
         ...(fechaInicio && { fechaInicio }),
         ...(fechaFin && { fechaFin }),
       });
-      const res = await fetch(`${API_URL}/reportes/estado-cuenta/pdf?${queryParams}`);
+      const res = await fetch(
+        `${API_URL}/reportes/estado-cuenta/pdf?${queryParams}`,
+      );
       if (!res.ok) {
-        alert("No se pudo descargar el PDF de este estado de cuenta.");
+        showToast("No fue posible generar el reporte PDF.", "error");
         return;
       }
       const blob = await res.blob();
@@ -109,14 +131,18 @@ export default function ConsultarCliente() {
       a.href = url;
       a.download = `Estado-Cuenta-${clienteId}.pdf`;
       document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      setTimeout(() => {
+        a.click();
 
-      alert("¡El reporte PDF del estado de cuenta se generó y descargó con éxito!");
+        document.body.removeChild(a);
+
+        window.URL.revokeObjectURL(url);
+      }, 500);
+
+      showToast("Reporte PDF generado y descargado correctamente.", "success");
     } catch (error) {
       console.error(error);
-      alert("Error al conectar con el servidor para descargar el PDF.");
+      showToast("No fue posible descargar el reporte PDF.", "error");
     } finally {
       setIsDownloadingPdf(false);
     }
@@ -125,29 +151,51 @@ export default function ConsultarCliente() {
   // Listados filtrados reactivos en tiempo real
   const facturasFiltradas = statementData
     ? statementData.facturas.filter((f: any) => {
-        const matchesEstado = filtroEstadoFactura === "TODOS" || f.estado?.toUpperCase() === filtroEstadoFactura;
-        const matchesBusqueda = !busquedaFactura || (f.numero || f.id || "").toLowerCase().includes(busquedaFactura.toLowerCase());
+        const matchesEstado =
+          filtroEstadoFactura === "TODOS" ||
+          f.estado?.toUpperCase() === filtroEstadoFactura;
+        const matchesBusqueda =
+          !busquedaFactura ||
+          (f.numero || f.id || "")
+            .toLowerCase()
+            .includes(busquedaFactura.toLowerCase());
         return matchesEstado && matchesBusqueda;
       })
     : [];
 
   const pagosFiltrados = statementData
     ? statementData.pagos.filter((p: any) => {
-        return !busquedaPago || (p.numeroPago || "").toLowerCase().includes(busquedaPago.toLowerCase());
+        return (
+          !busquedaPago ||
+          (p.numeroPago || "")
+            .toLowerCase()
+            .includes(busquedaPago.toLowerCase())
+        );
       })
     : [];
 
   // Cálculos dinámicos basados en la selección de filtros del usuario
-  const totalFacturadoCalculado = facturasFiltradas.reduce((sum: number, f: any) => sum + f.total, 0);
-  const totalPagadoCalculado = pagosFiltrados.reduce((sum: number, p: any) => sum + p.montoTotal, 0);
+  const totalFacturadoCalculado = facturasFiltradas.reduce(
+    (sum: number, f: any) => sum + f.total,
+    0,
+  );
+  const totalPagadoCalculado = pagosFiltrados.reduce(
+    (sum: number, p: any) => sum + p.montoTotal,
+    0,
+  );
   const saldoTotalCalculado = totalFacturadoCalculado - totalPagadoCalculado;
 
   return (
     <div className="flex flex-col gap-6 w-full max-w-5xl mx-auto p-4 md:p-6 bg-gray-50/50 rounded-2xl border border-gray-200">
       {/* Cabecera */}
-      <div className="border-b border-gray-200 pb-4">
-        <h1 className="page-title">Estado de Cuenta del Cliente</h1>
-        <p className="text-gray-500 text-sm mt-1">Consulta de facturas pendientes, abonos y reporte histórico consolidado.</p>
+      <div className="border-b border-slate-200 pb-4">
+        <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">
+          Estado de Cuenta del Cliente
+        </h1>
+        <p className="text-slate-500 text-sm mt-1">
+          Consulta de facturas pendientes, abonos y reporte histórico
+          consolidado.
+        </p>
       </div>
 
       {/* Selector y Filtros de rango */}
@@ -179,7 +227,9 @@ export default function ConsultarCliente() {
                     key={c.id}
                     onMouseDown={() => {
                       setClienteId(c.id);
-                      setClientSearchTerm(`${c.nombre} - ${c.ruc || c.cedula || ""}`);
+                      setClientSearchTerm(
+                        `${c.nombre} - ${c.ruc || c.cedula || ""}`,
+                      );
                       setClientDropdownOpen(false);
                     }}
                     className="p-2 hover:bg-red-50 cursor-pointer text-sm text-gray-700 transition-colors border-b border-gray-100 last:border-0"
@@ -235,16 +285,41 @@ export default function ConsultarCliente() {
             >
               {isDownloadingPdf ? (
                 <>
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                  <svg
+                    className="w-4 h-4 animate-spin"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
                   </svg>
                   Generando PDF...
                 </>
               ) : (
                 <>
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/>
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"
+                    />
                   </svg>
                   Descargar Estado de Cuenta PDF
                 </>
@@ -260,13 +335,23 @@ export default function ConsultarCliente() {
           {/* Métricas de Resumen */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Saldo Total */}
-            <div className="text-white rounded-2xl shadow-sm p-6 md:col-span-2 flex flex-col justify-between" style={{ background: "linear-gradient(135deg, var(--utn-red), var(--utn-red-dark))" }}>
-              <span className="text-sm font-medium opacity-85 uppercase tracking-wide">Saldo Total Pendiente</span>
+            <div
+              className="text-white rounded-2xl shadow-sm p-6 md:col-span-2 flex flex-col justify-between"
+              style={{
+                background:
+                  "linear-gradient(135deg, var(--utn-red), var(--utn-red-dark))",
+              }}
+            >
+              <span className="text-sm font-medium opacity-85 uppercase tracking-wide">
+                Saldo Total Pendiente
+              </span>
               <div className="mt-4">
                 <span className="metric-value">
                   ${saldoTotalCalculado.toFixed(2)}
                 </span>
-                <p className="text-xs opacity-75 mt-2">Diferencia neta entre facturas filtradas y abonos aplicados.</p>
+                <p className="text-xs opacity-75 mt-2">
+                  Diferencia neta entre facturas filtradas y abonos aplicados.
+                </p>
               </div>
             </div>
 
@@ -319,7 +404,7 @@ export default function ConsultarCliente() {
                   </select>
                 </div>
               </div>
-              
+
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
                   <thead>
