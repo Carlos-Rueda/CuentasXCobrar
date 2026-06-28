@@ -6,6 +6,7 @@ import {
   Body,
   UnauthorizedException,
   UseGuards,
+  UseInterceptors, // 👈 Añadido para el manejo de interceptores
 } from '@nestjs/common';
 import { CuentasCobrarService } from './cuentas-cobrar.service';
 import { LoginMockDto } from './dto/login-mock.dto';
@@ -13,10 +14,12 @@ import { ValidadorDeudaDto } from './dto/validador-deuda.dto';
 import { EstadoCuentaDto } from './dto/estado-cuenta.dto';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { AuditoriaInterceptor } from '../interceptors/auditoria.interceptor'; // Ajustado a la estructura del módulo
 import * as crypto from 'crypto';
 
 @ApiTags('Cuentas por Cobrar (Módulo CXC)')
 @Controller('cxc')
+@UseInterceptors(AuditoriaInterceptor) // 👈 Automatiza las pistas de auditoría simuladas para todo el controlador
 export class CuentasCobrarController {
   constructor(private readonly cuentasCobrarService: CuentasCobrarService) {}
 
@@ -92,6 +95,7 @@ export class CuentasCobrarController {
     return this.cuentasCobrarService.validarDeudaCliente(clienteId);
   }
 
+  // 4. API de Salida: GET /cxc/clientes-saldos
   @Get('clientes-saldos')
   @ApiTags('API de Salida')
   @ApiBearerAuth()
@@ -105,6 +109,7 @@ export class CuentasCobrarController {
     return this.cuentasCobrarService.getClientesSaldos();
   }
 
+  // 5. Integración: GET /cxc/auth/generate-token
   @Get('auth/generate-token')
   @ApiTags('API de Salida')
   @ApiOperation({ summary: 'Generar token JWT de integración para uso de módulos externos' })
@@ -132,7 +137,7 @@ export class CuentasCobrarController {
     return {
       success: true,
       token,
-      message: 'Usa este token en la cabecera Authorization: Bearer <token> para consumir la API de Salida.',
+      message: 'Usa este token en la cabecera Authorization: Bearer <token> para consumable la API de Salida.',
     };
   }
 }

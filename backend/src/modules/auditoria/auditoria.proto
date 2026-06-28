@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+message AuditoriaRequest {
+    string token = 1;         // El JWT obtenido en el PASO 1
+    int32 id_funcion = 2;     // Código numérico de la acción
+    string accion = 3;        // Verbo (CREAR, ACTUALIZAR, ELIMINAR, etc.)
+    string descripcion = 4;   // Detalle general
+    string observacion = 5;   // Detalle técnico (ej. IDs afectados)
+    string ip_usuario = 6;    // IP del cliente final
+}
+
+message AuditoriaResponse {
+    bool success = 1;
+    string message = 2;
+}

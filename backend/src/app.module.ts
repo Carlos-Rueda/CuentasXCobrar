@@ -7,10 +7,12 @@ import { CuentasCobrarModule } from './modules/cuentas-cobrar/cuentas-cobrar.mod
 import { CuentasBancariasModule } from './modules/cuentas-bancarias/cuentas-bancarias.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ReportesModule } from './modules/reportes/reportes.module';
+import { AuditoriaModule } from './modules/auditoria/auditoria.module';
 
 @Module({
   imports: [
     PrismaModule,
+    AuditoriaModule,
     FacturasModule,
     PagosModule,
     CuentasCobrarModule,

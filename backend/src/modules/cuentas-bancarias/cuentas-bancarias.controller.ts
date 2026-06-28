@@ -9,14 +9,17 @@ import {
   HttpCode,
   HttpStatus,
   NotFoundException,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { CuentasBancariasService } from './cuentas-bancarias.service';
 import { CuentaBancariaEntity } from './cuenta-bancaria.entity';
 import { CreateCuentaBancariaDto } from './dto/create-cuenta-bancaria.dto';
 import { UpdateCuentaBancariaDto } from './dto/update-cuenta-bancaria.dto';
+import { AuditoriaInterceptor } from '../interceptors/auditoria.interceptor';
 
 @ApiTags('Cuentas Bancarias')
+@UseInterceptors(AuditoriaInterceptor)
 @Controller('cuentas-bancarias')
 export class CuentasBancariasController {
   constructor(
