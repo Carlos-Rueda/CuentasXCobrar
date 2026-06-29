@@ -13,6 +13,7 @@ type Factura = {
   factura: string;
   fecha: string;
   estado: "Pagado" | "Por Pagar";
+  estadoOriginal?: string;
   monto: number;
   pagado: number;
   pendiente: number;
@@ -63,6 +64,11 @@ export default function FacturasPage() {
         let pagado = 0;
         const pagosAsociados: { id: string; montoAbonado: number; fecha: string }[] = [];
         listPagos.forEach((pago: any) => {
+          const isActivo =
+            pago.estado?.toLowerCase() === "activo" ||
+            pago.estado?.toLowerCase() === "impreso";
+          if (!isActivo) return;
+
           const detail = pago.detalles?.find((d: any) => d.facturaId === f.id);
           if (detail) {
             pagado += detail.montoAbonado;
@@ -90,6 +96,7 @@ export default function FacturasPage() {
           factura: f.numero,
           fecha: f.fechaEmision,
           estado,
+          estadoOriginal: f.estado,
           monto: f.total,
           pagado,
           pendiente: Math.max(0, f.total - pagado),
@@ -158,8 +165,11 @@ export default function FacturasPage() {
 
   // ── Métricas ───────────────────────────────────────────────────────────────
   const { total, cobrado, porCobrar } = useMemo(() => {
-    const total   = filtradas.reduce((s, f) => s + f.monto, 0);
-    const cobrado = filtradas.filter(f => f.estado === "Pagado").reduce((s, f) => s + f.monto, 0);
+    const activas = filtradas.filter(
+      (f) => f.estadoOriginal?.toUpperCase() !== "ANULADA" && f.estadoOriginal?.toUpperCase() !== "INACTIVA"
+    );
+    const total   = activas.reduce((s, f) => s + f.monto, 0);
+    const cobrado = activas.filter(f => f.estado === "Pagado").reduce((s, f) => s + f.monto, 0);
     return { total, cobrado, porCobrar: total - cobrado };
   }, [filtradas]);
 

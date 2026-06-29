@@ -460,76 +460,62 @@ export default function PagosPage({
             El cliente no tiene facturas pendientes.
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[600px] text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="p-3 text-sm font-semibold text-gray-600 whitespace-nowrap">
-                    Factura
-                  </th>
-                  <th className="p-3 text-sm font-semibold text-gray-600 whitespace-nowrap">
-                    Total
-                  </th>
-                  <th className="p-3 text-sm font-semibold text-gray-600 whitespace-nowrap">
-                    Pendiente
-                  </th>
-                  <th className="p-3 text-sm font-semibold text-gray-600 w-48 text-right whitespace-nowrap">
-                    Monto a Abonar
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {facturasFiltradas.map((factura) => {
-                  const sel = facturasSeleccionadas.find(
-                    (fs) => fs.facturaId === factura.id,
-                  );
-                  const montoActual = sel?.montoAbonado ?? "";
-                  const errorMonto =
-                    Number(montoActual) > Number(factura.pendiente);
+          <div className="flex flex-col gap-3">
+            {facturasFiltradas.map((factura) => {
+              const sel = facturasSeleccionadas.find(
+                (fs) => fs.facturaId === factura.id,
+              );
+              const montoActual = sel?.montoAbonado ?? "";
+              const errorMonto =
+                Number(montoActual) > Number(factura.pendiente);
 
-                  return (
-                    <tr
-                      key={factura.id}
-                      className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors"
-                    >
-                      <td className="p-3 text-sm font-medium text-gray-700 whitespace-nowrap">
-                        {factura.id}
-                      </td>
-                      <td className="p-3 text-sm text-gray-600 whitespace-nowrap">
-                        ${Number(factura.total).toFixed(2)}
-                      </td>
-                      <td className="p-3 text-sm font-semibold text-orange-600 whitespace-nowrap">
-                        ${Number(factura.pendiente).toFixed(2)}
-                      </td>
-                      <td className="p-3">
-                        <div className="relative flex items-center justify-end">
-                          <span className="absolute left-4 text-gray-500 text-sm">
-                            $
-                          </span>
-                          <input
-                            type="number"
-                            min="0"
-                            placeholder="0.00"
-                            value={montoActual}
-                            onChange={(e) =>
-                              actualizarMonto(factura.id, e.target.value)
-                            }
-                            onWheel={(e) =>
-                              (e.target as HTMLInputElement).blur()
-                            }
-                            className={`w-full text-right pl-8 pr-3 py-1.5 border rounded-md outline-none transition-all text-sm ${
-                              errorMonto
-                                ? "border-red-500 bg-red-50 text-red-700 focus:ring-2 focus:ring-red-200"
-                                : "border-gray-300 focus:ring-2 focus:ring-red-500"
-                            }`}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+              return (
+                <div
+                  key={factura.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border border-gray-150 rounded-xl bg-slate-50/60 hover:bg-slate-50 transition-colors gap-3"
+                >
+                  <div className="flex flex-col gap-1 min-w-[120px]">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Factura</span>
+                    <span className="text-sm font-semibold text-gray-800">{factura.id}</span>
+                  </div>
+                  
+                  <div className="flex gap-6 sm:gap-10">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total</span>
+                      <span className="text-sm font-medium text-gray-600">${Number(factura.total).toFixed(2)}</span>
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Pendiente</span>
+                      <span className="text-sm font-bold text-orange-600">${Number(factura.pendiente).toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1 w-full sm:w-40">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider sm:text-right">Monto a Abonar</span>
+                    <div className="relative flex items-center justify-end">
+                      <span className="absolute left-3 text-gray-400 text-sm">$</span>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="0.00"
+                        value={montoActual}
+                        onChange={(e) =>
+                          actualizarMonto(factura.id, e.target.value)
+                        }
+                        onWheel={(e) =>
+                          (e.target as HTMLInputElement).blur()
+                        }
+                        className={`w-full text-right pl-7 pr-3 py-1.5 border rounded-lg outline-none transition-all text-sm ${
+                          errorMonto
+                            ? "border-red-500 bg-red-50 text-red-700 focus:ring-2 focus:ring-red-200"
+                            : "border-gray-300 bg-white focus:ring-2 focus:ring-red-500"
+                        }`}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

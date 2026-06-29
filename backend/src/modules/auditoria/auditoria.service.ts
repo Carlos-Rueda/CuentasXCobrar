@@ -105,6 +105,11 @@ export class AuditoriaService implements OnModuleInit {
       };
 
       this.logger.log(`Registrando Pista de Auditoría (Local): \n${JSON.stringify(payloadLocal, null, 2)}`);
+      
+      console.log('\n================================================================================');
+      console.log('📢 PISTA DE AUDITORÍA DETECTADA Y REGISTRADA:');
+      console.log(JSON.stringify(payloadLocal, null, 2));
+      console.log('================================================================================\n');
 
       if (!this.protoRoot) {
         throw new Error('El esquema Protobuf no ha sido cargado.');

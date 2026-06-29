@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -24,6 +24,9 @@ interface DataTableProps<T> {
   onFilteredChange?: (filtered: T[]) => void;
   emptyMessage?: string;
   extraFilters?: React.ReactNode; // elementos extra al lado del buscador
+  showSearch?: boolean;
+  showPageSize?: boolean;
+  compact?: boolean;
 }
 
 // ── Ícono de orden ───────────────────────────────────────────────────────────
@@ -59,6 +62,9 @@ export default function DataTable<T extends Record<string, any>>({
   onFilteredChange,
   emptyMessage = "No hay registros disponibles.",
   extraFilters,
+  showSearch = true,
+  showPageSize = true,
+  compact = false,
 }: DataTableProps<T>) {
   const [search, setSearch] = useState("");
   const [pageSize, setPageSize] = useState(pageOptions[0]);
@@ -77,11 +83,17 @@ export default function DataTable<T extends Record<string, any>>({
     );
   }, [data, search, searchKeys]);
 
-  // Notificar al padre cuáles son los datos filtrados actualmente
+  // Notificar al padre cuáles son los datos filtrados actualmente (evitando bucles de re-renderizado)
+  const prevFilteredRef = useRef<any[]>([]);
   useEffect(() => {
-    onFilteredChange?.(filtered);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtered]);
+    const isSame =
+      prevFilteredRef.current.length === filtered.length &&
+      prevFilteredRef.current.every((val, index) => val === filtered[index]);
+    if (!isSame) {
+      prevFilteredRef.current = filtered;
+      onFilteredChange?.(filtered);
+    }
+  }, [filtered, onFilteredChange]);
 
   // ── Ordenar ─────────────────────────────────────────────────────────────────
   const sorted = useMemo(() => {
@@ -147,49 +159,55 @@ export default function DataTable<T extends Record<string, any>>({
     <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
 
       {/* ── Controles superiores ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-gray-200">
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <span>Mostrar</span>
-          <select
-            value={pageSize}
-            onChange={(e) => handlePageSize(Number(e.target.value))}
-            className="border border-gray-300 rounded px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-600"
-          >
-            {pageOptions.map((opt) => (
-              <option key={opt} value={opt}>{opt}</option>
-            ))}
-          </select>
-          <span>registros</span>
-        </div>
+      {(showPageSize || showSearch || onDownload || extraFilters) && (
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-gray-200">
+          {showPageSize ? (
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>Mostrar</span>
+              <select
+                value={pageSize}
+                onChange={(e) => handlePageSize(Number(e.target.value))}
+                className="border border-gray-300 rounded px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-600"
+              >
+                {pageOptions.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+              <span>registros</span>
+            </div>
+          ) : <div />}
 
-        <div className="flex items-center gap-2 flex-wrap">
-          {extraFilters}
-          {onDownload && (
-            <button
-              type="button"
-              onClick={onDownload}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:bg-gray-50 text-gray-700 transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-              </svg>
-              Descargar
-            </button>
-          )}
-          <div className="relative">
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" />
-            </svg>
-            <input
-              type="search"
-              placeholder="Buscar..."
-              value={search}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="pl-8 pr-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-red-600 w-52"
-            />
+          <div className="flex items-center gap-2 flex-wrap">
+            {extraFilters}
+            {onDownload && (
+              <button
+                type="button"
+                onClick={onDownload}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:bg-gray-50 text-gray-700 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                Descargar
+              </button>
+            )}
+            {showSearch && (
+              <div className="relative">
+                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" />
+                </svg>
+                <input
+                  type="search"
+                  placeholder="Buscar..."
+                  value={search}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="pl-8 pr-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-red-600 w-52"
+                />
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      )}
 
       {/* ── Tabla ── */}
       <div className="overflow-x-auto">
@@ -200,7 +218,7 @@ export default function DataTable<T extends Record<string, any>>({
                 <th
                   key={col.key}
                   onClick={col.sortable ? () => handleSort(col.key) : undefined}
-                  className={`px-6 py-4 text-left text-sm font-semibold text-gray-900 whitespace-nowrap select-none ${col.sortable ? "cursor-pointer hover:bg-gray-200 transition-colors" : ""} ${col.className ?? ""}`}
+                  className={`${compact ? "px-2 py-1.5 text-xs" : "px-6 py-4 text-sm"} text-left font-semibold text-gray-900 whitespace-nowrap select-none ${col.sortable ? "cursor-pointer hover:bg-gray-200 transition-colors" : ""} ${col.className ?? ""}`}
                 >
                   <span className="inline-flex items-center">
                     {col.label}
@@ -231,7 +249,7 @@ export default function DataTable<T extends Record<string, any>>({
                   {columns.map((col) => (
                     <td
                       key={col.key}
-                      className={`px-6 py-4 text-sm text-gray-700 ${col.className ?? ""}`}
+                      className={`${compact ? "px-2 py-1.5 text-xs" : "px-6 py-4 text-sm"} text-gray-700 ${col.className ?? ""}`}
                     >
                       {col.render ? col.render(row) : String(row[col.key] ?? "—")}
                     </td>

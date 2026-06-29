@@ -15,6 +15,7 @@ type Registro = {
   factura: string;
   fecha: string;
   estado: "Pagado" | "Parcial" | "Por Pagar";
+  estadoOriginal?: string;
   monto: number;
   pagado: number;
   ultimoPago: string | null;
@@ -126,6 +127,11 @@ export default function ReportesPage() {
       let ultimoPago: string | null = null;
 
       listPagos.forEach((pago: any) => {
+        const isActivo =
+          pago.estado?.toLowerCase() === "activo" ||
+          pago.estado?.toLowerCase() === "impreso";
+        if (!isActivo) return;
+
         const detail = pago.detalles?.find((d: any) => d.facturaId === f.id);
         if (detail) {
           pagado += Number(detail.montoAbonado) || 0;
@@ -151,6 +157,7 @@ export default function ReportesPage() {
         factura: f.numero,
         fecha: f.fechaEmision,
         estado,
+        estadoOriginal: f.estado,
         monto: f.total,
         pagado,
         ultimoPago: ultimoPago
@@ -191,8 +198,11 @@ export default function ReportesPage() {
     }
   }
 
-  const totalMonto = filtradosActuales.reduce((s, r) => s + r.monto, 0);
-  const totalCobrado = filtradosActuales.reduce((s, r) => s + r.pagado, 0);
+  const activas = filtradosActuales.filter(
+    (r) => r.estadoOriginal?.toUpperCase() !== "ANULADA" && r.estadoOriginal?.toUpperCase() !== "INACTIVA"
+  );
+  const totalMonto = activas.reduce((s, r) => s + r.monto, 0);
+  const totalCobrado = activas.reduce((s, r) => s + r.pagado, 0);
   const totalDeuda = totalMonto - totalCobrado;
 
   // ── Generar PDF empresarial ────────────────────────────────────────────────

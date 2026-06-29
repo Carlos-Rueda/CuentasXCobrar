@@ -1,11 +1,10 @@
 "use client";
-/* eslint-disable react-hooks/set-state-in-effect */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useState } from "react";
 import { API_URL } from "@/app/config";
 import DatePicker from "@/app/components/DatePicker";
 import { useToast } from "@/app/components/toast";
+import DataTable, { ColumnDef } from "@/app/components/DataTable";
 
 export default function ConsultarCliente() {
   const { showToast } = useToast();
@@ -21,10 +20,71 @@ export default function ConsultarCliente() {
   const [loadingStatement, setLoadingStatement] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
-  // Filtros interactivos internos (profesionales)
-  const [filtroEstadoFactura, setFiltroEstadoFactura] = useState("TODOS");
-  const [busquedaFactura, setBusquedaFactura] = useState("");
-  const [busquedaPago, setBusquedaPago] = useState("");
+
+
+  const columnsFacturas: ColumnDef<any>[] = [
+    {
+      key: "numero",
+      label: "No. Factura",
+      sortable: true,
+      render: (row) => <span className="font-medium text-gray-900">{row.numero || row.id}</span>
+    },
+    {
+      key: "fechaEmision",
+      label: "Fecha",
+      sortable: true,
+      render: (row) => <span className="text-xs text-gray-500">{row.fechaEmision || "—"}</span>
+    },
+    {
+      key: "total",
+      label: "Total",
+      sortable: true,
+      className: "text-right",
+      render: (row) => <span className="text-gray-900">${row.total.toFixed(2)}</span>
+    },
+    {
+      key: "pagado",
+      label: "Abonado",
+      sortable: true,
+      className: "text-right",
+      render: (row) => <span className="text-emerald-600 font-medium">${row.pagado.toFixed(2)}</span>
+    },
+    {
+      key: "pendiente",
+      label: "Pendiente",
+      sortable: true,
+      className: "text-right",
+      render: (row) => <span className="text-red-600 font-semibold">${row.pendiente.toFixed(2)}</span>
+    }
+  ];
+
+  const columnsPagos: ColumnDef<any>[] = [
+    {
+      key: "numeroPago",
+      label: "No. Transacción",
+      sortable: true,
+      render: (row) => <span className="font-medium text-gray-900">{row.numeroPago}</span>
+    },
+    {
+      key: "fecha",
+      label: "Fecha",
+      sortable: true,
+      render: (row) => <span className="text-xs text-gray-500">{row.fecha}</span>
+    },
+    {
+      key: "cuentaBancaria",
+      label: "Cuenta Destino",
+      sortable: true,
+      render: (row) => <span className="text-xs text-gray-500">{row.cuentaBancaria}</span>
+    },
+    {
+      key: "montoTotal",
+      label: "Monto",
+      sortable: true,
+      className: "text-right",
+      render: (row) => <span className="text-emerald-600 font-semibold">${row.montoTotal.toFixed(2)}</span>
+    }
+  ];
 
   useEffect(() => {
     const cargarClientes = async () => {
@@ -91,10 +151,6 @@ export default function ConsultarCliente() {
       if (res.ok) {
         const data = await res.json();
         setStatementData(data);
-        // Resetear filtros locales al consultar un nuevo estado de cuenta
-        setFiltroEstadoFactura("TODOS");
-        setBusquedaFactura("");
-        setBusquedaPago("");
       } else {
         showToast(
           "No se encontró información para el cliente seleccionado.",
@@ -150,28 +206,15 @@ export default function ConsultarCliente() {
 
   // Listados filtrados reactivos en tiempo real
   const facturasFiltradas = statementData
-    ? statementData.facturas.filter((f: any) => {
-        const matchesEstado =
-          filtroEstadoFactura === "TODOS" ||
-          f.estado?.toUpperCase() === filtroEstadoFactura;
-        const matchesBusqueda =
-          !busquedaFactura ||
-          (f.numero || f.id || "")
-            .toLowerCase()
-            .includes(busquedaFactura.toLowerCase());
-        return matchesEstado && matchesBusqueda;
-      })
+    ? statementData.facturas
+    : [];
+
+  const cuentasDisponibles = statementData
+    ? Array.from(new Set(statementData.pagos.map((p: any) => p.cuentaBancaria).filter(Boolean)))
     : [];
 
   const pagosFiltrados = statementData
-    ? statementData.pagos.filter((p: any) => {
-        return (
-          !busquedaPago ||
-          (p.numeroPago || "")
-            .toLowerCase()
-            .includes(busquedaPago.toLowerCase())
-        );
-      })
+    ? statementData.pagos
     : [];
 
   // Cálculos dinámicos basados en la selección de filtros del usuario
@@ -193,8 +236,7 @@ export default function ConsultarCliente() {
           Estado de Cuenta del Cliente
         </h1>
         <p className="text-slate-500 text-sm mt-1">
-          Consulta de facturas pendientes, abonos y reporte histórico
-          consolidado.
+          Consulta de facturas pendientes, abonos y reporte histórico consolidado.
         </p>
       </div>
 
@@ -285,41 +327,16 @@ export default function ConsultarCliente() {
             >
               {isDownloadingPdf ? (
                 <>
-                  <svg
-                    className="w-4 h-4 animate-spin"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                   Generando PDF...
                 </>
               ) : (
                 <>
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"
-                    />
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                   </svg>
                   Descargar Estado de Cuenta PDF
                 </>
@@ -338,17 +355,14 @@ export default function ConsultarCliente() {
             <div
               className="text-white rounded-2xl shadow-sm p-6 md:col-span-2 flex flex-col justify-between"
               style={{
-                background:
-                  "linear-gradient(135deg, var(--utn-red), var(--utn-red-dark))",
+                background: "linear-gradient(135deg, var(--utn-red), var(--utn-red-dark))",
               }}
             >
               <span className="text-sm font-medium opacity-85 uppercase tracking-wide">
                 Saldo Total Pendiente
               </span>
               <div className="mt-4">
-                <span className="metric-value">
-                  ${saldoTotalCalculado.toFixed(2)}
-                </span>
+                <span className="metric-value">${saldoTotalCalculado.toFixed(2)}</span>
                 <p className="text-xs opacity-75 mt-2">
                   Diferencia neta entre facturas filtradas y abonos aplicados.
                 </p>
@@ -359,9 +373,7 @@ export default function ConsultarCliente() {
             <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 flex flex-col justify-between">
               <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Total Facturado</span>
               <div>
-                <span className="text-2xl font-bold text-gray-900">
-                  ${totalFacturadoCalculado.toFixed(2)}
-                </span>
+                <span className="text-2xl font-bold text-gray-900">${totalFacturadoCalculado.toFixed(2)}</span>
                 <p className="text-xs text-gray-400 mt-1">Suma de facturas filtradas.</p>
               </div>
             </div>
@@ -370,118 +382,44 @@ export default function ConsultarCliente() {
             <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 flex flex-col justify-between">
               <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Total Abonado</span>
               <div>
-                <span className="text-2xl font-bold text-emerald-600">
-                  ${totalPagadoCalculado.toFixed(2)}
-                </span>
+                <span className="text-2xl font-bold text-emerald-600">${totalPagadoCalculado.toFixed(2)}</span>
                 <p className="text-xs text-gray-400 mt-1">Suma de abonos filtrados.</p>
               </div>
             </div>
           </div>
 
-          {/* Tablas Detalle con filtros específicos */}
+          {/* Tablas Detalle con filtros específicos (Dos columnas compactas) */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Facturas */}
-            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
-              <div className="flex flex-col sm:flex-row gap-2 mb-4 justify-between items-start sm:items-center pb-2 border-b">
-                <h3 className="text-md font-bold text-gray-900">Facturas Emitidas</h3>
-                <div className="flex gap-1.5 w-full sm:w-auto">
-                  <input
-                    type="text"
-                    placeholder="Buscar Nº..."
-                    value={busquedaFactura}
-                    onChange={(e) => setBusquedaFactura(e.target.value)}
-                    className="px-2.5 py-1 border border-gray-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-red-600 w-full sm:w-28"
-                  />
-                  <select
-                    value={filtroEstadoFactura}
-                    onChange={(e) => setFiltroEstadoFactura(e.target.value)}
-                    className="px-2 py-1 border border-gray-200 rounded-lg text-xs bg-white outline-none focus:ring-1 focus:ring-red-600"
-                  >
-                    <option value="TODOS">Todos</option>
-                    <option value="PENDIENTE">Pendientes</option>
-                    <option value="PAGADA">Pagadas</option>
-                    <option value="EMITIDA">Emitidas</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead>
-                    <tr className="bg-gray-50 text-gray-500 font-semibold text-xs border-b">
-                      <th className="py-2.5 px-3">No. Factura</th>
-                      <th className="py-2.5 px-3">Fecha</th>
-                      <th className="py-2.5 px-3 text-right">Total</th>
-                      <th className="py-2.5 px-3 text-right">Abonado</th>
-                      <th className="py-2.5 px-3 text-right">Pendiente</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {facturasFiltradas.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="py-8 text-center text-gray-400 italic">
-                          Sin facturas registradas.
-                        </td>
-                      </tr>
-                    ) : (
-                      facturasFiltradas.map((f: any) => (
-                        <tr key={f.id} className="border-b last:border-0 hover:bg-gray-50/50">
-                          <td className="py-2.5 px-3 font-medium text-gray-900">{f.numero || f.id}</td>
-                          <td className="py-2.5 px-3 text-gray-500 text-xs">{f.fechaEmision || "—"}</td>
-                          <td className="py-2.5 px-3 text-right">${f.total.toFixed(2)}</td>
-                          <td className="py-2.5 px-3 text-right text-emerald-600">${f.pagado.toFixed(2)}</td>
-                          <td className="py-2.5 px-3 text-right text-red-600 font-semibold">${f.pendiente.toFixed(2)}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+            <div className="flex flex-col gap-3">
+              <h3 className="text-md font-bold text-gray-900 px-1">Facturas Emitidas</h3>
+              <DataTable
+                columns={columnsFacturas}
+                data={facturasFiltradas}
+                rowKey={(row) => row.id}
+                searchKeys={["numero", "id"]}
+                pageOptions={[5, 10, 25]}
+                emptyMessage="Sin facturas registradas."
+                showSearch={false}
+                showPageSize={false}
+                compact={true}
+              />
             </div>
 
             {/* Pagos / Abonos */}
-            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
-              <div className="flex flex-col sm:flex-row gap-2 mb-4 justify-between items-start sm:items-center pb-2 border-b">
-                <h3 className="text-md font-bold text-gray-900">Abonos Realizados</h3>
-                <input
-                  type="text"
-                  placeholder="Buscar Nº transacción..."
-                  value={busquedaPago}
-                  onChange={(e) => setBusquedaPago(e.target.value)}
-                  className="px-2.5 py-1 border border-gray-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-red-600 w-full sm:w-44"
-                />
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead>
-                    <tr className="bg-gray-50 text-gray-500 font-semibold text-xs border-b">
-                      <th className="py-2.5 px-3">No. Transacción</th>
-                      <th className="py-2.5 px-3">Fecha</th>
-                      <th className="py-2.5 px-3">Cuenta Destino</th>
-                      <th className="py-2.5 px-3 text-right">Monto</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pagosFiltrados.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="py-8 text-center text-gray-400 italic">
-                          Sin abonos registrados.
-                        </td>
-                      </tr>
-                    ) : (
-                      pagosFiltrados.map((p: any) => (
-                        <tr key={p.id} className="border-b last:border-0 hover:bg-gray-50/50">
-                          <td className="py-2.5 px-3 font-medium text-gray-900">{p.numeroPago}</td>
-                          <td className="py-2.5 px-3 text-gray-500 text-xs">{p.fecha}</td>
-                          <td className="py-2.5 px-3 text-gray-500 text-xs">{p.cuentaBancaria}</td>
-                          <td className="py-2.5 px-3 text-right text-emerald-600 font-semibold">${p.montoTotal.toFixed(2)}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+            <div className="flex flex-col gap-3">
+              <h3 className="text-md font-bold text-gray-900 px-1">Abonos Realizados</h3>
+              <DataTable
+                columns={columnsPagos}
+                data={pagosFiltrados}
+                rowKey={(row) => row.id}
+                searchKeys={["numeroPago", "cuentaBancaria"]}
+                pageOptions={[5, 10, 25]}
+                emptyMessage="Sin abonos registrados."
+                showSearch={false}
+                showPageSize={false}
+                compact={true}
+              />
             </div>
           </div>
         </div>

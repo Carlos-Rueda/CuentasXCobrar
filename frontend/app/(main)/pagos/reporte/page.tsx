@@ -30,6 +30,7 @@ export default function ReportePagosPage() {
     [],
   );
   const [clientes, setClientes] = useState<any[]>([]);
+  const [facturas, setFacturas] = useState<any[]>([]);
 
   // ── Filtro de fechas ─────────────────────────────────────────────────────
   const [fechaInicio, setFechaInicio] = useState("");
@@ -130,12 +131,20 @@ export default function ReportePagosPage() {
     fechaTexto: pago.fecha ? new Date(pago.fecha).toLocaleDateString() : "—",
   }));
 
-  const totalPagos = pagosFiltrados.length;
-
-  const montoTotal = pagosFiltrados.reduce(
-    (total, pago) => total + Number(pago.montoTotal),
-    0,
+  const pagosActivos = pagosFiltrados.filter(
+    (p) => p.estado?.toLowerCase() === "activo" || p.estado?.toLowerCase() === "impreso"
   );
+
+  const totalPagos = pagosActivos.length;
+
+  const montoTotal = pagosActivos.reduce((total, pago) => {
+    const activeDetailsSum = (pago.detalles || []).reduce((sum: number, det: any) => {
+      const inv = facturas.find((f: any) => f.id === det.facturaId);
+      const isInvoiceActive = !inv || (inv.estado?.toUpperCase() !== "ANULADA" && inv.estado?.toUpperCase() !== "INACTIVA");
+      return sum + (isInvoiceActive ? Number(det.montoAbonado || 0) : 0);
+    }, 0);
+    return total + activeDetailsSum;
+  }, 0);
 
   const cargarCuentasBancarias = async () => {
     try {
@@ -179,10 +188,23 @@ export default function ReportePagosPage() {
     }
   };
 
+  const cargarFacturas = async () => {
+    try {
+      const response = await fetch(`${API_URL}/facturas`, { cache: "no-store" });
+      if (response.ok) {
+        const data = await response.json();
+        setFacturas(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      console.error("Error al cargar facturas:", error);
+    }
+  };
+
   useEffect(() => {
     cargarPagos();
     cargarClientes();
     cargarCuentasBancarias();
+    cargarFacturas();
   }, []);
 
   const columns: ColumnDef<any>[] = [

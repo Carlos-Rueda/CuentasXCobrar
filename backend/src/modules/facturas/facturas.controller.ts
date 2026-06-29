@@ -94,39 +94,4 @@ export class FacturasController {
       clienteId,
     );
   }
-
-  @Post()
-  @ApiOperation({ summary: 'Registrar/Crear una nueva factura' })
-  @ApiResponse({
-    status: 201,
-    description: 'Factura creada exitosamente.',
-    type: FacturaDto,
-  })
-  async crearFactura(@Body() body: any): Promise<FacturaDto> {
-    return await this.facturasService.crearFactura(body);
-  }
-
-  @Get(':id/pdf')
-  @ApiOperation({ summary: 'Generar comprobante PDF de la factura' })
-  @ApiParam({
-    name: 'id',
-    description: 'ID de la factura para el PDF',
-    example: 'fac-101',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Retorna el archivo PDF en binario.',
-  })
-  async generarPdf(
-    @Param('id') id: string,
-    @Res() res: express.Response,
-  ): Promise<void> {
-    const pdfBuffer = await this.facturasService.generarFacturaPdf(id);
-    res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename=factura-${id}.pdf`,
-      'Content-Length': pdfBuffer.length,
-    });
-    res.end(pdfBuffer);
-  }
 }

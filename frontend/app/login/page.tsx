@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { API_URL } from "@/app/config";
 import { useToast } from "@/app/components/toast";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, User, Lock, ShieldCheck } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -94,44 +94,66 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
+    <div className="relative min-h-screen bg-slate-50 flex items-center justify-center p-4 overflow-hidden">
+      {/* Subtle UTN Red Glow Accents */}
+      <div className="absolute top-[-20%] left-[-20%] w-[50%] h-[50%] rounded-full bg-red-100/50 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-20%] right-[-20%] w-[50%] h-[50%] rounded-full bg-red-50/60 blur-[120px] pointer-events-none" />
 
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-red-700 leading-tight">
-            Cuentas por<br />Cobrar
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">Sistema Financiero</p>
-        </div>
-
-        {/* Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
-          <h2 className="text-lg font-semibold text-slate-800 mb-1">Iniciar sesión</h2>
-          <p className="text-sm text-slate-400 mb-6">Ingresa tus credenciales para continuar</p>
-
-          {/* Usuario */}
-          <div className="mb-4">
-            <label className="block text-xs font-medium text-slate-500 mb-1.5">
-              Usuario
-            </label>
-            <input
-              type="text"
-              placeholder="Ingrese su usuario"
-              value={usuario}
-              onChange={e => setUsuario(e.target.value)}
-              onKeyDown={handleKeyDown}
-              autoComplete="username"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
-            />
+      <div className="w-full max-w-md z-10">
+        {/* Card Contenedora */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-100 p-8 md:p-10 transition-all duration-300">
+          
+          {/* Header del Formulario */}
+          <div className="flex flex-col items-center mb-8">
+            <div className="mb-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/utn.png"
+                alt="UTN Logo"
+                className="w-16 h-16 object-contain"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                  (e.currentTarget.nextSibling as HTMLElement).style.display = "flex";
+                }}
+              />
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ display: "none", background: "var(--utn-red)" }}>
+                <span className="text-white font-black text-lg">UTN</span>
+              </div>
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-800">
+              Cuentas por Cobrar
+            </h1>
+            <p className="text-xs text-[var(--utn-red)] mt-1.5 uppercase tracking-wider font-bold">
+              Universidad Técnica del Norte
+            </p>
           </div>
 
-          {/* Contraseña */}
-          <div className="mb-6">
-            <label className="block text-xs font-medium text-slate-500 mb-1.5">
+          {/* Campo: Usuario */}
+          <div className="mb-4">
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">
+              Usuario
+            </label>
+            <div className="relative">
+              <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Ingrese su usuario"
+                value={usuario}
+                onChange={e => setUsuario(e.target.value)}
+                onKeyDown={handleKeyDown}
+                autoComplete="username"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-4 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-[var(--utn-red)] focus:ring-2 focus:ring-red-100 transition-all duration-200"
+              />
+            </div>
+          </div>
+
+          {/* Campo: Contraseña */}
+          <div className="mb-8">
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">
               Contraseña
             </label>
             <div className="relative">
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
@@ -139,36 +161,42 @@ export default function LoginPage() {
                 onChange={e => setContrasena(e.target.value)}
                 onKeyDown={handleKeyDown}
                 autoComplete="current-password"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-4 pr-11 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-12 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-[var(--utn-red)] focus:ring-2 focus:ring-red-100 transition-all duration-200"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
               >
                 {showPassword ? (
-                  <EyeOff className="w-5 h-5" />
+                  <EyeOff className="w-4 h-4" />
                 ) : (
-                  <Eye className="w-5 h-5" />
+                  <Eye className="w-4 h-4" />
                 )}
               </button>
             </div>
           </div>
 
-          {/* Botón */}
+          {/* Botón Ingresar */}
           <button
             type="button"
             onClick={handleLogin}
             disabled={loading}
-            className="w-full bg-[var(--utn-red)] text-white font-medium py-3 rounded-xl hover:bg-[var(--utn-red-dark)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+            className="w-full bg-[var(--utn-red)] hover:bg-[var(--utn-red-dark)] text-white font-semibold py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.005] active:scale-[0.995] text-sm shadow-md shadow-red-100"
           >
-            {loading ? "Verificando..." : "Ingresar"}
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Iniciando sesión...
+              </span>
+            ) : (
+              "Ingresar al Sistema"
+            )}
           </button>
         </div>
-
-        <p className="text-center text-xs text-slate-400 mt-6">
-          Universidad Técnica del Norte · Sistema CXC
-        </p>
       </div>
     </div>
   );

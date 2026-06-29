@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Param,
   UseGuards,
   UseInterceptors, // 👈 Añadido para el manejo de interceptores
@@ -75,35 +76,27 @@ export class CuentasCobrarController {
     return this.cuentasCobrarService.getClientesSaldos();
   }
 
-  // 5. Integración: GET /cxc/auth/generate-token
-  @Get('auth/generate-token')
+  @Post('token')
   @ApiTags('API de Salida')
-  @ApiOperation({ summary: 'Generar token JWT de integración para uso de módulos externos' })
+  @ApiOperation({ summary: 'Generar token JWT para consumir el API de Salida' })
   @ApiResponse({
-    status: 200,
-    description: 'Retorna un token JWT válido generado con el secreto del sistema.',
+    status: 201,
+    description: 'Retorna el token JWT generado para autenticación.',
   })
-  generarTokenIntegracion() {
+  async generarToken() {
     const secret = process.env.JWT_SECRET || 'cxc_grupo_secret_key_2026';
-    const payload = {
-      iss: 'cxc-module',
-      aud: 'facturacion-module',
-      rol: 'integrador',
-      purpose: 'facturacion-integration',
-      iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24 * 365), // 1 año
-    };
     const header = { alg: 'HS256', typ: 'JWT' };
+    const payload = {
+      sub: 'external-module',
+      role: 'external',
+      exp: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60, // 30 días
+    };
     const headerB64 = Buffer.from(JSON.stringify(header)).toString('base64url');
     const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
     const hmac = crypto.createHmac('sha256', secret);
     hmac.update(`${headerB64}.${payloadB64}`);
     const signatureB64 = hmac.digest('base64url');
     const token = `${headerB64}.${payloadB64}.${signatureB64}`;
-    return {
-      success: true,
-      token,
-      message: 'Usa este token en la cabecera Authorization: Bearer <token> para consumable la API de Salida.',
-    };
+    return { token };
   }
 }

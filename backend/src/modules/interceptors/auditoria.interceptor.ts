@@ -16,6 +16,13 @@ export class AuditoriaInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const ctx = context.switchToHttp();
     const request = ctx.getRequest();
+    const method = request.method?.toUpperCase();
+    
+    // Solo auditar funciones de escritura/modificación (POST, PUT, PATCH, DELETE) o consulta de estado de cuenta
+    const isVital = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) || request.url?.includes('estado-cuenta');
+    if (!isVital) {
+      return next.handle();
+    }
     
     // Simulación de usuario autenticado (se puede extraer de un JWT Guard más adelante)
     const usuario = request.user || { id: 'usr-001', nombre: 'Carlos Rueda' };
