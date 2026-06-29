@@ -93,7 +93,7 @@ export default function CuentasBancariasPage() {
   };
 
   const validarTodo = (): boolean => {
-    const campos = ["nombreCuenta", "entidadBancaria", "titular", "nroCuenta", "ruc", "codigo"];
+    const campos = ["nombreCuenta", "entidadBancaria", "titular", "nroCuenta", "ruc"];
     const nuevosErrores: Record<string, string> = {};
     const nuevosTouched: Record<string, boolean> = {};
     campos.forEach((campo) => {
@@ -130,8 +130,7 @@ export default function CuentasBancariasPage() {
     }
 
     setGuardando(true);
-    const payload = {
-      codigo: formData.codigo.trim(),
+    const payload: any = {
       nombreCuenta: formData.nombreCuenta.trim(),
       entidadBancaria: formData.entidadBancaria.trim(),
       titular: formData.titular.trim(),
@@ -141,6 +140,10 @@ export default function CuentasBancariasPage() {
       descripcion: formData.descripcion.trim(),
       estado: formData.estado ? "ACTIVO" : "INACTIVO",
     };
+
+    if (formData.codigo && formData.codigo.trim()) {
+      payload.codigo = formData.codigo.trim();
+    }
 
     try {
       let response;
@@ -475,26 +478,7 @@ export default function CuentasBancariasPage() {
                   )}
                 </div>
 
-                {/* Código */}
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Código</label>
-                  <input
-                    name="codigo" value={formData.codigo}
-                    onChange={handleChange} onBlur={handleBlur}
-                    placeholder="Ej. CB-001" maxLength={20}
-                    className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-colors ${
-                      errores.codigo && touched.codigo
-                        ? "border-red-400 bg-red-50"
-                        : "border-gray-300 focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                    }`}
-                  />
-                  {errores.codigo && touched.codigo && (
-                    <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
-                      <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>
-                      {errores.codigo}
-                    </p>
-                  )}
-                </div>
+
 
                 {/* Estado */}
                 <div className="flex items-center gap-2 self-end pb-1">

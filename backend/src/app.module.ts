@@ -8,6 +8,7 @@ import { CuentasBancariasModule } from './modules/cuentas-bancarias/cuentas-banc
 import { PrismaModule } from './prisma/prisma.module';
 import { ReportesModule } from './modules/reportes/reportes.module';
 import { AuditoriaModule } from './modules/auditoria/auditoria.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -18,8 +19,10 @@ import { AuditoriaModule } from './modules/auditoria/auditoria.module';
     CuentasCobrarModule,
     CuentasBancariasModule,
     ReportesModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {}
+

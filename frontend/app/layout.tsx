@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./global.css";
 import { ToastProvider } from "./components/toast";
+import FetchInterceptor from "./components/FetchInterceptor";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -23,7 +24,10 @@ export default function RootLayout({
   return (
     <html lang="es" className={inter.variable}>
       <body style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          <FetchInterceptor />
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

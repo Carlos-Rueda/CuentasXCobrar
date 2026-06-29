@@ -4,7 +4,7 @@ import { tap } from 'rxjs/operators';
 import { TrazaData } from '../auditoria/auditoria.service';
 
 interface IAuditoriaService {
-  registrarTraza(data: TrazaData): Promise<void>;
+  registrarTraza(data: TrazaData, tokenJwt: string): Promise<void>;
 }
 
 @Injectable()
@@ -22,6 +22,9 @@ export class AuditoriaInterceptor implements NestInterceptor {
     const ip = request.ip || '127.0.0.1';
     const accion = `${request.method} ${request.url}`;
 
+    // Extraer y limpiar el token real del header de la petición actual
+    const token = request.headers.authorization?.split(' ')[1];
+
     return next.handle().pipe(
       tap({
         next: (data) => {
@@ -34,11 +37,14 @@ export class AuditoriaInterceptor implements NestInterceptor {
             detalles: JSON.stringify({ status: 'SUCCESS', responseSize: JSON.stringify(data || {}).length }),
           };
 
-          this.auditoriaService.registrarTraza(traza).catch(err => {
-            console.error('❌ Error asíncrono en el interceptor de auditoría:', err.message);
-          });
+          if (token) {
+            this.auditoriaService.registrarTraza(traza, token).catch(err => {
+              console.error('❌ Error asíncrono en el interceptor de auditoría:', err.message);
+            });
+          }
         },
       }),
     );
   }
-}
+}
+

@@ -142,8 +142,24 @@ export default function PagosPage({
   };
 
   const guardarPago = async () => {
+    if (!formData.clienteId) {
+      showToast("Por favor, seleccione un cliente.", "error");
+      return;
+    }
+    if (!formData.fecha) {
+      showToast("Por favor, seleccione una fecha de pago.", "error");
+      return;
+    }
     if (!cuentaBancariaId) {
-      alert("Por favor, seleccione una cuenta bancaria.");
+      showToast("Por favor, seleccione una cuenta bancaria.", "error");
+      return;
+    }
+    if (!formData.descripcion.trim()) {
+      showToast("Por favor, ingrese una descripción para el pago.", "error");
+      return;
+    }
+    if (montoTotalCalculado === 0) {
+      showToast("Por favor, ingrese un monto a abonar en al menos una factura.", "error");
       return;
     }
 
@@ -304,7 +320,9 @@ export default function PagosPage({
     montoTotalCalculado === 0 ||
     !cuentaBancariaId ||
     hayErrorMonto ||
-    !formData.clienteId;
+    !formData.clienteId ||
+    !formData.fecha ||
+    !formData.descripcion.trim();
 
   return (
     <div className="flex flex-col gap-6 w-full max-w-4xl mx-auto p-2 bg-gray-50/50">
@@ -314,16 +332,60 @@ export default function PagosPage({
           Datos Generales
         </h2>
 
+        <div className="flex flex-col gap-1 relative">
+          <label className="text-sm font-medium text-gray-700">Cliente <span className="text-red-500">*</span></label>
+          <input
+            type="text"
+            placeholder="Buscar cliente por nombre o cédula..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setDropdownOpen(true);
+              if (formData.clienteId) {
+                setFormData({ ...formData, clienteId: "" });
+                setFacturasSeleccionadas([]);
+              }
+            }}
+            onFocus={() => setDropdownOpen(true)}
+            onBlur={() => setTimeout(() => setDropdownOpen(false), 200)}
+            className="p-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all text-sm"
+          />
+          {dropdownOpen && filteredClientes.length > 0 && (
+            <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto mt-1 top-full left-0">
+              {filteredClientes.map((cliente) => (
+                <div
+                  key={cliente.id}
+                  onClick={() => {
+                    setFormData({ ...formData, clienteId: cliente.id });
+                    setSearchTerm(
+                      `${cliente.nombre} - ${cliente.cedula || cliente.ruc || ""}`,
+                    );
+                    setDropdownOpen(false);
+                  }}
+                  className="p-2 hover:bg-red-50 cursor-pointer text-sm text-gray-700 transition-colors border-b border-gray-100 last:border-0"
+                >
+                  {cliente.nombre} - {cliente.cedula || cliente.ruc}
+                </div>
+              ))}
+            </div>
+          )}
+          {formData.clienteId && (
+            <span className="text-xs text-green-600 font-medium mt-1">
+              Cliente seleccionado correctamente.
+            </span>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <DatePicker
-            label="Fecha de Pago"
+            label={<>Fecha de Pago <span className="text-red-500">*</span></>}
             value={formData.fecha}
             onChange={(v) => setFormData({ ...formData, fecha: v })}
           />
 
           <div className="flex flex-col gap-1 relative">
             <label className="text-xs font-semibold text-gray-600 mb-0.5">
-              Cuenta Bancaria de Destino
+              Cuenta Bancaria de Destino <span className="text-red-500">*</span>
             </label>
             <button
               type="button"
@@ -368,53 +430,9 @@ export default function PagosPage({
           </div>
         </div>
 
-        <div className="flex flex-col gap-1 relative">
-          <label className="text-sm font-medium text-gray-700">Cliente</label>
-          <input
-            type="text"
-            placeholder="Buscar cliente por nombre o cédula..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setDropdownOpen(true);
-              if (formData.clienteId) {
-                setFormData({ ...formData, clienteId: "" });
-                setFacturasSeleccionadas([]);
-              }
-            }}
-            onFocus={() => setDropdownOpen(true)}
-            onBlur={() => setTimeout(() => setDropdownOpen(false), 200)}
-            className="p-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all text-sm"
-          />
-          {dropdownOpen && filteredClientes.length > 0 && (
-            <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto mt-1 top-full left-0">
-              {filteredClientes.map((cliente) => (
-                <div
-                  key={cliente.id}
-                  onClick={() => {
-                    setFormData({ ...formData, clienteId: cliente.id });
-                    setSearchTerm(
-                      `${cliente.nombre} - ${cliente.cedula || cliente.ruc || ""}`,
-                    );
-                    setDropdownOpen(false);
-                  }}
-                  className="p-2 hover:bg-red-50 cursor-pointer text-sm text-gray-700 transition-colors border-b border-gray-100 last:border-0"
-                >
-                  {cliente.nombre} - {cliente.cedula || cliente.ruc}
-                </div>
-              ))}
-            </div>
-          )}
-          {formData.clienteId && (
-            <span className="text-xs text-green-600 font-medium mt-1">
-              Cliente seleccionado correctamente.
-            </span>
-          )}
-        </div>
-
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-700">
-            Descripción del Pago
+            Descripción del Pago <span className="text-red-500">*</span>
           </label>
           <textarea
             name="descripcion"

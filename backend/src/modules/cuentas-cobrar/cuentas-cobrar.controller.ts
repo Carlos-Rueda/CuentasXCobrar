@@ -2,14 +2,10 @@ import {
   Controller,
   Get,
   Param,
-  Post,
-  Body,
-  UnauthorizedException,
   UseGuards,
   UseInterceptors, // 👈 Añadido para el manejo de interceptores
 } from '@nestjs/common';
 import { CuentasCobrarService } from './cuentas-cobrar.service';
-import { LoginMockDto } from './dto/login-mock.dto';
 import { ValidadorDeudaDto } from './dto/validador-deuda.dto';
 import { EstadoCuentaDto } from './dto/estado-cuenta.dto';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
@@ -40,36 +36,6 @@ export class CuentasCobrarController {
   @ApiResponse({ status: 404, description: 'Cliente no encontrado.' })
   obtenerEstadoCuenta(@Param('clienteId') clienteId: string) {
     return this.cuentasCobrarService.generarEstadoCuenta(clienteId);
-  }
-
-  // 2. Endpoint de Simulación: POST /cxc/auth/login-mock
-  @Post('auth/login-mock')
-  @ApiOperation({
-    summary: 'Simular inicio de sesión administrativo (admin / admin123)',
-  })
-  @ApiResponse({
-    status: 200,
-    description:
-      'Autenticación exitosa. Retorna token ficticio y datos del usuario.',
-  })
-  @ApiResponse({ status: 401, description: 'Credenciales inválidas.' })
-  simularLogin(@Body() body: LoginMockDto) {
-    // Simulación básica de credenciales
-    if (body.usuario === 'admin' && body.contrasena === 'admin123') {
-      return {
-        access_token:
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3ItMDAxIiwibmFtZSI6IkNhcmxvcyBSdWVkYSIsInJvbCI6IkFETUlOIn0.fGFrZXRva2VuX2Zvcl9jeGNfdGVzdGluZw',
-        user: {
-          id: 'usr-001',
-          nombre: 'Carlos Rueda',
-          rol: 'ADMIN',
-        },
-      };
-    }
-
-    throw new UnauthorizedException(
-      'Credenciales inválidas de prueba (Prueba con admin / admin123)',
-    );
   }
 
   // 3. Endpoint de Simulación: GET /cxc/validador-deuda/:clienteId

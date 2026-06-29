@@ -22,22 +22,30 @@ const NAV = [
 ];
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+   const pathname = usePathname();
   const router   = useRouter();
   const userRef  = useRef<{ nombre: string; rol: string } | null>(null);
   const [user, setUser] = useState<{ nombre: string; rol: string } | null>(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem("user");
+    // Verificar si el token existe en sessionStorage. Si no existe, redirigir al login
+    const token = sessionStorage.getItem("auth_token");
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+    
+    const stored = sessionStorage.getItem("user");
     if (stored && !userRef.current) {
       userRef.current = JSON.parse(stored);
       setUser(JSON.parse(stored));
     }
-  }, []);
+  }, [router]);
 
   const cerrarSesion = () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("user");
+    sessionStorage.removeItem("access_token");
+    sessionStorage.removeItem("auth_token");
+    sessionStorage.removeItem("user");
     router.push("/login");
   };
 

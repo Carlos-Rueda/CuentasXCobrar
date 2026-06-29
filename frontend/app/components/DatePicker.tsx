@@ -12,7 +12,7 @@ interface DatePickerProps {
   value: string;           // YYYY-MM-DD
   onChange: (date: string) => void;
   placeholder?: string;
-  label?: string;
+  label?: React.ReactNode;
 }
 
 function parseLocal(str: string): Date | null {

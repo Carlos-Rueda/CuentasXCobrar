@@ -1,54 +1,89 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { API_URL } from "@/app/config";
+import { useToast } from "@/app/components/toast";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { showToast } = useToast();
 
-  const [usuario,    setUsuario]    = useState("");
+  const [usuario, setUsuario] = useState("");
   const [contrasena, setContrasena] = useState("");
-  const [error,      setError]      = useState("");
-  const [loading,    setLoading]    = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Redirigir al dashboard si ya hay una sesión activa en esta pestaña
+  useEffect(() => {
+    const token = sessionStorage.getItem("auth_token");
+    if (token) {
+      router.push("/dashboard");
+    }
+  }, [router]);
 
   const handleLogin = async () => {
-    setError("");
-
     if (!usuario.trim() || !contrasena.trim()) {
-      setError("Ingrese su usuario y contraseña");
+      showToast("Ingrese su usuario y contraseña", "error");
       return;
     }
 
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_URL}/cxc/auth/login-mock`, {
-        method:  "POST",
+      const res = await fetch(`${API_URL}/auth/login`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({
-          usuario:    usuario.trim(),
-          contrasena: contrasena.trim(),
+        body: JSON.stringify({
+          usuario: usuario.trim(),
+          clave: contrasena.trim(),
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        // El backend lanza 401 con mensaje en data.message
-        setError(data?.message || "Credenciales inválidas");
+        showToast(data?.message || "Credenciales incorrectas", "error");
         return;
       }
 
-      // Guardar sesión en localStorage
-      localStorage.setItem("access_token", data.access_token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      if (data.success && data.token) {
+        // Guardar token en sessionStorage (para aislamiento estricto de pestañas)
+        sessionStorage.setItem("auth_token", data.token);
+        sessionStorage.setItem("access_token", data.token); // compatibilidad
 
-      // Redirigir al dashboard
-      router.push("/dashboard");
+        // Decodificar token para extraer información del usuario si está disponible
+        let userObj = { nombre: "Usuario", rol: "ADMIN" };
+        try {
+          const base64Url = data.token.split(".")[1];
+          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+          const payload = JSON.parse(window.atob(base64));
+          
+          // Intentar obtener el nombre/usuario desde el payload o usar el ingresado
+          const rawNombre = payload.nombre || payload.name || payload.usuario || payload.username || payload.sub;
+          const nombreFormateado = rawNombre 
+            ? (rawNombre.charAt(0).toUpperCase() + rawNombre.slice(1)) 
+            : (usuario.trim() ? (usuario.trim().charAt(0).toUpperCase() + usuario.trim().slice(1)) : "Usuario");
+ 
+          userObj = {
+            nombre: nombreFormateado,
+            rol: payload.rol || payload.role || "ADMIN",
+          };
+        } catch (e) {
+          // Fallback al usuario ingresado si falla la decodificación
+          const fallbackNombre = usuario.trim() ? (usuario.trim().charAt(0).toUpperCase() + usuario.trim().slice(1)) : "Usuario";
+          userObj = { nombre: fallbackNombre, rol: "ADMIN" };
+        }
+        sessionStorage.setItem("user", JSON.stringify(userObj));
 
+        showToast(data.message || "Autenticación exitosa", "success");
+        router.push("/dashboard");
+      } else {
+        showToast(data?.message || "Error al iniciar sesión", "error");
+      }
     } catch {
-      setError("No se pudo conectar con el servidor. Verifique que el backend esté encendido.");
+      showToast("No se pudo conectar con el servidor. Verifique que el backend esté encendido.", "error");
     } finally {
       setLoading(false);
     }
@@ -75,13 +110,6 @@ export default function LoginPage() {
           <h2 className="text-lg font-semibold text-slate-800 mb-1">Iniciar sesión</h2>
           <p className="text-sm text-slate-400 mb-6">Ingresa tus credenciales para continuar</p>
 
-          {/* Error */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 mb-5">
-              {error}
-            </div>
-          )}
-
           {/* Usuario */}
           <div className="mb-4">
             <label className="block text-xs font-medium text-slate-500 mb-1.5">
@@ -91,7 +119,7 @@ export default function LoginPage() {
               type="text"
               placeholder="Ingrese su usuario"
               value={usuario}
-              onChange={e => { setUsuario(e.target.value); setError(""); }}
+              onChange={e => setUsuario(e.target.value)}
               onKeyDown={handleKeyDown}
               autoComplete="username"
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
@@ -103,15 +131,28 @@ export default function LoginPage() {
             <label className="block text-xs font-medium text-slate-500 mb-1.5">
               Contraseña
             </label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={contrasena}
-              onChange={e => { setContrasena(e.target.value); setError(""); }}
-              onKeyDown={handleKeyDown}
-              autoComplete="current-password"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
+                value={contrasena}
+                onChange={e => setContrasena(e.target.value)}
+                onKeyDown={handleKeyDown}
+                autoComplete="current-password"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-4 pr-11 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+              >
+                {showPassword ? (
+                  <EyeOff className="w-5 h-5" />
+                ) : (
+                  <Eye className="w-5 h-5" />
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Botón */}
@@ -122,18 +163,6 @@ export default function LoginPage() {
             className="w-full bg-[var(--utn-red)] text-white font-medium py-3 rounded-xl hover:bg-[var(--utn-red-dark)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
           >
             {loading ? "Verificando..." : "Ingresar"}
-          </button>
-        </div>
-
-        {/* Credencial de prueba */}
-        <div className="mt-4 bg-red-50 border border-red-100 rounded-xl p-4">
-          <p className="text-xs font-medium text-red-700 mb-2">Credencial de prueba:</p>
-          <button
-            type="button"
-            onClick={() => { setUsuario("admin"); setContrasena("admin123"); setError(""); }}
-            className="text-xs text-red-700 hover:text-red-900 hover:underline"
-          >
-            usuario: admin / contraseña: admin123
           </button>
         </div>
 

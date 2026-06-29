@@ -428,9 +428,9 @@ export default function ConsultarCliente() {
                         <tr key={f.id} className="border-b last:border-0 hover:bg-gray-50/50">
                           <td className="py-2.5 px-3 font-medium text-gray-900">{f.numero || f.id}</td>
                           <td className="py-2.5 px-3 text-gray-500 text-xs">{f.fechaEmision || "—"}</td>
-                          <td className="py-2.5 px-3 text-right font-mono">${f.total.toFixed(2)}</td>
-                          <td className="py-2.5 px-3 text-right text-emerald-600 font-mono">${f.pagado.toFixed(2)}</td>
-                          <td className="py-2.5 px-3 text-right text-red-600 font-mono font-semibold">${f.pendiente.toFixed(2)}</td>
+                          <td className="py-2.5 px-3 text-right">${f.total.toFixed(2)}</td>
+                          <td className="py-2.5 px-3 text-right text-emerald-600">${f.pagado.toFixed(2)}</td>
+                          <td className="py-2.5 px-3 text-right text-red-600 font-semibold">${f.pendiente.toFixed(2)}</td>
                         </tr>
                       ))
                     )}
@@ -475,7 +475,7 @@ export default function ConsultarCliente() {
                           <td className="py-2.5 px-3 font-medium text-gray-900">{p.numeroPago}</td>
                           <td className="py-2.5 px-3 text-gray-500 text-xs">{p.fecha}</td>
                           <td className="py-2.5 px-3 text-gray-500 text-xs">{p.cuentaBancaria}</td>
-                          <td className="py-2.5 px-3 text-right text-emerald-600 font-mono font-semibold">${p.montoTotal.toFixed(2)}</td>
+                          <td className="py-2.5 px-3 text-right text-emerald-600 font-semibold">${p.montoTotal.toFixed(2)}</td>
                         </tr>
                       ))
                     )}

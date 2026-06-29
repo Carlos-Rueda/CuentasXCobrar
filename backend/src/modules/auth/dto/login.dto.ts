@@ -1,14 +1,14 @@
 import { IsNotEmpty, IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
-export class LoginMockDto {
+export class LoginDto {
   @ApiProperty({ example: 'admin', description: 'Nombre de usuario' })
   @IsString()
   @IsNotEmpty()
   usuario: string;
 
-  @ApiProperty({ example: 'admin123', description: 'Contraseña de usuario' })
+  @ApiProperty({ example: 'clave123', description: 'Clave del usuario' })
   @IsString()
   @IsNotEmpty()
-  contrasena: string;
+  clave: string;
 }
