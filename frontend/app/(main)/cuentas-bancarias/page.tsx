@@ -279,7 +279,7 @@ export default function CuentasBancariasPage() {
       label: "Nro. Cuenta",
       sortable: false,
       render: (row) => (
-        <div className="font-mono text-xs">
+        <div className="text-xs">
           <p className="text-gray-900">{row.nroCuenta}</p>
           <p className="text-gray-500">RUC: {row.ruc}</p>
         </div>
@@ -441,7 +441,7 @@ export default function CuentasBancariasPage() {
                     name="nroCuenta" value={formData.nroCuenta}
                     onChange={handleChange} onBlur={handleBlur}
                     placeholder="Ej. 2100456789" maxLength={20}
-                    className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none font-mono transition-colors ${
+                    className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-colors ${
                       errores.nroCuenta && touched.nroCuenta
                         ? "border-red-400 bg-red-50 focus:ring-2 focus:ring-red-300"
                         : "border-gray-300 focus:border-red-600 focus:ring-2 focus:ring-red-100"
@@ -464,7 +464,7 @@ export default function CuentasBancariasPage() {
                     name="ruc" value={formData.ruc}
                     onChange={handleChange} onBlur={handleBlur}
                     placeholder="Ej. 1790011223001" maxLength={13}
-                    className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none font-mono transition-colors ${
+                    className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-colors ${
                       errores.ruc && touched.ruc
                         ? "border-red-400 bg-red-50 focus:ring-2 focus:ring-red-300"
                         : "border-gray-300 focus:border-red-600 focus:ring-2 focus:ring-red-100"
