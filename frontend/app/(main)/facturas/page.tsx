@@ -64,9 +64,7 @@ export default function FacturasPage() {
         let pagado = 0;
         const pagosAsociados: { id: string; montoAbonado: number; fecha: string }[] = [];
         listPagos.forEach((pago: any) => {
-          const isActivo =
-            pago.estado?.toLowerCase() === "activo" ||
-            pago.estado?.toLowerCase() === "impreso";
+          const isActivo = pago.estado?.toLowerCase() === "activo";
           if (!isActivo) return;
 
           const detail = pago.detalles?.find((d: any) => d.facturaId === f.id);

@@ -127,9 +127,7 @@ export default function ReportesPage() {
       let ultimoPago: string | null = null;
 
       listPagos.forEach((pago: any) => {
-        const isActivo =
-          pago.estado?.toLowerCase() === "activo" ||
-          pago.estado?.toLowerCase() === "impreso";
+        const isActivo = pago.estado?.toLowerCase() === "activo";
         if (!isActivo) return;
 
         const detail = pago.detalles?.find((d: any) => d.facturaId === f.id);
@@ -202,8 +200,8 @@ export default function ReportesPage() {
     (r) => r.estadoOriginal?.toUpperCase() !== "ANULADA" && r.estadoOriginal?.toUpperCase() !== "INACTIVA"
   );
   const totalMonto = activas.reduce((s, r) => s + r.monto, 0);
-  const totalCobrado = activas.reduce((s, r) => s + r.pagado, 0);
-  const totalDeuda = totalMonto - totalCobrado;
+  const totalCobrado = filtradosActuales.reduce((s, r) => s + r.pagado, 0);
+  const totalDeuda = Math.max(0, totalMonto - totalCobrado);
 
   // ── Generar PDF empresarial ────────────────────────────────────────────────
   const generarPDF = async () => {

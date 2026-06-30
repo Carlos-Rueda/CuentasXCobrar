@@ -234,7 +234,7 @@ export class PagosService {
       where: {
         factura_id: facturaId,
         pagos_clientes: {
-          estado: { in: ['activo', 'impreso', 'inactivo'] },
+          estado: 'activo',
         },
       },
       _sum: { monto_pagado: true },

@@ -15,7 +15,7 @@ export class ReportesService {
       where: {
         factura_id: facturaId,
         pagos_clientes: {
-          estado: { in: ['activo', 'impreso'] },
+          estado: 'activo',
         },
       },
       _sum: { monto_pagado: true },
@@ -62,7 +62,7 @@ export class ReportesService {
     const queryPagos: any = {
       where: {
         cliente_id: clienteId,
-        estado: { in: ['activo', 'impreso'] },
+        estado: 'activo',
       },
       include: {
         detalles_pago: true,

@@ -132,18 +132,13 @@ export default function ReportePagosPage() {
   }));
 
   const pagosActivos = pagosFiltrados.filter(
-    (p) => p.estado?.toLowerCase() === "activo" || p.estado?.toLowerCase() === "impreso"
+    (p) => p.estado?.toLowerCase() === "activo"
   );
 
   const totalPagos = pagosActivos.length;
 
   const montoTotal = pagosActivos.reduce((total, pago) => {
-    const activeDetailsSum = (pago.detalles || []).reduce((sum: number, det: any) => {
-      const inv = facturas.find((f: any) => f.id === det.facturaId);
-      const isInvoiceActive = !inv || (inv.estado?.toUpperCase() !== "ANULADA" && inv.estado?.toUpperCase() !== "INACTIVA");
-      return sum + (isInvoiceActive ? Number(det.montoAbonado || 0) : 0);
-    }, 0);
-    return total + activeDetailsSum;
+    return total + Number(pago.montoTotal || 0);
   }, 0);
 
   const cargarCuentasBancarias = async () => {
