@@ -5,15 +5,8 @@ import { LoginDto } from './dto/login.dto';
 @Injectable()
 export class AuthService {
   async login(dto: LoginDto, ipUsuario: string) {
-    const url = process.env.AUTH_API_URL;
-    const apiKey = process.env.MODULE_API_KEY;
-
-    if (!url) {
-      throw new HttpException(
-        'AUTH_API_URL no está configurado en las variables de entorno',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
+    const url = process.env.AUTH_API_URL || 'https://712286fsib.execute-api.us-east-1.amazonaws.com/default/api-auth-central';
+    const apiKey = process.env.MODULE_API_KEY || 'dev_key_cxc_111';
 
     try {
       const response = await axios.post(
