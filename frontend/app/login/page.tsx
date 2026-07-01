@@ -68,7 +68,7 @@ export default function LoginPage() {
  
           userObj = {
             nombre: nombreFormateado,
-            rol: payload.rol || payload.role || "ADMIN",
+            rol: payload.rol || payload.role || (Array.isArray(payload.roles) ? payload.roles[0] : payload.roles) || "ADMIN",
           };
         } catch (e) {
           // Fallback al usuario ingresado si falla la decodificación

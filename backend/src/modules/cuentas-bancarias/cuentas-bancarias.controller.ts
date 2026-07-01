@@ -10,16 +10,23 @@ import {
   HttpStatus,
   NotFoundException,
   UseInterceptors,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { CuentasBancariasService } from './cuentas-bancarias.service';
 import { CuentaBancariaEntity } from './cuenta-bancaria.entity';
 import { CreateCuentaBancariaDto } from './dto/create-cuenta-bancaria.dto';
 import { UpdateCuentaBancariaDto } from './dto/update-cuenta-bancaria.dto';
 import { AuditoriaInterceptor } from '../interceptors/auditoria.interceptor';
+import { JwtAuthGuard } from '../cuentas-cobrar/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 
 @ApiTags('Cuentas Bancarias')
+@ApiBearerAuth()
 @UseInterceptors(AuditoriaInterceptor)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('CXC_ADMIN')
 @Controller('cuentas-bancarias')
 export class CuentasBancariasController {
   constructor(

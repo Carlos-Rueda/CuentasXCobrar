@@ -26,6 +26,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const router   = useRouter();
   const userRef  = useRef<{ nombre: string; rol: string } | null>(null);
   const [user, setUser] = useState<{ nombre: string; rol: string } | null>(null);
+  const [permissions, setPermissions] = useState<string[]>([]);
 
   useEffect(() => {
     // Verificar si el token existe en sessionStorage. Si no existe, redirigir al login
@@ -33,6 +34,19 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     if (!token) {
       router.push("/login");
       return;
+    }
+
+    try {
+      const base64Url = token.split(".")[1];
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const payload = JSON.parse(window.atob(base64));
+      if (payload && Array.isArray(payload.permissions)) {
+        setPermissions(payload.permissions);
+      } else {
+        setPermissions([]);
+      }
+    } catch (e) {
+      setPermissions([]);
     }
     
     const stored = sessionStorage.getItem("user");
@@ -84,7 +98,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {NAV.map(({ href, label, Icon }) => {
+          {NAV.filter(({ href }) => {
+            if (href === "/cuentas-bancarias") {
+              return permissions.includes("CXC_CUENTASBANCARIAS");
+            }
+            return true;
+          }).map(({ href, label, Icon }) => {
             const active = pathname === href || pathname.startsWith(href + "/");
             return (
               <Link

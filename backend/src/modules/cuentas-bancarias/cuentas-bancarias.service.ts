@@ -17,42 +17,6 @@ export class CuentasBancariasService implements OnModuleInit {
       if (count === 0) {
         await this.prismaService.cuentas_bancarias.createMany({
           data: [
-            {
-              codigo: 'CTA-BAN-001',
-              nombre_cuenta: 'Cuenta Corriente Principal',
-              entidad_bancaria: 'Banco Pichincha',
-              titular: 'Empresa Integrador S.A.',
-              tipo_cuenta: 'Corriente',
-              nro_cuenta: '2100987654',
-              ruc: '1790011223001',
-              descripcion:
-                'Cuenta corriente principal para recibir transferencias interbancarias y depósitos de clientes.',
-              estado: 'ACTIVO',
-            },
-            {
-              codigo: 'CTA-BAN-002',
-              nombre_cuenta: 'Cuenta de Ahorros Recaudación',
-              entidad_bancaria: 'Banco Guayaquil',
-              titular: 'Empresa Integrador S.A.',
-              tipo_cuenta: 'Ahorros',
-              nro_cuenta: '1209876543',
-              ruc: '1790011223001',
-              descripcion:
-                'Cuenta de ahorros destinada a la recaudación de pagos con cheques y depósitos directos.',
-              estado: 'ACTIVO',
-            },
-            {
-              codigo: 'CTA-BAN-003',
-              nombre_cuenta: 'Cuenta Especial Corriente',
-              entidad_bancaria: 'Produbanco',
-              titular: 'Empresa Integrador S.A. VIP',
-              tipo_cuenta: 'Corriente',
-              nro_cuenta: '5500987612',
-              ruc: '1790011223001',
-              descripcion:
-                'Cuenta de uso exclusivo para cobros corporativos de clientes VIP y transferencias internacionales.',
-              estado: 'ACTIVO',
-            },
           ],
         });
       }
