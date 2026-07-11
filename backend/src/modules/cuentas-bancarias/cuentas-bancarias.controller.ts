@@ -23,10 +23,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 
 @ApiTags('Cuentas Bancarias')
-@ApiBearerAuth()
 @UseInterceptors(AuditoriaInterceptor)
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('CXC_ADMIN')
 @Controller('cuentas-bancarias')
 export class CuentasBancariasController {
   constructor(
@@ -62,6 +59,9 @@ export class CuentasBancariasController {
   }
 
   @Post()
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CXC_ADMIN')
   @ApiOperation({ summary: 'Crear una nueva cuenta bancaria' })
   @ApiResponse({
     status: 201,
@@ -75,6 +75,9 @@ export class CuentasBancariasController {
   }
 
   @Put(':id')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CXC_ADMIN')
   @ApiOperation({ summary: 'Actualizar una cuenta bancaria existente' })
   @ApiParam({
     name: 'id',
@@ -101,6 +104,9 @@ export class CuentasBancariasController {
   }
 
   @Delete(':id')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CXC_ADMIN')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Eliminar una cuenta bancaria' })
   @ApiParam({ name: 'id', description: 'ID de la cuenta bancaria a eliminar' })

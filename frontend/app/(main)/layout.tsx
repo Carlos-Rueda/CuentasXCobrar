@@ -40,10 +40,26 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       const base64Url = token.split(".")[1];
       const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
       const payload = JSON.parse(window.atob(base64));
+      let currentPerms: string[] = [];
       if (payload && Array.isArray(payload.permissions)) {
+        currentPerms = payload.permissions;
         setPermissions(payload.permissions);
       } else {
         setPermissions([]);
+      }
+
+      // Proteger rutas según permisos
+      if (pathname === "/clientes" && !currentPerms.includes("CXC_CLIENTES")) {
+        router.push("/dashboard");
+      } else if (pathname.startsWith("/pagos") && !currentPerms.includes("CXC_PAGOS")) {
+        router.push("/dashboard");
+      } else if (pathname.startsWith("/reportes") && !currentPerms.includes("CXC_REPORTES")) {
+        router.push("/dashboard");
+      } else if (pathname.startsWith("/cuentas-bancarias") && !currentPerms.includes("CXC_CUENTASBANCARIAS")) {
+        router.push("/dashboard");
+      } else if (currentPerms.length === 0) {
+        sessionStorage.clear();
+        router.push("/login");
       }
     } catch (e) {
       setPermissions([]);
@@ -54,7 +70,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       userRef.current = JSON.parse(stored);
       setUser(JSON.parse(stored));
     }
-  }, [router]);
+  }, [router, pathname]);
 
   const cerrarSesion = () => {
     sessionStorage.removeItem("access_token");
@@ -99,8 +115,20 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           {NAV.filter(({ href }) => {
+            if (href === "/clientes") {
+              return permissions.includes("CXC_CLIENTES");
+            }
+            if (href === "/pagos/reporte") {
+              return permissions.includes("CXC_PAGOS");
+            }
+            if (href === "/reportes") {
+              return permissions.includes("CXC_REPORTES");
+            }
             if (href === "/cuentas-bancarias") {
               return permissions.includes("CXC_CUENTASBANCARIAS");
+            }
+            if (href === "/dashboard") {
+              return permissions.length > 0;
             }
             return true;
           }).map(({ href, label, Icon }) => {

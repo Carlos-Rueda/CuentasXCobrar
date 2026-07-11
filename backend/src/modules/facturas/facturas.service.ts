@@ -199,7 +199,8 @@ export class FacturasService {
       }
     `;
     const data = await this.queryGraphQL(query);
-    return (data.facturas?.items || []).map((f: any) => this.mapFactura(f));
+    const mapped = (data.facturas?.items || []).map((f: any) => this.mapFactura(f));
+    return mapped.filter((f: FacturaDto) => f.estado && f.estado.toUpperCase() === 'EMITIDA');
   }
 
   /**
@@ -229,7 +230,11 @@ export class FacturasService {
     if (!data.factura) {
       throw new NotFoundException(`Factura con ID ${id} no encontrada`);
     }
-    return this.mapFactura(data.factura);
+    const factura = this.mapFactura(data.factura);
+    if (!factura.estado || factura.estado.toUpperCase() !== 'EMITIDA') {
+      throw new NotFoundException(`Factura con ID ${id} no está en un estado emitido/válido`);
+    }
+    return factura;
   }
 
   /**

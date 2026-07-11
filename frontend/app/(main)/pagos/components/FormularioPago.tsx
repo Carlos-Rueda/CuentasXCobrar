@@ -355,7 +355,7 @@ export default function PagosPage({
               {filteredClientes.map((cliente) => (
                 <div
                   key={cliente.id}
-                  onClick={() => {
+                  onMouseDown={() => {
                     setFormData({ ...formData, clienteId: cliente.id });
                     setSearchTerm(
                       `${cliente.nombre} - ${cliente.cedula || cliente.ruc || ""}`,

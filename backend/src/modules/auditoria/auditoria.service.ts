@@ -81,10 +81,15 @@ export class AuditoriaService implements OnModuleInit {
     }
   }
 
-  public async registrarTraza(data: TrazaData, tokenJwt: string): Promise<void> {
+  public async registrarTraza(data: TrazaData, tokenJwt?: string): Promise<void> {
     try {
-      if (!tokenJwt || tokenJwt.trim() === "") {
-        this.logger.warn("Token JWT no provisto. Se omite el envío de la pista de auditoría.");
+      let tokenToUse = await this.authenticate().catch(() => null);
+      if (!tokenToUse && tokenJwt) {
+        tokenToUse = tokenJwt;
+      }
+
+      if (!tokenToUse || tokenToUse.trim() === "") {
+        this.logger.warn("Token JWT no provisto ni disponible por autenticación del módulo. Se omite el envío de la pista de auditoría.");
         return;
       }
 
@@ -94,7 +99,7 @@ export class AuditoriaService implements OnModuleInit {
       // Nota: protobufjs utiliza camelCase internamente para las propiedades de JS.
       // Definimos tanto las propiedades camelCase como las snake_case para asegurar compatibilidad total en la serialización.
       const payloadLocal = {
-        token: tokenJwt,
+        token: tokenToUse,
         id_funcion: idFuncionVal,
         idFuncion: idFuncionVal,
         accion: data.accion, 
@@ -118,7 +123,7 @@ export class AuditoriaService implements OnModuleInit {
       const AuditoriaRequest = this.protoRoot.lookupType('AuditoriaRequest');
       
       const peticion: any = AuditoriaRequest.create({
-        token: tokenJwt,
+        token: tokenToUse,
         id_funcion: idFuncionVal,
         idFuncion: idFuncionVal,
         accion: data.accion, 
@@ -128,7 +133,7 @@ export class AuditoriaService implements OnModuleInit {
         ipUsuario: ipVal,
       });
 
-      peticion.token = tokenJwt;
+      peticion.token = tokenToUse;
 
       const errMsg = AuditoriaRequest.verify(peticion);
       if (errMsg) {

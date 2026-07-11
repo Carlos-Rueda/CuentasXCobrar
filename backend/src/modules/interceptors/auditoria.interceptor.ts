@@ -4,7 +4,7 @@ import { tap } from 'rxjs/operators';
 import { TrazaData } from '../auditoria/auditoria.service';
 
 interface IAuditoriaService {
-  registrarTraza(data: TrazaData, tokenJwt: string): Promise<void>;
+  registrarTraza(data: TrazaData, tokenJwt?: string): Promise<void>;
 }
 
 @Injectable()
@@ -44,11 +44,9 @@ export class AuditoriaInterceptor implements NestInterceptor {
             detalles: JSON.stringify({ status: 'SUCCESS', responseSize: JSON.stringify(data || {}).length }),
           };
 
-          if (token) {
-            this.auditoriaService.registrarTraza(traza, token).catch(err => {
-              console.error('❌ Error asíncrono en el interceptor de auditoría:', err.message);
-            });
-          }
+          this.auditoriaService.registrarTraza(traza, token).catch(err => {
+            console.error('❌ Error asíncrono en el interceptor de auditoría:', err.message);
+          });
         },
       }),
     );

@@ -325,7 +325,7 @@ export class FacturacionApiService {
       }
     `;
     const data = await this.queryGraphQL<FacturasResponse>(query);
-    return (data.facturas?.items || []).map((f) => ({
+    const mapped = (data.facturas?.items || []).map((f) => ({
       id: f.id,
       numeroFactura: f.numeroFactura,
       clienteId: f.clienteId,
@@ -333,6 +333,7 @@ export class FacturacionApiService {
       estado: f.estado,
       tipoPago: f.tipoPago,
     }));
+    return mapped.filter((f) => f.estado && f.estado.toUpperCase() === 'EMITIDA');
   }
 
   /**
@@ -354,6 +355,9 @@ export class FacturacionApiService {
       const data = await this.queryGraphQL<any>(query, { id });
       const f = data.factura;
       if (!f) return null;
+      if (!f.estado || f.estado.toUpperCase() !== 'EMITIDA') {
+        return null;
+      }
       return {
         id: f.id,
         numeroFactura: f.numeroFactura,

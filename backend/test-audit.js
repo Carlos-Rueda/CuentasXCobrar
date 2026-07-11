@@ -14,7 +14,7 @@ async function testCreds(apiKey, usuario, clave) {
     const token = authRes.data.token;
     console.log(`Token obtained for [${apiKey}/${usuario}]:`, token ? token.substring(0, 30) + '...' : 'none');
 
-    const protoPath = 'c:/Users/Henry Moreta/Desktop/app integrador/backend/src/auditoria/proto/auditoria.proto';
+    const protoPath = require('path').join(__dirname, 'src', 'auditoria', 'proto', 'auditoria.proto');
     const root = protobuf.loadSync(protoPath);
     const AuditoriaRequestMessage = root.lookupType('AuditoriaRequest');
     const AuditoriaResponseMessage = root.lookupType('AuditoriaResponse');

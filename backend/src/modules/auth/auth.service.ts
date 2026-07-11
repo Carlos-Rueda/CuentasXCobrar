@@ -29,6 +29,23 @@ export class AuthService {
         throw new UnauthorizedException(loginResult.message || 'Credenciales incorrectas');
       }
 
+      let hasPermissions = false;
+      try {
+        const payloadPart = loginResult.token.split('.')[1];
+        const base64 = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
+        const payloadJson = Buffer.from(base64, 'base64').toString('utf8');
+        const payload = JSON.parse(payloadJson);
+        if (Array.isArray(payload.permissions) && payload.permissions.some((p: string) => p.startsWith('CXC_'))) {
+          hasPermissions = true;
+        }
+      } catch (e) {
+        console.error('Error al decodificar token en login:', e);
+      }
+
+      if (!hasPermissions) {
+        throw new UnauthorizedException('El usuario no cuenta con permisos asignados para acceder al módulo de Cuentas por Cobrar');
+      }
+
       return {
         success: true,
         message: loginResult.message || 'Autenticación exitosa',

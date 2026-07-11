@@ -49,16 +49,23 @@ export default function LoginPage() {
       }
 
       if (data.success && data.token) {
-        // Guardar token en sessionStorage (para aislamiento estricto de pestañas)
-        sessionStorage.setItem("auth_token", data.token);
-        sessionStorage.setItem("access_token", data.token); // compatibilidad
-
         // Decodificar token para extraer información del usuario si está disponible
         let userObj = { nombre: "Usuario", rol: "ADMIN" };
         try {
           const base64Url = data.token.split(".")[1];
           const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
           const payload = JSON.parse(window.atob(base64));
+
+          // Verificar permisos del módulo
+          if (!payload.permissions || !Array.isArray(payload.permissions) || !payload.permissions.some((p: string) => p.startsWith('CXC_'))) {
+            showToast("El usuario no cuenta con permisos asignados para el módulo de Cuentas por Cobrar", "error");
+            setLoading(false);
+            return;
+          }
+
+          // Guardar token en sessionStorage (para aislamiento estricto de pestañas)
+          sessionStorage.setItem("auth_token", data.token);
+          sessionStorage.setItem("access_token", data.token); // compatibilidad
           
           // Intentar obtener el nombre/usuario desde el payload o usar el ingresado
           const rawNombre = payload.nombre || payload.name || payload.usuario || payload.username || payload.sub;
