@@ -1,63 +1,256 @@
-export default function DashboardPage() {
-  const metricas = [
-    { label: "Clientes",  value: "120",     color: "text-gray-900"    },
-    { label: "Facturas",  value: "350",     color: "text-gray-900"    },
-    { label: "Pagos",     value: "85",      color: "text-gray-900"    },
-    { label: "Pendiente", value: "$15,000", color: "text-red-600"     },
-  ];
+"use client";
 
-  const ultimos = [
-    { cliente: "Juan Pérez",   factura: "FAC-001", fecha: "12/06/2026", valor: "$250" },
-    { cliente: "María López",  factura: "FAC-002", fecha: "12/06/2026", valor: "$430" },
-    { cliente: "Carlos Ruiz",  factura: "FAC-003", fecha: "11/06/2026", valor: "$180" },
+import { useEffect, useState } from "react";
+import { API_URL } from "@/app/config";
+import KpiCard from "./components/KpiCard";
+import styles from "./Dashboard.module.css";
+import CashFlowChart from "./components/CashFlowChart";
+import CobradoPendienteChart from "./components/CobradoPendienteChart";
+
+export default function DashboardPage() {
+  const [montoConfirmado, setMontoConfirmado] = useState(0);
+  const [totalClientes, setTotalClientes] = useState(0);
+  const [clientesConDeuda, setClientesConDeuda] = useState(0);
+  const [pendiente, setPendiente] = useState(0);
+  const [graficoLinea, setGraficoLinea] = useState<any[]>([]);
+  const [graficoBarras, setGraficoBarras] = useState<any[]>([]);
+  const [anios, setAnios] = useState<number[]>([]);
+  const [anioSeleccionado, setAnioSeleccionado] = useState("Todos");
+  const [mesSeleccionado, setMesSeleccionado] = useState("Todos");
+
+  useEffect(() => {
+    cargarDashboard();
+  }, [anioSeleccionado, mesSeleccionado]);
+  const mesesFiltro = [
+    "Todos",
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
   ];
+  const mesesGrafico = [
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
+  ];
+  const cargarDashboard = async () => {
+    try {
+      const [clientesRes, facturasRes, pagosRes] = await Promise.all([
+        fetch(`${API_URL}/facturas/clientes`, { cache: "no-store" }),
+        fetch(`${API_URL}/facturas`, { cache: "no-store" }),
+        fetch(`${API_URL}/pagos`, { cache: "no-store" }),
+      ]);
+
+      const clientes = clientesRes.ok ? await clientesRes.json() : [];
+      const facturas = facturasRes.ok ? await facturasRes.json() : [];
+      const pagos = pagosRes.ok ? await pagosRes.json() : [];
+
+      const listaAnios = Array.from(
+        new Set([
+          ...facturas.map((f: any) => new Date(f.fechaEmision).getFullYear()),
+          ...pagos.map((p: any) => new Date(p.fecha).getFullYear()),
+        ]),
+      ).sort();
+
+      setAnios(listaAnios);
+
+      const pagosFiltrados = pagos.filter((p: any) => {
+        const fecha = new Date(p.fecha);
+
+        const anio = fecha.getFullYear();
+
+        const mes = fecha.getMonth() + 1;
+
+        const cumpleAnio =
+          anioSeleccionado === "Todos" || anio === Number(anioSeleccionado);
+
+        const cumpleMes =
+          mesSeleccionado === "Todos" ||
+          mes === mesesFiltro.indexOf(mesSeleccionado);
+
+        return cumpleAnio && cumpleMes;
+      });
+      const facturasFiltradas = facturas.filter((f: any) => {
+        const fecha = new Date(f.fechaEmision);
+
+        const anio = fecha.getFullYear();
+
+        const mes = fecha.getMonth() + 1;
+
+        const cumpleAnio =
+          anioSeleccionado === "Todos" || anio === Number(anioSeleccionado);
+
+        const cumpleMes =
+          mesSeleccionado === "Todos" ||
+          mes === mesesFiltro.indexOf(mesSeleccionado);
+
+        return cumpleAnio && cumpleMes;
+      });
+
+      const resumen = mesesGrafico.map((mes) => ({
+        mes,
+        cobrado: 0,
+        pendiente: 0,
+      }));
+      // Para el grafico
+      pagosFiltrados.forEach((p: any) => {
+        if (p.estado?.toLowerCase() !== "activo") return;
+
+        const fecha = new Date(p.fecha);
+
+        const mes = fecha.getMonth();
+
+        resumen[mes].cobrado += Number(p.montoTotal);
+      });
+      facturasFiltradas.forEach((f: any) => {
+        const fecha = new Date(f.fechaEmision);
+
+        const mes = fecha.getMonth();
+
+        resumen[mes].pendiente += Number(f.total);
+      });
+      // Gráfico de línea (muestra todos los meses)
+      setGraficoLinea(resumen);
+
+      // Gráfico de barras (solo meses con datos)
+      setGraficoBarras(resumen.filter((m) => m.cobrado > 0 || m.pendiente > 0));
+      // Total clientes
+      const clientesUnicos = new Map(
+        clientes.map((c: any) => [c.cedula || c.ruc || c.nombre, c]),
+      );
+
+      setTotalClientes(clientesUnicos.size);
+
+      // Monto confirmado (solo pagos con PDF generado)
+      const pagosConfirmados = pagosFiltrados.filter(
+        (p: any) =>
+          p.estado?.toLowerCase() === "activo" ||
+          p.estado?.toLowerCase() === "impreso",
+      );
+
+      const montoConfirmado = pagosConfirmados.reduce(
+        (sum: number, p: any) => sum + Number(p.montoTotal || 0),
+        0,
+      );
+
+      setMontoConfirmado(montoConfirmado);
+
+      let pendienteTotal = 0;
+      const clientesDeuda = new Set();
+
+      facturasFiltradas.forEach((factura: any) => {
+        let pagado = 0;
+
+        pagosFiltrados.forEach((pago: any) => {
+          if (pago.estado?.toLowerCase() !== "activo") return;
+
+          const detalle = pago.detalles?.find(
+            (d: any) => d.facturaId === factura.id,
+          );
+
+          if (detalle) {
+            pagado += Number(detalle.montoAbonado) || 0;
+          }
+        });
+
+        const pendienteFactura = Math.max(0, factura.total - pagado);
+
+        if (pendienteFactura > 0) {
+          clientesDeuda.add(factura.clienteId);
+          pendienteTotal += pendienteFactura;
+        }
+      });
+
+      setClientesConDeuda(clientesDeuda.size);
+      setPendiente(pendienteTotal);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   return (
-    <div className="flex flex-col gap-6">
+    <>
+      <div className={styles.kpis}>
+        <KpiCard
+          titulo="Monto confirmado"
+          valor={`$${montoConfirmado.toFixed(2)}`}
+          color="#16a34a"
+        />
 
-      {/* ── Título de página ── */}
-      <div>
-        <h1 className="page-title">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-1">Resumen general del sistema</p>
+        <KpiCard
+          titulo="Total clientes"
+          valor={totalClientes}
+          color="#2563eb"
+        />
+
+        <KpiCard
+          titulo="Clientes con deuda"
+          valor={clientesConDeuda}
+          color="#ea580c"
+        />
+
+        <KpiCard
+          titulo="Pendiente"
+          valor={`$${pendiente.toFixed(2)}`}
+          color="#dc2626"
+        />
       </div>
+      <div className={styles.filtrosGraficos}>
+        <div>
+          <label>Año</label>
 
-      {/* ── Métricas ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {metricas.map(({ label, value, color }) => (
-          <div key={label} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-            <p className="metric-label mb-2">{label}</p>
-            <p className={`metric-value ${color}`}>{value}</p>
-          </div>
-        ))}
-      </div>
+          <select
+            value={anioSeleccionado}
+            onChange={(e) => setAnioSeleccionado(e.target.value)}
+          >
+            <option value="Todos">Todos</option>
 
-      {/* ── Últimos pagos ── */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100">
-          <h2 className="section-title">Últimos Pagos</h2>
-        </div>
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              {["Cliente", "Factura", "Fecha", "Valor"].map((h) => (
-                <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-500 tracking-wider">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {ultimos.map((r) => (
-              <tr key={r.factura} className="border-b border-gray-100 hover:bg-gray-100 transition-colors">
-                <td className="px-5 py-3 text-sm font-medium text-gray-900">{r.cliente}</td>
-                <td className="px-5 py-3 text-sm text-gray-600">{r.factura}</td>
-                <td className="px-5 py-3 text-xs text-gray-500">{r.fecha}</td>
-                <td className="px-5 py-3 text-sm font-semibold text-gray-900">{r.valor}</td>
-              </tr>
+            {anios.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
             ))}
-          </tbody>
-        </table>
+          </select>
+        </div>
+
+        <div>
+          <label>Mes</label>
+
+          <select
+            value={mesSeleccionado}
+            onChange={(e) => setMesSeleccionado(e.target.value)}
+          >
+            {mesesFiltro.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
-    </div>
+
+      <div className={styles.graficos}>
+        <CashFlowChart data={graficoLinea} />
+
+        <CobradoPendienteChart data={graficoBarras} />
+      </div>
+    </>
   );
 }
