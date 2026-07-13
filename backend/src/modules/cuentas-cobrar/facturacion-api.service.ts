@@ -294,9 +294,9 @@ export class FacturacionApiService {
       );
     }
 
-    // Filtrar facturas con estado PENDIENTE / por cobrar
+    // Filtrar facturas con estado PAGO_PENDIENTE / por cobrar
     return items
-      .filter((f) => f.estado && f.estado.toUpperCase() === 'PENDIENTE')
+      .filter((f) => f.estado && (f.estado.toUpperCase() === 'PENDIENTE' || f.estado.toUpperCase() === 'PAGO_PENDIENTE'))
       .map((f) => ({
         id: f.id,
         numeroFactura: f.numeroFactura,
@@ -333,7 +333,7 @@ export class FacturacionApiService {
       estado: f.estado,
       tipoPago: f.tipoPago,
     }));
-    return mapped.filter((f) => f.estado && f.estado.toUpperCase() === 'EMITIDA');
+    return mapped.filter((f) => f.estado && (f.estado.toUpperCase() === 'EMITIDA' || f.estado.toUpperCase() === 'PAGO_PENDIENTE'));
   }
 
   /**
@@ -355,7 +355,7 @@ export class FacturacionApiService {
       const data = await this.queryGraphQL<any>(query, { id });
       const f = data.factura;
       if (!f) return null;
-      if (!f.estado || f.estado.toUpperCase() !== 'EMITIDA') {
+      if (!f.estado || (f.estado.toUpperCase() !== 'EMITIDA' && f.estado.toUpperCase() !== 'PAGO_PENDIENTE')) {
         return null;
       }
       return {

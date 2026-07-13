@@ -324,6 +324,8 @@ const STATUS_STYLES: Record<string, string> = {
   INACTIVO:     "bg-red-100 text-red-800",
   pendiente:    "bg-yellow-100 text-yellow-800",
   PENDIENTE:    "bg-yellow-100 text-yellow-800",
+  pago_pendiente: "bg-yellow-100 text-yellow-800",
+  PAGO_PENDIENTE: "bg-yellow-100 text-yellow-800",
   parcial:      "bg-yellow-100 text-yellow-800",
   PARCIAL:      "bg-yellow-100 text-yellow-800",
   "por pagar":  "bg-red-100 text-red-800",

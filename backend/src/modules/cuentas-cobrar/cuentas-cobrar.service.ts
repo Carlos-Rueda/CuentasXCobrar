@@ -113,7 +113,7 @@ export class CuentasCobrarService {
     // Si la base de datos de pruebas no posee facturas con esa clasificación explícita,
     // tomamos todas las facturas para calcular el saldo pendiente real de cada cliente.
     let facturasFiltradas = facturas.filter(
-      (f) => f.tipoPago?.toUpperCase() === 'CREDITO' || f.estado?.toUpperCase() === 'PENDIENTE',
+      (f) => f.tipoPago?.toUpperCase() === 'CREDITO' || f.estado?.toUpperCase() === 'PENDIENTE' || f.estado?.toUpperCase() === 'PAGO_PENDIENTE',
     );
     if (facturasFiltradas.length === 0) {
       facturasFiltradas = facturas;

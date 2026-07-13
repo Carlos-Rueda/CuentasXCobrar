@@ -200,7 +200,7 @@ export class FacturasService {
     `;
     const data = await this.queryGraphQL(query);
     const mapped = (data.facturas?.items || []).map((f: any) => this.mapFactura(f));
-    return mapped.filter((f: FacturaDto) => f.estado && f.estado.toUpperCase() === 'EMITIDA');
+    return mapped.filter((f: FacturaDto) => f.estado && (f.estado.toUpperCase() === 'EMITIDA' || f.estado.toUpperCase() === 'PAGO_PENDIENTE'));
   }
 
   /**
@@ -231,7 +231,7 @@ export class FacturasService {
       throw new NotFoundException(`Factura con ID ${id} no encontrada`);
     }
     const factura = this.mapFactura(data.factura);
-    if (!factura.estado || factura.estado.toUpperCase() !== 'EMITIDA') {
+    if (!factura.estado || (factura.estado.toUpperCase() !== 'EMITIDA' && factura.estado.toUpperCase() !== 'PAGO_PENDIENTE')) {
       throw new NotFoundException(`Factura con ID ${id} no está en un estado emitido/válido`);
     }
     return factura;
@@ -263,12 +263,12 @@ export class FacturasService {
       const facturas = (data.facturas?.items || []).map((f: any) =>
         this.mapFactura(f),
       );
-      return facturas.filter((f: FacturaDto) => f.estado === 'PENDIENTE');
+      return facturas.filter((f: FacturaDto) => f.estado === 'PENDIENTE' || f.estado === 'PAGO_PENDIENTE');
     } catch {
       // Fallback: Filtrado en memoria en caso de que la API de filter falle o varíe
       const todas = await this.findAllFacturas();
       return todas.filter(
-        (f) => f.clienteId === clienteId && f.estado === 'PENDIENTE',
+        (f) => f.clienteId === clienteId && (f.estado === 'PENDIENTE' || f.estado === 'PAGO_PENDIENTE'),
       );
     }
   }

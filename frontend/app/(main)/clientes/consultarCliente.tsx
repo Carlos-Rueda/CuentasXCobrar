@@ -16,6 +16,7 @@ export default function ConsultarCliente() {
   const [dateError, setDateError] = useState("");
 
   const [clientes, setClientes] = useState<any[]>([]);
+  const [loadingClientes, setLoadingClientes] = useState(false);
   const [statementData, setStatementData] = useState<any>(null);
   const [loadingStatement, setLoadingStatement] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
@@ -88,6 +89,7 @@ export default function ConsultarCliente() {
 
   useEffect(() => {
     const cargarClientes = async () => {
+      setLoadingClientes(true);
       try {
         const response = await fetch(`${API_URL}/facturas/clientes`, {
           cache: "no-store",
@@ -113,6 +115,8 @@ export default function ConsultarCliente() {
         }
       } catch (error) {
         console.error("Error al cargar clientes:", error);
+      } finally {
+        setLoadingClientes(false);
       }
     };
     cargarClientes();
@@ -245,7 +249,18 @@ export default function ConsultarCliente() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Buscador inteligente cliente */}
           <div className="flex flex-col gap-1 relative">
-            <label className="text-xs font-semibold text-gray-500 mb-1">Buscar Cliente</label>
+            <div className="flex justify-between items-center">
+              <label className="text-xs font-semibold text-gray-500 mb-1">Buscar Cliente</label>
+              {loadingClientes && (
+                <span className="text-[10px] text-blue-500 font-medium animate-pulse flex items-center gap-0.5">
+                  <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Cargando...
+                </span>
+              )}
+            </div>
             <input
               type="text"
               placeholder="Escriba nombre o identificación..."
