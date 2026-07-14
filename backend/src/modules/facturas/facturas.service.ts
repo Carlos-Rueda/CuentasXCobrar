@@ -7,14 +7,14 @@ import 'dotenv/config';
 @Injectable()
 export class FacturasService {
   private readonly graphqlUrl =
-    'https://ad-modulo-facturacion-e51e.onrender.com/graphql';
+    'https://ad-modulo-facturacion.onrender.com/graphql';
 
   private cachedToken: string = '';
 
   private async getFreshToken(): Promise<string> {
     try {
       const response = await fetch(
-        'https://ad-modulo-facturacion-e51e.onrender.com/auth/test-token',
+        'https://ad-modulo-facturacion.onrender.com/auth/test-token',
       );
       if (response.ok) {
         const data = await response.json();
