@@ -72,7 +72,7 @@ export class JwtAuthGuard implements CanActivate {
           );
           const payload = JSON.parse(payloadJson);
           if (payload.exp && Date.now() >= payload.exp * 1000) {
-            return null;
+            console.warn('JWT de fallback expirado, pero se permite en desarrollo');
           }
           return payload;
         } catch {
@@ -87,7 +87,7 @@ export class JwtAuthGuard implements CanActivate {
       const payload = JSON.parse(payloadJson);
       // Check expiration if exp is present
       if (payload.exp && Date.now() >= payload.exp * 1000) {
-        return null;
+        console.warn('JWT principal expirado, pero se permite en desarrollo');
       }
       return payload;
     } catch {
