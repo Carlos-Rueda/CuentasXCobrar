@@ -9,32 +9,75 @@ export class ReportesController {
   constructor(private readonly reportesService: ReportesService) {}
 
   @Get('estado-cuenta')
-  @ApiOperation({ summary: 'Obtener estado de cuenta de un cliente unificando GraphQL y Prisma' })
-  @ApiQuery({ name: 'clienteId', required: true, description: 'ID del cliente' })
-  @ApiQuery({ name: 'fechaInicio', required: false, description: 'Fecha de inicio del rango (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'fechaFin', required: false, description: 'Fecha de fin del rango (YYYY-MM-DD)' })
-  @ApiResponse({ status: 200, description: 'Estado de cuenta consolidado exitosamente.' })
+  @ApiOperation({
+    summary:
+      'Obtener estado de cuenta de un cliente unificando GraphQL y Prisma',
+  })
+  @ApiQuery({
+    name: 'clienteId',
+    required: true,
+    description: 'ID del cliente',
+  })
+  @ApiQuery({
+    name: 'fechaInicio',
+    required: false,
+    description: 'Fecha de inicio del rango (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'fechaFin',
+    required: false,
+    description: 'Fecha de fin del rango (YYYY-MM-DD)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Estado de cuenta consolidado exitosamente.',
+  })
   async obtenerEstadoCuenta(
     @Query('clienteId') clienteId: string,
     @Query('fechaInicio') fechaInicio?: string,
     @Query('fechaFin') fechaFin?: string,
   ) {
-    return await this.reportesService.obtenerEstadoCuenta(clienteId, fechaInicio, fechaFin);
+    return await this.reportesService.obtenerEstadoCuenta(
+      clienteId,
+      fechaInicio,
+      fechaFin,
+    );
   }
 
   @Get('estado-cuenta/pdf')
-  @ApiOperation({ summary: 'Descargar estado de cuenta del cliente en formato PDF' })
-  @ApiQuery({ name: 'clienteId', required: true, description: 'ID del cliente' })
-  @ApiQuery({ name: 'fechaInicio', required: false, description: 'Fecha de inicio del rango (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'fechaFin', required: false, description: 'Fecha de fin del rango (YYYY-MM-DD)' })
-  @ApiResponse({ status: 200, description: 'Documento PDF del estado de cuenta generado.' })
+  @ApiOperation({
+    summary: 'Descargar estado de cuenta del cliente en formato PDF',
+  })
+  @ApiQuery({
+    name: 'clienteId',
+    required: true,
+    description: 'ID del cliente',
+  })
+  @ApiQuery({
+    name: 'fechaInicio',
+    required: false,
+    description: 'Fecha de inicio del rango (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'fechaFin',
+    required: false,
+    description: 'Fecha de fin del rango (YYYY-MM-DD)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Documento PDF del estado de cuenta generado.',
+  })
   async descargarEstadoCuentaPdf(
     @Query('clienteId') clienteId: string,
     @Query('fechaInicio') fechaInicio: string,
     @Query('fechaFin') fechaFin: string,
     @Res() res: Response,
   ) {
-    const buffer = await this.reportesService.generarEstadoCuentaPdf(clienteId, fechaInicio, fechaFin);
+    const buffer = await this.reportesService.generarEstadoCuentaPdf(
+      clienteId,
+      fechaInicio,
+      fechaFin,
+    );
 
     res.set({
       'Content-Type': 'application/pdf',

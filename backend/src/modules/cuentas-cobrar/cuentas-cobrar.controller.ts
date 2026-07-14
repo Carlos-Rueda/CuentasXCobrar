@@ -9,7 +9,13 @@ import {
 import { CuentasCobrarService } from './cuentas-cobrar.service';
 import { ValidadorDeudaDto } from './dto/validador-deuda.dto';
 import { EstadoCuentaDto } from './dto/estado-cuenta.dto';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { AuditoriaInterceptor } from '../interceptors/auditoria.interceptor'; // Ajustado a la estructura del módulo
 import * as crypto from 'crypto';
@@ -67,13 +73,30 @@ export class CuentasCobrarController {
   @ApiTags('API de Salida')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Listar clientes con saldo a pagar (para módulos externos)' })
+  @ApiOperation({
+    summary: 'Listar clientes con saldo a pagar (para módulos externos)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Listado de clientes con deudas pendientes mayor a 0.',
   })
   async getClientesSaldos() {
     return this.cuentasCobrarService.getClientesSaldos();
+  }
+
+  @Get('cuentas-saldos')
+  @ApiTags('API de Salida')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Listar cuentas bancarias con su saldo disponible consolidado (para módulos externos)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Listado de cuentas bancarias con ID, nombre y saldo disponible.',
+  })
+  async getCuentasSaldos() {
+    return this.cuentasCobrarService.generarCuentasSaldos();
   }
 
   @Post('token')
@@ -89,10 +112,12 @@ export class CuentasCobrarController {
     const payload = {
       sub: 'external-module',
       role: 'external',
-      exp: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60, // 30 días
+      exp: Math.floor(Date.now() / 1000) + 10 * 60, // 10 minutos
     };
     const headerB64 = Buffer.from(JSON.stringify(header)).toString('base64url');
-    const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    const payloadB64 = Buffer.from(JSON.stringify(payload)).toString(
+      'base64url',
+    );
     const hmac = crypto.createHmac('sha256', secret);
     hmac.update(`${headerB64}.${payloadB64}`);
     const signatureB64 = hmac.digest('base64url');

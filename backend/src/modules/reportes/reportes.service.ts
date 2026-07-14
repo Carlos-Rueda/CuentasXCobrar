@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { FacturasService } from '../facturas/facturas.service';
 import * as PDFDocument from 'pdfkit';
@@ -83,14 +87,18 @@ export class ReportesService {
       }
     }
 
-    const pagosDb = (await this.prismaService.pagos_clientes.findMany(queryPagos)) as any[];
+    const pagosDb = (await this.prismaService.pagos_clientes.findMany(
+      queryPagos,
+    )) as any[];
 
     const pagos = pagosDb.map((p) => ({
       id: p.id,
       numeroPago: p.numero_pago,
       fecha: p.fecha_pago ? p.fecha_pago.toISOString().split('T')[0] : '',
       descripcion: p.descripcion,
-      montoTotal: Number(p.detalles_pago.reduce((acc, d) => acc + Number(d.monto_pagado), 0)),
+      montoTotal: Number(
+        p.detalles_pago.reduce((acc, d) => acc + Number(d.monto_pagado), 0),
+      ),
       cuentaBancaria: p.cuentas_bancarias
         ? `${p.cuentas_bancarias.entidad_bancaria} - ${p.cuentas_bancarias.nombre_cuenta}`
         : 'N/A',
@@ -105,7 +113,10 @@ export class ReportesService {
       return true;
     });
 
-    const totalFacturado = facturasFiltradas.reduce((sum, f) => sum + f.total, 0);
+    const totalFacturado = facturasFiltradas.reduce(
+      (sum, f) => sum + f.total,
+      0,
+    );
     const totalPagado = pagos.reduce((sum, p) => sum + p.montoTotal, 0);
     const saldoTotal = totalFacturado - totalPagado;
 
@@ -126,7 +137,11 @@ export class ReportesService {
     fechaInicio?: string,
     fechaFin?: string,
   ): Promise<Buffer> {
-    const data = await this.obtenerEstadoCuenta(clienteId, fechaInicio, fechaFin);
+    const data = await this.obtenerEstadoCuenta(
+      clienteId,
+      fechaInicio,
+      fechaFin,
+    );
     const { cliente, facturas, pagos, resumen } = data;
 
     return new Promise((resolve, reject) => {
@@ -183,16 +198,16 @@ export class ReportesService {
         doc.text(`Total Pagado: $${resumen.totalPagado.toFixed(2)}`, 320);
         doc
           .font('Helvetica-Bold')
-          .text(`SALDO TOTAL PENDIENTE: $${resumen.saldoTotal.toFixed(2)}`, 320);
+          .text(
+            `SALDO TOTAL PENDIENTE: $${resumen.saldoTotal.toFixed(2)}`,
+            320,
+          );
 
         doc.moveDown(2);
         doc.x = 50;
 
         // Tabla de Facturas
-        doc
-          .font('Helvetica-Bold')
-          .fontSize(12)
-          .text('FACTURAS EMITIDAS');
+        doc.font('Helvetica-Bold').fontSize(12).text('FACTURAS EMITIDAS');
         doc.moveDown(0.5);
         doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
         doc.moveDown(0.5);
@@ -216,9 +231,18 @@ export class ReportesService {
             doc.text(f.numero || f.id, 50, lineY);
             doc.text(f.fechaEmision || 'N/A', 160, lineY);
             doc.text(f.estado || 'N/A', 240, lineY);
-            doc.text(`$${f.total.toFixed(2)}`, 330, lineY, { align: 'right', width: 60 });
-            doc.text(`$${f.pagado.toFixed(2)}`, 410, lineY, { align: 'right', width: 60 });
-            doc.text(`$${f.pendiente.toFixed(2)}`, 490, lineY, { align: 'right', width: 60 });
+            doc.text(`$${f.total.toFixed(2)}`, 330, lineY, {
+              align: 'right',
+              width: 60,
+            });
+            doc.text(`$${f.pagado.toFixed(2)}`, 410, lineY, {
+              align: 'right',
+              width: 60,
+            });
+            doc.text(`$${f.pendiente.toFixed(2)}`, 490, lineY, {
+              align: 'right',
+              width: 60,
+            });
             doc.moveDown(0.5);
           });
         } else {
@@ -254,7 +278,10 @@ export class ReportesService {
             doc.text(p.numeroPago, 50, lineY);
             doc.text(p.fecha, 160, lineY);
             doc.text(p.cuentaBancaria, 240, lineY, { width: 200 });
-            doc.text(`$${p.montoTotal.toFixed(2)}`, 450, lineY, { align: 'right', width: 100 });
+            doc.text(`$${p.montoTotal.toFixed(2)}`, 450, lineY, {
+              align: 'right',
+              width: 100,
+            });
             doc.moveDown(0.5);
           });
         } else {

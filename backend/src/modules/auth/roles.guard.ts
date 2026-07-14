@@ -1,4 +1,9 @@
-import { CanActivate, ExecutionContext, Injectable, ForbiddenException } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
 @Injectable()
@@ -16,12 +21,16 @@ export class RolesGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
     if (!user || !user.roles || !Array.isArray(user.roles)) {
-      throw new ForbiddenException('Acceso denegado: no se encontraron roles válidos para este usuario');
+      throw new ForbiddenException(
+        'Acceso denegado: no se encontraron roles válidos para este usuario',
+      );
     }
-    
+
     const hasRole = requiredRoles.some((role) => user.roles.includes(role));
     if (!hasRole) {
-      throw new ForbiddenException('Acceso denegado: no tienes el rol requerido para realizar esta acción');
+      throw new ForbiddenException(
+        'Acceso denegado: no tienes el rol requerido para realizar esta acción',
+      );
     }
     return true;
   }

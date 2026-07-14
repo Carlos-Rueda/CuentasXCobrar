@@ -27,7 +27,9 @@ export class CuentasCobrarService {
 
     // 3. Obtener pagos reales del cliente desde la base de datos real (solo en estado 'activo')
     const pagos = await this.pagosService.obtenerReporte();
-    const pagosReales = pagos.filter((p) => p.clienteId === clienteId && p.estado === 'activo');
+    const pagosReales = pagos.filter(
+      (p) => p.clienteId === clienteId && p.estado === 'activo',
+    );
 
     // 4. Procesar el Historial de Movimientos (Cruzar Facturas y Pagos)
     const historial: MovimientoDto[] = [];
@@ -113,7 +115,10 @@ export class CuentasCobrarService {
     // Si la base de datos de pruebas no posee facturas con esa clasificación explícita,
     // tomamos todas las facturas para calcular el saldo pendiente real de cada cliente.
     let facturasFiltradas = facturas.filter(
-      (f) => f.tipoPago?.toUpperCase() === 'CREDITO' || f.estado?.toUpperCase() === 'PENDIENTE' || f.estado?.toUpperCase() === 'PAGO_PENDIENTE',
+      (f) =>
+        f.tipoPago?.toUpperCase() === 'CREDITO' ||
+        f.estado?.toUpperCase() === 'PENDIENTE' ||
+        f.estado?.toUpperCase() === 'PAGO_PENDIENTE',
     );
     if (facturasFiltradas.length === 0) {
       facturasFiltradas = facturas;
@@ -154,7 +159,9 @@ export class CuentasCobrarService {
           totalAbonado += abonosPorFactura.get(f.id) || 0;
         }
 
-        const saldoPendiente = Number((totalFacturado - totalAbonado).toFixed(2));
+        const saldoPendiente = Number(
+          (totalFacturado - totalAbonado).toFixed(2),
+        );
 
         return {
           clienteId: cliente.id,
@@ -170,5 +177,86 @@ export class CuentasCobrarService {
       data,
       timestamp: new Date().toISOString(),
     };
+  }
+
+  async generarCuentasSaldos() {
+    const cuentas = await this.prismaService.cuentas_bancarias.findMany({
+      where: {
+        estado: {
+          equals: 'activo',
+          mode: 'insensitive',
+        },
+      },
+    });
+
+    const reportList = await Promise.all(
+      cuentas.map(async (cuenta) => {
+        // 1. Sumar recaudación por pagos de clientes (Ingresos de CXC)
+        const pagos = await this.prismaService.pagos_clientes.findMany({
+          where: {
+            cuenta_bancaria_id: cuenta.id,
+            estado: {
+              equals: 'activo',
+              mode: 'insensitive',
+            },
+          },
+          include: {
+            detalles_pago: true,
+          },
+        });
+
+        let ingresos_pagos = 0;
+        for (const p of pagos) {
+          const sumDetalles = p.detalles_pago.reduce(
+            (sum, d) => sum + Number(d.monto_pagado),
+            0,
+          );
+          ingresos_pagos += sumDetalles;
+        }
+
+        // 2. Calcular otros movimientos
+        const movimientos = await this.prismaService.movimientos.findMany({
+          where: {
+            OR: [
+              { cuenta_origen_id: cuenta.id },
+              { cuenta_destino_id: cuenta.id },
+            ],
+          },
+        });
+
+        let saldo_movimientos = 0;
+        for (const mov of movimientos) {
+          const monto = Number(mov.monto);
+          if (mov.tipo === 'ingreso') {
+            if (mov.cuenta_destino_id === cuenta.id) {
+              saldo_movimientos += monto;
+            }
+          } else if (mov.tipo === 'egreso') {
+            if (mov.cuenta_origen_id === cuenta.id) {
+              saldo_movimientos -= monto;
+            }
+          } else if (mov.tipo === 'transferencia') {
+            if (mov.cuenta_destino_id === cuenta.id) {
+              saldo_movimientos += monto;
+            }
+            if (mov.cuenta_origen_id === cuenta.id) {
+              saldo_movimientos -= monto;
+            }
+          }
+        }
+
+        const saldo_cxc = ingresos_pagos + saldo_movimientos;
+        const saldo_facturacion = await this.facturacionApiService.obtenerSaldoCuenta(cuenta.id);
+        const saldo_total = saldo_cxc + saldo_facturacion;
+
+        return {
+          cuentaId: cuenta.id,
+          nombre: cuenta.entidad_bancaria,
+          saldo_disponible: saldo_total,
+        };
+      }),
+    );
+
+    return reportList;
   }
 }

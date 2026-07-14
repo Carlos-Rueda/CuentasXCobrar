@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-explicit-any */
 import {
   Controller,
   Get,
@@ -140,7 +139,10 @@ export class PagosController {
     description: 'Archivo PDF del comprobante de pago.',
   })
   @ApiResponse({ status: 404, description: 'Pago no encontrado.' })
-  async generarReciboPdf(@Param('id') id: string, @Res() res: express.Response) {
+  async generarReciboPdf(
+    @Param('id') id: string,
+    @Res() res: express.Response,
+  ) {
     const buffer = await this.pagosService.generarComprobantePdf(id);
 
     res.set({

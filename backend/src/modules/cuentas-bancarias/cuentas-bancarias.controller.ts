@@ -12,7 +12,13 @@ import {
   UseInterceptors,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { CuentasBancariasService } from './cuentas-bancarias.service';
 import { CuentaBancariaEntity } from './cuenta-bancaria.entity';
 import { CreateCuentaBancariaDto } from './dto/create-cuenta-bancaria.dto';
@@ -56,6 +62,19 @@ export class CuentasBancariasController {
       throw new NotFoundException(`Cuenta bancaria con ID ${id} no encontrada`);
     }
     return cuenta;
+  }
+
+  @Get(':id/saldo')
+  @ApiTags('API de Salida')
+  @ApiOperation({ summary: 'Obtener el saldo disponible de una cuenta bancaria' })
+  @ApiParam({ name: 'id', description: 'ID de la cuenta bancaria para consultar saldo' })
+  @ApiResponse({
+    status: 200,
+    description: 'Saldo disponible calculado con éxito.',
+  })
+  @ApiResponse({ status: 404, description: 'Cuenta bancaria no encontrada.' })
+  async getSaldo(@Param('id') id: string) {
+    return await this.cuentasBancariasService.calcularSaldo(id);
   }
 
   @Post()

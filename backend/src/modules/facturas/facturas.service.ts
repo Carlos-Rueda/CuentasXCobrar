@@ -7,13 +7,15 @@ import 'dotenv/config';
 @Injectable()
 export class FacturasService {
   private readonly graphqlUrl =
-    'https://ad-modulo-facturacion.onrender.com/graphql';
+    'https://ad-modulo-facturacion-e51e.onrender.com/graphql';
 
   private cachedToken: string = '';
 
   private async getFreshToken(): Promise<string> {
     try {
-      const response = await fetch('https://ad-modulo-facturacion.onrender.com/auth/test-token');
+      const response = await fetch(
+        'https://ad-modulo-facturacion-e51e.onrender.com/auth/test-token',
+      );
       if (response.ok) {
         const data = await response.json();
         if (data && data.token) {
@@ -22,7 +24,10 @@ export class FacturasService {
         }
       }
     } catch (error) {
-      console.error('Error fetching fresh token from test-token endpoint in FacturasService:', error);
+      console.error(
+        'Error fetching fresh token from test-token endpoint in FacturasService:',
+        error,
+      );
     }
     return '';
   }
@@ -31,7 +36,11 @@ export class FacturasService {
    * Helper privado para realizar peticiones POST a la API GraphQL.
    */
   private async queryGraphQL(query: string, variables: any = {}) {
-    let token = this.cachedToken || process.env.FACTURACION_JWT_TOKEN || process.env.FACTURACION_API_TOKEN || '';
+    let token =
+      this.cachedToken ||
+      process.env.FACTURACION_JWT_TOKEN ||
+      process.env.FACTURACION_API_TOKEN ||
+      '';
 
     if (!token) {
       token = await this.getFreshToken();
@@ -58,12 +67,18 @@ export class FacturasService {
       let body = await response.json();
 
       // Si no autorizado, renovar token e intentar de nuevo
-      const isUnauthorized = response.status === 401 || body.errors?.some(
-        (e: any) => e.message?.toLowerCase().includes('no autorizado') || e.code === 'UNAUTHENTICATED'
-      );
+      const isUnauthorized =
+        response.status === 401 ||
+        body.errors?.some(
+          (e: any) =>
+            e.message?.toLowerCase().includes('no autorizado') ||
+            e.code === 'UNAUTHENTICATED',
+        );
 
       if (isUnauthorized) {
-        console.log('Token de facturación no autorizado o expirado en FacturasService. Obteniendo nuevo token...');
+        console.log(
+          'Token de facturación no autorizado o expirado en FacturasService. Obteniendo nuevo token...',
+        );
         token = await this.getFreshToken();
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
@@ -86,7 +101,9 @@ export class FacturasService {
       return body.data;
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Hubo un problema de comunicación con el Módulo de Facturación: ${message}`);
+      throw new Error(
+        `Hubo un problema de comunicación con el Módulo de Facturación: ${message}`,
+      );
     }
   }
 
@@ -150,7 +167,7 @@ export class FacturasService {
     const mapped = items.map((c: any) => this.mapCliente(c));
     const map = new Map<string, ClienteDto>();
     for (const c of mapped) {
-      const key = (c as any).cedula || (c as any).ruc || c.nombre;
+      const key = c.cedula || c.ruc || c.nombre;
       if (!map.has(key)) {
         map.set(key, c);
       }
@@ -199,8 +216,15 @@ export class FacturasService {
       }
     `;
     const data = await this.queryGraphQL(query);
-    const mapped = (data.facturas?.items || []).map((f: any) => this.mapFactura(f));
-    return mapped.filter((f: FacturaDto) => f.estado && (f.estado.toUpperCase() === 'EMITIDA' || f.estado.toUpperCase() === 'PAGO_PENDIENTE'));
+    const mapped = (data.facturas?.items || []).map((f: any) =>
+      this.mapFactura(f),
+    );
+    return mapped.filter(
+      (f: FacturaDto) =>
+        f.estado &&
+        (f.estado.toUpperCase() === 'EMITIDA' ||
+          f.estado.toUpperCase() === 'PAGO_PENDIENTE'),
+    );
   }
 
   /**
@@ -231,8 +255,14 @@ export class FacturasService {
       throw new NotFoundException(`Factura con ID ${id} no encontrada`);
     }
     const factura = this.mapFactura(data.factura);
-    if (!factura.estado || (factura.estado.toUpperCase() !== 'EMITIDA' && factura.estado.toUpperCase() !== 'PAGO_PENDIENTE')) {
-      throw new NotFoundException(`Factura con ID ${id} no está en un estado emitido/válido`);
+    if (
+      !factura.estado ||
+      (factura.estado.toUpperCase() !== 'EMITIDA' &&
+        factura.estado.toUpperCase() !== 'PAGO_PENDIENTE')
+    ) {
+      throw new NotFoundException(
+        `Factura con ID ${id} no está en un estado emitido/válido`,
+      );
     }
     return factura;
   }
@@ -263,12 +293,17 @@ export class FacturasService {
       const facturas = (data.facturas?.items || []).map((f: any) =>
         this.mapFactura(f),
       );
-      return facturas.filter((f: FacturaDto) => f.estado === 'PENDIENTE' || f.estado === 'PAGO_PENDIENTE');
+      return facturas.filter(
+        (f: FacturaDto) =>
+          f.estado === 'PENDIENTE' || f.estado === 'PAGO_PENDIENTE',
+      );
     } catch {
       // Fallback: Filtrado en memoria en caso de que la API de filter falle o varíe
       const todas = await this.findAllFacturas();
       return todas.filter(
-        (f) => f.clienteId === clienteId && (f.estado === 'PENDIENTE' || f.estado === 'PAGO_PENDIENTE'),
+        (f) =>
+          f.clienteId === clienteId &&
+          (f.estado === 'PENDIENTE' || f.estado === 'PAGO_PENDIENTE'),
       );
     }
   }

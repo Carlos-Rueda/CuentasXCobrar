@@ -9,11 +9,7 @@ import { AuditoriaService } from '../auditoria/auditoria.service';
 import { AuditoriaInterceptor } from '../interceptors/auditoria.interceptor';
 
 @Module({
-  imports: [
-    HttpModule,
-    FacturasModule, 
-    forwardRef(() => PagosModule),
-  ],
+  imports: [HttpModule, FacturasModule, forwardRef(() => PagosModule)],
   controllers: [CuentasCobrarController],
   providers: [
     CuentasCobrarService,

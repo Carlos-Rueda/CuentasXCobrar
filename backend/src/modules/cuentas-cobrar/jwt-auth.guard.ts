@@ -1,4 +1,9 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Observable } from 'rxjs';
 import * as crypto from 'crypto';
 
@@ -28,7 +33,9 @@ export class JwtAuthGuard implements CanActivate {
       }
       if (payload && typeof payload === 'object') {
         if (payload.role && !payload.roles) {
-          payload.roles = Array.isArray(payload.role) ? payload.role : [payload.role];
+          payload.roles = Array.isArray(payload.role)
+            ? payload.role
+            : [payload.role];
         }
       }
       request.user = payload;
@@ -44,14 +51,15 @@ export class JwtAuthGuard implements CanActivate {
       return null;
     }
     const [headerB64, payloadB64, signatureB64] = parts;
-    
+
     // Verify signature
     const hmac = crypto.createHmac('sha256', secret);
     hmac.update(`${headerB64}.${payloadB64}`);
     const expectedSignature = hmac.digest('base64url');
-    
+
     if (signatureB64 !== expectedSignature) {
-      const expectedSigBase64 = hmac.digest('base64')
+      const expectedSigBase64 = hmac
+        .digest('base64')
         .replace(/=/g, '')
         .replace(/\+/g, '-')
         .replace(/\//g, '_');
@@ -59,7 +67,9 @@ export class JwtAuthGuard implements CanActivate {
         // Fallback: Si la firma no coincide (por ejemplo, porque el token viene del Identity Provider central),
         // decodificamos el payload directamente para permitir el acceso.
         try {
-          const payloadJson = Buffer.from(payloadB64, 'base64url').toString('utf8');
+          const payloadJson = Buffer.from(payloadB64, 'base64url').toString(
+            'utf8',
+          );
           const payload = JSON.parse(payloadJson);
           if (payload.exp && Date.now() >= payload.exp * 1000) {
             return null;
@@ -70,7 +80,7 @@ export class JwtAuthGuard implements CanActivate {
         }
       }
     }
-    
+
     // Decode payload
     try {
       const payloadJson = Buffer.from(payloadB64, 'base64url').toString('utf8');

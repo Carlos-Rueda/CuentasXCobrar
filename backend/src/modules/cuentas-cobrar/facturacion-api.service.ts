@@ -63,7 +63,7 @@ interface FacturasResponse {
 @Injectable()
 export class FacturacionApiService {
   private readonly graphqlUrl =
-    'https://ad-modulo-facturacion.onrender.com/graphql';
+    'https://ad-modulo-facturacion-e51e.onrender.com/graphql';
 
   /**
    * Helper privado para realizar peticiones POST HTTP a la API de GraphQL externa.
@@ -72,7 +72,9 @@ export class FacturacionApiService {
 
   private async getFreshToken(): Promise<string> {
     try {
-      const response = await fetch('https://ad-modulo-facturacion.onrender.com/auth/test-token');
+      const response = await fetch(
+        'https://ad-modulo-facturacion-e51e.onrender.com/auth/test-token',
+      );
       if (response.ok) {
         const data = await response.json();
         if (data && data.token) {
@@ -81,7 +83,10 @@ export class FacturacionApiService {
         }
       }
     } catch (error) {
-      console.error('Error fetching fresh token from test-token endpoint:', error);
+      console.error(
+        'Error fetching fresh token from test-token endpoint:',
+        error,
+      );
     }
     return '';
   }
@@ -93,7 +98,11 @@ export class FacturacionApiService {
     query: string,
     variables: Record<string, unknown> = {},
   ): Promise<T> {
-    let token = this.cachedToken || process.env.FACTURACION_JWT_TOKEN || process.env.FACTURACION_API_TOKEN || '';
+    let token =
+      this.cachedToken ||
+      process.env.FACTURACION_JWT_TOKEN ||
+      process.env.FACTURACION_API_TOKEN ||
+      '';
 
     if (!token) {
       token = await this.getFreshToken();
@@ -123,12 +132,18 @@ export class FacturacionApiService {
       };
 
       // Si no autorizado, renovar token e intentar de nuevo
-      const isUnauthorized = response.status === 401 || body.errors?.some(
-        (e) => e.message?.toLowerCase().includes('no autorizado') || e.code === 'UNAUTHENTICATED'
-      );
+      const isUnauthorized =
+        response.status === 401 ||
+        body.errors?.some(
+          (e) =>
+            e.message?.toLowerCase().includes('no autorizado') ||
+            e.code === 'UNAUTHENTICATED',
+        );
 
       if (isUnauthorized) {
-        console.log('Token de facturación no autorizado o expirado. Obteniendo nuevo token...');
+        console.log(
+          'Token de facturación no autorizado o expirado. Obteniendo nuevo token...',
+        );
         token = await this.getFreshToken();
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
@@ -296,7 +311,12 @@ export class FacturacionApiService {
 
     // Filtrar facturas con estado PAGO_PENDIENTE / por cobrar
     return items
-      .filter((f) => f.estado && (f.estado.toUpperCase() === 'PENDIENTE' || f.estado.toUpperCase() === 'PAGO_PENDIENTE'))
+      .filter(
+        (f) =>
+          f.estado &&
+          (f.estado.toUpperCase() === 'PENDIENTE' ||
+            f.estado.toUpperCase() === 'PAGO_PENDIENTE'),
+      )
       .map((f) => ({
         id: f.id,
         numeroFactura: f.numeroFactura,
@@ -333,7 +353,12 @@ export class FacturacionApiService {
       estado: f.estado,
       tipoPago: f.tipoPago,
     }));
-    return mapped.filter((f) => f.estado && (f.estado.toUpperCase() === 'EMITIDA' || f.estado.toUpperCase() === 'PAGO_PENDIENTE'));
+    return mapped.filter(
+      (f) =>
+        f.estado &&
+        (f.estado.toUpperCase() === 'EMITIDA' ||
+          f.estado.toUpperCase() === 'PAGO_PENDIENTE'),
+    );
   }
 
   /**
@@ -355,7 +380,11 @@ export class FacturacionApiService {
       const data = await this.queryGraphQL<any>(query, { id });
       const f = data.factura;
       if (!f) return null;
-      if (!f.estado || (f.estado.toUpperCase() !== 'EMITIDA' && f.estado.toUpperCase() !== 'PAGO_PENDIENTE')) {
+      if (
+        !f.estado ||
+        (f.estado.toUpperCase() !== 'EMITIDA' &&
+          f.estado.toUpperCase() !== 'PAGO_PENDIENTE')
+      ) {
         return null;
       }
       return {
@@ -368,6 +397,23 @@ export class FacturacionApiService {
     } catch (error) {
       console.error(`Error al obtener factura ${id} desde GraphQL:`, error);
       return null;
+    }
+  }
+
+  async obtenerSaldoCuenta(cuentaId: string): Promise<number> {
+    const query = `
+      query SaldoCuenta($cuentaId: ID!) {
+        saldoCuenta(cuentaId: $cuentaId) {
+          saldoActual
+        }
+      }
+    `;
+    try {
+      const data = await this.queryGraphQL<{ saldoCuenta: { saldoActual: number } | null }>(query, { cuentaId });
+      return data?.saldoCuenta?.saldoActual || 0;
+    } catch (error) {
+      console.error(`Error al obtener saldo de cuenta ${cuentaId} desde GraphQL:`, error);
+      return 0;
     }
   }
 }

@@ -16,8 +16,7 @@ export class CuentasBancariasService implements OnModuleInit {
       const count = await this.prismaService.cuentas_bancarias.count();
       if (count === 0) {
         await this.prismaService.cuentas_bancarias.createMany({
-          data: [
-          ],
+          data: [],
         });
       }
     } catch (error) {
@@ -175,5 +174,49 @@ export class CuentasBancariasService implements OnModuleInit {
     await this.prismaService.cuentas_bancarias.delete({
       where: { id },
     });
+  }
+
+  /**
+   * Calcula el saldo disponible de una cuenta bancaria de forma dinámica a partir de sus movimientos.
+   */
+  async calcularSaldo(cuentaId: string): Promise<{ cuenta_id: string; saldo_disponible: number }> {
+    const cuenta = await this.prismaService.cuentas_bancarias.findUnique({
+      where: { id: cuentaId },
+    });
+
+    if (!cuenta) {
+      throw new NotFoundException(`Cuenta bancaria con ID ${cuentaId} no encontrada`);
+    }
+
+    const movimientos = await this.prismaService.movimientos.findMany({
+      where: {
+        OR: [
+          { cuenta_origen_id: cuentaId },
+          { cuenta_destino_id: cuentaId },
+        ],
+      },
+    });
+
+    let total = 0;
+    for (const mov of movimientos) {
+      const monto = Number(mov.monto);
+      if (mov.tipo === 'ingreso') {
+        total += monto;
+      } else if (mov.tipo === 'egreso') {
+        total -= monto;
+      } else if (mov.tipo === 'transferencia') {
+        if (mov.cuenta_destino_id === cuentaId) {
+          total += monto;
+        }
+        if (mov.cuenta_origen_id === cuentaId) {
+          total -= monto;
+        }
+      }
+    }
+
+    return {
+      cuenta_id: cuentaId,
+      saldo_disponible: total,
+    };
   }
 }

@@ -118,8 +118,15 @@ export default function ReportesPage() {
         c.nombre && c.nombre.trim() !== "" && c.nombre.trim() !== "undefined",
     );
 
-    const mappedRegistros: Registro[] = listFacturas.map((f: any) => {
-      const client = clientesLimpios.find(
+    const mappedRegistros: Registro[] = listFacturas
+      .filter(
+        (f: any) =>
+          f.estado &&
+          f.estado.toUpperCase() !== "ANULADA" &&
+          f.estado.toUpperCase() !== "INACTIVA",
+      )
+      .map((f: any) => {
+        const client = clientesLimpios.find(
         (c: any) => c.id === f.clienteId,
       ) as any;
 

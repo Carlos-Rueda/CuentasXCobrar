@@ -6,7 +6,7 @@ services:
     plan: free
     rootDir: backend
     buildCommand: npm install && npx prisma generate && npm run build
-    startCommand: npm run start:prod
+    startCommand: npx prisma db push && npm run start:prod
     envVars:
       - key: PORT
         value: 3000
@@ -16,6 +16,14 @@ services:
         sync: false
       - key: FACTURACION_JWT_TOKEN
         sync: false
+      - key: JWT_SECRET
+        value: cxc_grupo_secret_key_2026
+      - key: AUTH_API_URL
+        value: https://712286fsib.execute-api.us-east-1.amazonaws.com/default/api-auth-central
+      - key: MODULE_API_KEY
+        value: dev_key_cxc_111
+      - key: AUDITORIA_API_URL
+        value: https://98l52rpey8.execute-api.us-east-1.amazonaws.com/default/api-pistas-auditoria
 
   # Frontend Next.js Web Service
   - type: web

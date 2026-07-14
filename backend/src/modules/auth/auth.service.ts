@@ -1,17 +1,24 @@
-import { Injectable, HttpException, HttpStatus, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  HttpException,
+  HttpStatus,
+  UnauthorizedException,
+} from '@nestjs/common';
 import axios from 'axios';
 import { LoginDto } from './dto/login.dto';
 
 @Injectable()
 export class AuthService {
   async login(dto: LoginDto, ipUsuario: string) {
-    const url = process.env.SECURITY_GRAPHQL_URL || 'https://proyecto-moduloseguridad.onrender.com/graphql/';
+    const url =
+      process.env.SECURITY_GRAPHQL_URL ||
+      'https://proyecto-moduloseguridad.onrender.com/graphql/';
 
     try {
       const response = await axios.post(
         url,
         {
-          query: `mutation { login(username: "${dto.usuario}", password: "${dto.clave}") { success message token } }`
+          query: `mutation { login(username: "${dto.usuario}", password: "${dto.clave}") { success message token } }`,
         },
         {
           headers: {
@@ -22,11 +29,15 @@ export class AuthService {
 
       const loginResult = response.data?.data?.login;
       if (!loginResult) {
-        throw new UnauthorizedException('No se recibió respuesta válida del módulo de seguridad');
+        throw new UnauthorizedException(
+          'No se recibió respuesta válida del módulo de seguridad',
+        );
       }
 
       if (!loginResult.success) {
-        throw new UnauthorizedException(loginResult.message || 'Credenciales incorrectas');
+        throw new UnauthorizedException(
+          loginResult.message || 'Credenciales incorrectas',
+        );
       }
 
       let hasPermissions = false;
@@ -35,7 +46,10 @@ export class AuthService {
         const base64 = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
         const payloadJson = Buffer.from(base64, 'base64').toString('utf8');
         const payload = JSON.parse(payloadJson);
-        if (Array.isArray(payload.permissions) && payload.permissions.some((p: string) => p.startsWith('CXC_'))) {
+        if (
+          Array.isArray(payload.permissions) &&
+          payload.permissions.some((p: string) => p.startsWith('CXC_'))
+        ) {
           hasPermissions = true;
         }
       } catch (e) {
@@ -43,7 +57,9 @@ export class AuthService {
       }
 
       if (!hasPermissions) {
-        throw new UnauthorizedException('El usuario no cuenta con permisos asignados para acceder al módulo de Cuentas por Cobrar');
+        throw new UnauthorizedException(
+          'El usuario no cuenta con permisos asignados para acceder al módulo de Cuentas por Cobrar',
+        );
       }
 
       return {
@@ -57,7 +73,9 @@ export class AuthService {
       }
       if (error.response) {
         throw new HttpException(
-          error.response.data?.errors?.[0]?.message || error.response.data?.message || 'Error de autenticación',
+          error.response.data?.errors?.[0]?.message ||
+            error.response.data?.message ||
+            'Error de autenticación',
           error.response.status || HttpStatus.UNAUTHORIZED,
         );
       }

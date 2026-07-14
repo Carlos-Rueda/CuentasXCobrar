@@ -10,10 +10,15 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
-  @ApiOperation({ summary: 'Login de usuario mediante el Identity Provider corporativo' })
+  @ApiOperation({
+    summary: 'Login de usuario mediante el Identity Provider corporativo',
+  })
   @ApiResponse({ status: 200, description: 'Autenticación exitosa' })
   @ApiResponse({ status: 401, description: 'Credenciales incorrectas' })
-  @ApiResponse({ status: 429, description: 'IP bloqueada por múltiples intentos fallidos' })
+  @ApiResponse({
+    status: 429,
+    description: 'IP bloqueada por múltiples intentos fallidos',
+  })
   async login(@Body() dto: LoginDto, @Req() req: Request) {
     let ipUsuario = req.headers['x-forwarded-for'] || req.ip || '127.0.0.1';
     if (Array.isArray(ipUsuario)) {

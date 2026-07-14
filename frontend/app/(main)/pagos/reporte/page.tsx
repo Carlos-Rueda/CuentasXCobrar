@@ -117,19 +117,20 @@ export default function ReportePagosPage() {
 
   // Enriquecer pagos con campos de texto resueltos para que el DataTable
   // pueda buscar por nombre de cliente, código de cuenta, monto y fecha
-  const pagosEnriquecidos = pagosFiltrados.map((pago) => ({
-    ...pago,
-    clienteNombre:
-      clientes.find((c) => c.id === pago.clienteId)?.nombre || pago.clienteId,
-    cuentaCodigo:
-      cuentasBancarias.find(
-        (c: any) => c.id?.toString() === pago.cuentaBancariaId?.toString(),
-      )?.codigo ||
-      pago.cuentaBancariaId ||
-      "—",
-    montoTexto: `$${Number(pago.montoTotal).toLocaleString()}`,
-    fechaTexto: pago.fecha ? new Date(pago.fecha).toLocaleDateString() : "—",
-  }));
+  const pagosEnriquecidos = pagosFiltrados.map((pago) => {
+    const cb = cuentasBancarias.find(
+      (c: any) => c.id?.toString() === pago.cuentaBancariaId?.toString(),
+    );
+    return {
+      ...pago,
+      clienteNombre:
+        clientes.find((c) => c.id === pago.clienteId)?.nombre || pago.clienteId,
+      cuentaCodigo: cb?.codigo || pago.cuentaBancariaId || "—",
+      cuentaNombre: cb ? `${cb.entidadBancaria} - ${cb.nombreCuenta}` : "—",
+      montoTexto: `$${Number(pago.montoTotal).toLocaleString()}`,
+      fechaTexto: pago.fecha ? new Date(pago.fecha).toLocaleDateString() : "—",
+    };
+  });
 
   const pagosActivos = pagosFiltrados.filter(
     (p) => p.estado?.toLowerCase() === "activo"
@@ -256,10 +257,18 @@ export default function ReportePagosPage() {
     },
     {
       key: "cuentaBancariaId",
-      label: "Cuenta Bancaria",
+      label: "Código Cuenta",
       sortable: false,
       render: (pago) => (
         <span className="text-gray-700">{pago.cuentaCodigo}</span>
+      ),
+    },
+    {
+      key: "cuentaNombre",
+      label: "Cuenta Bancaria",
+      sortable: true,
+      render: (pago) => (
+        <span className="text-gray-700 font-medium">{pago.cuentaNombre}</span>
       ),
     },
     {
@@ -374,7 +383,7 @@ export default function ReportePagosPage() {
         columns={columns}
         data={pagosEnriquecidos}
         rowKey={(row) => row.id}
-        searchKeys={["numeroPago", "clienteNombre", "cuentaCodigo"]}
+        searchKeys={["numeroPago", "clienteNombre", "cuentaCodigo", "cuentaNombre"]}
         pageOptions={[5, 10, 25, 50]}
         emptyMessage="No existen pagos registrados."
       />

@@ -20,6 +20,10 @@ async function main() {
       const resDetails = await client.query('DELETE FROM detalles_pago');
       console.log(`Se eliminaron ${resDetails.rowCount} detalles de pago.`);
 
+      // Borrar movimientos
+      const resMovimientos = await client.query('DELETE FROM movimientos');
+      console.log(`Se eliminaron ${resMovimientos.rowCount} movimientos.`);
+
       // Borrar pagos_clientes
       const resPagos = await client.query('DELETE FROM pagos_clientes');
       console.log(`Se eliminaron ${resPagos.rowCount} pagos de clientes.`);

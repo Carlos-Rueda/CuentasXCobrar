@@ -13,9 +13,14 @@ export default function PagosPage() {
             <h1>Registro de Pagos</h1>
             <p>Cabecera del pago del cliente</p>
           </div>
-          <Link href="/pagos/reporte" className={styles.button} style={{ textDecoration: "none" }}>
-            Ver Historial de Pagos
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/pagos/pagos-externos" className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg text-sm transition-colors" style={{ textDecoration: "none" }}>
+              Registrar Pago Externo
+            </Link>
+            <Link href="/pagos/reporte" className={styles.button} style={{ textDecoration: "none" }}>
+              Ver Historial de Pagos
+            </Link>
+          </div>
         </div>
         <div className={styles.form}>
           <FormularioPago />
