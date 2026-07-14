@@ -57,12 +57,17 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       // Proteger rutas según permisos
       if (pathname === "/clientes" && !currentPerms.includes("CXC_CLIENTES")) {
         router.push("/dashboard");
+      } else if (pathname.startsWith("/pagos/pagos-externos") && !currentPerms.includes("CXC_PAGOSEXTERNOS")) {
+        router.push("/dashboard");
       } else if (pathname.startsWith("/pagos") && !currentPerms.includes("CXC_PAGOS")) {
-        // Temporarily bypass redirect for testing
-        // router.push("/dashboard");
+        router.push("/dashboard");
       } else if (pathname.startsWith("/reportes") && !currentPerms.includes("CXC_REPORTES")) {
         router.push("/dashboard");
       } else if (pathname.startsWith("/cuentas-bancarias") && !currentPerms.includes("CXC_CUENTASBANCARIAS")) {
+        router.push("/dashboard");
+      } else if (pathname.startsWith("/tesoreria/transferencias") && !currentPerms.includes("CXC_TRANSFERENCIAS")) {
+        router.push("/dashboard");
+      } else if (pathname.startsWith("/tesoreria/estado-cuenta") && !currentPerms.includes("CXC_ESTADOCUENTA")) {
         router.push("/dashboard");
       } else if (currentPerms.length === 0) {
         sessionStorage.clear();
@@ -122,21 +127,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           {NAV.filter(({ href }) => {
-            if (href === "/clientes") {
-              return permissions.includes("CXC_CLIENTES");
-            }
-            if (href === "/pagos/reporte") {
-              return true; // Bypassed for testing
-            }
-            if (href === "/reportes") {
-              return permissions.includes("CXC_REPORTES");
-            }
-            if (href === "/cuentas-bancarias") {
-              return permissions.includes("CXC_CUENTASBANCARIAS");
-            }
-            if (href === "/dashboard") {
-              return permissions.length > 0;
-            }
+            if (href === "/dashboard") return permissions.includes("CXC_DASHBOARD");
+            if (href === "/clientes") return permissions.includes("CXC_CLIENTES");
+            if (href === "/pagos/reporte") return permissions.includes("CXC_PAGOS");
+            if (href === "/pagos/pagos-externos") return permissions.includes("CXC_PAGOSEXTERNOS");
+            if (href === "/reportes") return permissions.includes("CXC_REPORTES");
+            if (href === "/cuentas-bancarias") return permissions.includes("CXC_CUENTASBANCARIAS");
+            if (href === "/tesoreria/transferencias") return permissions.includes("CXC_TRANSFERENCIAS");
+            if (href === "/tesoreria/estado-cuenta") return permissions.includes("CXC_ESTADOCUENTA");
             return true;
           }).map(({ href, label, Icon }) => {
             const active = pathname === href || pathname.startsWith(href + "/");
