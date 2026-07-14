@@ -411,8 +411,9 @@ export class FacturacionApiService {
     try {
       const data = await this.queryGraphQL<{ saldoCuenta: { saldoActual: number } | null }>(query, { cuentaId });
       return data?.saldoCuenta?.saldoActual || 0;
-    } catch (error) {
-      console.error(`Error al obtener saldo de cuenta ${cuentaId} desde GraphQL:`, error);
+    } catch (error: any) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.log(`[FacturacionApi] Info: Saldo no disponible para cuenta ${cuentaId} (se asume 0): ${msg}`);
       return 0;
     }
   }
