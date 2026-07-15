@@ -6,6 +6,9 @@ import KpiCard from "./components/KpiCard";
 import styles from "./Dashboard.module.css";
 import CashFlowChart from "./components/CashFlowChart";
 import CobradoPendienteChart from "./components/CobradoPendienteChart";
+import TopClientesDeudaChart from "./components/TopClientesDeudaChart";
+import TopClientesPagosChart from "./components/TopClientesPagosChart";
+import CuentaBancariaDonut from "./components/CuentaBancariaDonut";
 
 export default function DashboardPage() {
   const [montoConfirmado, setMontoConfirmado] = useState(0);
@@ -14,9 +17,12 @@ export default function DashboardPage() {
   const [pendiente, setPendiente] = useState(0);
   const [graficoLinea, setGraficoLinea] = useState<any[]>([]);
   const [graficoBarras, setGraficoBarras] = useState<any[]>([]);
+  const [topClientesDeuda, setTopClientesDeuda] = useState<any[]>([]);
   const [anios, setAnios] = useState<number[]>([]);
+  const [topClientesPagos, setTopClientesPagos] = useState<any[]>([]);
   const [anioSeleccionado, setAnioSeleccionado] = useState("Todos");
   const [mesSeleccionado, setMesSeleccionado] = useState("Todos");
+  const [graficoCuentas, setGraficoCuentas] = useState<any[]>([]);
 
   useEffect(() => {
     cargarDashboard();
@@ -52,15 +58,18 @@ export default function DashboardPage() {
   ];
   const cargarDashboard = async () => {
     try {
-      const [clientesRes, facturasRes, pagosRes] = await Promise.all([
-        fetch(`${API_URL}/facturas/clientes`, { cache: "no-store" }),
-        fetch(`${API_URL}/facturas`, { cache: "no-store" }),
-        fetch(`${API_URL}/pagos`, { cache: "no-store" }),
-      ]);
+      const [clientesRes, facturasRes, pagosRes, cuentasRes] =
+        await Promise.all([
+          fetch(`${API_URL}/facturas/clientes`, { cache: "no-store" }),
+          fetch(`${API_URL}/facturas`, { cache: "no-store" }),
+          fetch(`${API_URL}/pagos`, { cache: "no-store" }),
+          fetch(`${API_URL}/cuentas-bancarias`, { cache: "no-store" }),
+        ]);
 
       const clientes = clientesRes.ok ? await clientesRes.json() : [];
       const facturas = facturasRes.ok ? await facturasRes.json() : [];
       const pagos = pagosRes.ok ? await pagosRes.json() : [];
+      const cuentas = cuentasRes.ok ? await cuentasRes.json() : [];
 
       const listaAnios = Array.from(
         new Set([
@@ -180,75 +189,179 @@ export default function DashboardPage() {
 
       setClientesConDeuda(clientesDeuda.size);
       setPendiente(pendienteTotal);
+
+      const deudaPorCliente = new Map();
+
+      facturasFiltradas.forEach((factura: any) => {
+        let pagado = 0;
+
+        pagosFiltrados.forEach((pago: any) => {
+          if (pago.estado?.toLowerCase() !== "activo") return;
+
+          const detalle = pago.detalles?.find(
+            (d: any) => d.facturaId === factura.id,
+          );
+
+          if (detalle) {
+            pagado += Number(detalle.montoAbonado) || 0;
+          }
+        });
+
+        const pendienteFactura = Math.max(0, factura.total - pagado);
+
+        if (pendienteFactura > 0) {
+          const cliente = clientes.find((c: any) => c.id === factura.clienteId);
+
+          if (!cliente) return;
+
+          const nombre = cliente.nombre;
+
+          deudaPorCliente.set(
+            nombre,
+            (deudaPorCliente.get(nombre) || 0) + pendienteFactura,
+          );
+        }
+      });
+      const top = Array.from(deudaPorCliente.entries())
+        .map(([cliente, pendiente]) => ({
+          cliente,
+          pendiente,
+        }))
+        .sort((a, b) => b.pendiente - a.pendiente)
+        .slice(0, 5);
+
+      setTopClientesDeuda(top);
+      // Top 5 clientes con mas pagos
+      const pagosPorCliente = new Map();
+
+      pagosFiltrados.forEach((pago: any) => {
+        if (
+          pago.estado?.toLowerCase() !== "activo" &&
+          pago.estado?.toLowerCase() !== "impreso"
+        ) {
+          return;
+        }
+
+        const cliente = clientes.find((c: any) => c.id === pago.clienteId);
+
+        if (!cliente) return;
+
+        const nombre = cliente.nombre;
+
+        pagosPorCliente.set(
+          nombre,
+          (pagosPorCliente.get(nombre) || 0) + Number(pago.montoTotal || 0),
+        );
+      });
+
+      const topPagos = Array.from(pagosPorCliente.entries())
+        .map(([cliente, total]) => ({
+          cliente,
+          total,
+        }))
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 5);
+
+      setTopClientesPagos(topPagos);
+
+      const cuentasActivas = cuentas.filter((c: any) => c.estado === "ACTIVO");
+
+      const estadoRes = await fetch(
+        `${API_URL}/dashboard/estado-cuenta/detalle`,
+        { cache: "no-store" },
+      );
+
+      const estado = await estadoRes.json();
+
+      const donut = estado.map((c: any) => ({
+        nombre: `${c.nombreBanco} - ${c.numeroCuenta}`,
+        saldo: c.saldo_total,
+      }));
+
+      setGraficoCuentas(donut);
     } catch (error) {
       console.error(error);
     }
   };
+  console.log("TopClientesDeudaChart:", TopClientesDeudaChart);
+  console.log("TopClientesPagos:", topClientesPagos);
 
   return (
     <>
-      <div className={styles.kpis}>
-        <KpiCard
-          titulo="Monto confirmado"
-          valor={`$${montoConfirmado.toFixed(2)}`}
-          color="#16a34a"
-        />
+      <div className={styles.dashboardGrid}>
+        {/* KPIs */}
+        <div className={styles.kpiSection}>
+          <div className={styles.kpis}>
+            <KpiCard
+              titulo="Monto confirmado"
+              valor={`$${montoConfirmado.toFixed(2)}`}
+              color="#16a34a"
+            />
+            <KpiCard
+              titulo="Pendiente"
+              valor={`$${pendiente.toFixed(2)}`}
+              color="#dc2626"
+            />
+            <KpiCard
+              titulo="Total clientes"
+              valor={totalClientes}
+              color="#2563eb"
+            />
 
-        <KpiCard
-          titulo="Total clientes"
-          valor={totalClientes}
-          color="#2563eb"
-        />
+            <KpiCard
+              titulo="Clientes con deuda"
+              valor={clientesConDeuda}
+              color="#ea580c"
+            />
+          </div>
 
-        <KpiCard
-          titulo="Clientes con deuda"
-          valor={clientesConDeuda}
-          color="#ea580c"
-        />
+          <div className={styles.filtrosGraficos}>
+            <div>
+              <label>Año</label>
 
-        <KpiCard
-          titulo="Pendiente"
-          valor={`$${pendiente.toFixed(2)}`}
-          color="#dc2626"
-        />
-      </div>
-      <div className={styles.filtrosGraficos}>
-        <div>
-          <label>Año</label>
+              <select
+                value={anioSeleccionado}
+                onChange={(e) => setAnioSeleccionado(e.target.value)}
+              >
+                <option value="Todos">Todos</option>
 
-          <select
-            value={anioSeleccionado}
-            onChange={(e) => setAnioSeleccionado(e.target.value)}
-          >
-            <option value="Todos">Todos</option>
+                {anios.map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-            {anios.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </select>
+            <div>
+              <label>Mes</label>
+
+              <select
+                value={mesSeleccionado}
+                onChange={(e) => setMesSeleccionado(e.target.value)}
+              >
+                {mesesFiltro.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
-        <div>
-          <label>Mes</label>
+        {/* Donut */}
+        <CuentaBancariaDonut data={graficoCuentas} />
+        {/* Top deuda */}
+        <TopClientesDeudaChart data={topClientesDeuda} />
 
-          <select
-            value={mesSeleccionado}
-            onChange={(e) => setMesSeleccionado(e.target.value)}
-          >
-            {mesesFiltro.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+        {/* Top pagos */}
+        <TopClientesPagosChart data={topClientesPagos} />
 
-      <div className={styles.graficos}>
+        {/* Línea */}
         <CashFlowChart data={graficoLinea} />
 
+        {/* Barras */}
         <CobradoPendienteChart data={graficoBarras} />
       </div>
     </>
