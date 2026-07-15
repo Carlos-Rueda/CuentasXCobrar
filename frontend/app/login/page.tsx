@@ -10,8 +10,8 @@ export default function LoginPage() {
   const router = useRouter();
   const { showToast } = useToast();
 
-  const [usuario, setUsuario] = useState("");
-  const [contrasena, setContrasena] = useState("");
+  const [usuario, setUsuario] = useState("HenryMoreta");
+  const [contrasena, setContrasena] = useState("Elvolver2026*");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
