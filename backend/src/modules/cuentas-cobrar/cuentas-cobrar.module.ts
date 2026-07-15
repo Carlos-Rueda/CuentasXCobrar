@@ -5,6 +5,7 @@ import { CuentasCobrarService } from './cuentas-cobrar.service';
 import { FacturasModule } from '../facturas/facturas.module';
 import { PagosModule } from '../pagos/pagos.module';
 import { FacturacionApiService } from './facturacion-api.service';
+import { ComprasApiService } from './compras-api.service';
 import { AuditoriaService } from '../auditoria/auditoria.service';
 import { AuditoriaInterceptor } from '../interceptors/auditoria.interceptor';
 
@@ -14,9 +15,11 @@ import { AuditoriaInterceptor } from '../interceptors/auditoria.interceptor';
   providers: [
     CuentasCobrarService,
     FacturacionApiService,
+    ComprasApiService,
     AuditoriaInterceptor,
     { provide: 'AUDITORIA_PACKAGE', useClass: AuditoriaService },
   ],
-  exports: [CuentasCobrarService, FacturacionApiService],
+  exports: [CuentasCobrarService, FacturacionApiService, ComprasApiService],
 })
 export class CuentasCobrarModule {}
+
