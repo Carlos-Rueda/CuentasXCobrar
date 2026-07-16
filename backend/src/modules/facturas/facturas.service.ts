@@ -83,9 +83,6 @@ export class FacturasService {
           ));
 
       if (isUnauthorized) {
-        console.log(
-          'Token de facturación no autorizado o expirado en FacturasService. Obteniendo nuevo token...',
-        );
         const token = await this.getFreshToken();
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;

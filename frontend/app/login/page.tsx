@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { API_URL } from "@/app/config";
 import { useToast } from "@/app/components/toast";
-import { Eye, EyeOff, User, Lock, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, User, Lock, Mail, ArrowLeft, KeyRound, ShieldCheck } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,13 +15,20 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Estados para el flujo de recuperación de contraseña
+  const [mode, setMode] = useState<"login" | "forgot_email" | "forgot_code" | "forgot_reset">("login");
+  const [email, setEmail] = useState("");
+  const [codigo, setCodigo] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+
   // Redirigir al dashboard si ya hay una sesión activa en esta pestaña
   useEffect(() => {
     const token = sessionStorage.getItem("auth_token");
-    if (token) {
+    if (token && mode === "login") {
       router.push("/dashboard");
     }
-  }, [router]);
+  }, [router, mode]);
 
   const handleLogin = async () => {
     if (!usuario.trim() || !contrasena.trim()) {
@@ -96,8 +103,102 @@ export default function LoginPage() {
     }
   };
 
+  // Flujo 1: Solicitar código
+  const handleRequestCode = async () => {
+    if (!email.trim()) {
+      showToast("Ingrese su correo electrónico", "error");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data?.message || "Error al solicitar el código", "error");
+        return;
+      }
+      showToast(data.message || "Código enviado al correo", "success");
+      setMode("forgot_code");
+    } catch {
+      showToast("No se pudo conectar con el servidor.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Flujo 2: Verificar código
+  const handleVerifyCode = async () => {
+    if (!codigo.trim()) {
+      showToast("Ingrese el código de verificación", "error");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/auth/verify-code`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), codigo: codigo.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data?.message || "Código inválido", "error");
+        return;
+      }
+      showToast(data.message || "Código válido", "success");
+      setMode("forgot_reset");
+    } catch {
+      showToast("No se pudo conectar con el servidor.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Flujo 3: Restablecer contraseña
+  const handleResetPassword = async () => {
+    if (!newPassword.trim()) {
+      showToast("Ingrese la nueva contraseña", "error");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          codigo: codigo.trim(),
+          new_password: newPassword.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data?.message || "Error al cambiar la contraseña", "error");
+        return;
+      }
+      showToast(data.message || "Contraseña actualizada con éxito", "success");
+      // Resetear estados y volver a login
+      setEmail("");
+      setCodigo("");
+      setNewPassword("");
+      setMode("login");
+    } catch {
+      showToast("No se pudo conectar con el servidor.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") handleLogin();
+    if (e.key === "Enter") {
+      if (mode === "login") handleLogin();
+      else if (mode === "forgot_email") handleRequestCode();
+      else if (mode === "forgot_code") handleVerifyCode();
+      else if (mode === "forgot_reset") handleResetPassword();
+    }
   };
 
   return (
@@ -135,74 +236,226 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Campo: Usuario */}
-          <div className="mb-4">
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">
-              Usuario
-            </label>
-            <div className="relative">
-              <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Ingrese su usuario"
-                value={usuario}
-                onChange={e => setUsuario(e.target.value)}
-                onKeyDown={handleKeyDown}
-                autoComplete="username"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-4 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-[var(--utn-red)] focus:ring-2 focus:ring-red-100 transition-all duration-200"
-              />
-            </div>
-          </div>
+          {mode === "login" && (
+            <>
+              {/* Campo: Usuario */}
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">
+                  Usuario
+                </label>
+                <div className="relative">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Ingrese su usuario"
+                    value={usuario}
+                    onChange={e => setUsuario(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    autoComplete="username"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-4 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-[var(--utn-red)] focus:ring-2 focus:ring-red-100 transition-all duration-200"
+                  />
+                </div>
+              </div>
 
-          {/* Campo: Contraseña */}
-          <div className="mb-8">
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">
-              Contraseña
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
-                value={contrasena}
-                onChange={e => setContrasena(e.target.value)}
-                onKeyDown={handleKeyDown}
-                autoComplete="current-password"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-12 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-[var(--utn-red)] focus:ring-2 focus:ring-red-100 transition-all duration-200"
-              />
+              {/* Campo: Contraseña */}
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">
+                  Contraseña
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={contrasena}
+                    onChange={e => setContrasena(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    autoComplete="current-password"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-12 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-[var(--utn-red)] focus:ring-2 focus:ring-red-100 transition-all duration-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+                <div className="flex justify-end mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setMode("forgot_email")}
+                    className="text-xs font-semibold text-[var(--utn-red)] hover:underline hover:text-[var(--utn-red-dark)] focus:outline-none"
+                  >
+                    ¿Olvidó su contraseña?
+                  </button>
+                </div>
+              </div>
+
+              {/* Botón Ingresar */}
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
+                onClick={handleLogin}
+                disabled={loading}
+                className="w-full bg-[var(--utn-red)] hover:bg-[var(--utn-red-dark)] text-white font-semibold py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.005] active:scale-[0.995] text-sm shadow-md shadow-red-100 mt-4"
               >
-                {showPassword ? (
-                  <EyeOff className="w-4 h-4" />
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Iniciando sesión...
+                  </span>
                 ) : (
-                  <Eye className="w-4 h-4" />
+                  "Ingresar al Sistema"
                 )}
               </button>
-            </div>
-          </div>
+            </>
+          )}
 
-          {/* Botón Ingresar */}
-          <button
-            type="button"
-            onClick={handleLogin}
-            disabled={loading}
-            className="w-full bg-[var(--utn-red)] hover:bg-[var(--utn-red-dark)] text-white font-semibold py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.005] active:scale-[0.995] text-sm shadow-md shadow-red-100"
-          >
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                Iniciando sesión...
-              </span>
-            ) : (
-              "Ingresar al Sistema"
-            )}
-          </button>
+          {mode === "forgot_email" && (
+            <>
+              <div className="mb-6">
+                <button
+                  type="button"
+                  onClick={() => setMode("login")}
+                  className="flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors mb-4"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Volver al Login
+                </button>
+                <h2 className="text-lg font-bold text-slate-800">Recuperar Contraseña</h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Paso 1: Ingrese su correo institucional para recibir un código de seguridad.
+                </p>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">
+                  Correo Electrónico
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="email"
+                    placeholder="correo@utn.edu.ec"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-4 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-[var(--utn-red)] focus:ring-2 focus:ring-red-100 transition-all duration-200"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleRequestCode}
+                disabled={loading}
+                className="w-full bg-[var(--utn-red)] hover:bg-[var(--utn-red-dark)] text-white font-semibold py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm shadow-md"
+              >
+                {loading ? "Enviando código..." : "Enviar Código de Seguridad"}
+              </button>
+            </>
+          )}
+
+          {mode === "forgot_code" && (
+            <>
+              <div className="mb-6">
+                <button
+                  type="button"
+                  onClick={() => setMode("forgot_email")}
+                  className="flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors mb-4"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Cambiar Correo
+                </button>
+                <h2 className="text-lg font-bold text-slate-800">Verificar Código</h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Paso 2: Ingrese el código enviado a <strong>{email}</strong>.
+                </p>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">
+                  Código de Verificación
+                </label>
+                <div className="relative">
+                  <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Ej. A1B2C3"
+                    value={codigo}
+                    onChange={e => setCodigo(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-4 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-[var(--utn-red)] focus:ring-2 focus:ring-red-100 transition-all duration-200 tracking-widest font-mono text-center"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleVerifyCode}
+                disabled={loading}
+                className="w-full bg-[var(--utn-red)] hover:bg-[var(--utn-red-dark)] text-white font-semibold py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm shadow-md"
+              >
+                {loading ? "Verificando..." : "Verificar Código"}
+              </button>
+            </>
+          )}
+
+          {mode === "forgot_reset" && (
+            <>
+              <div className="mb-6">
+                <h2 className="text-lg font-bold text-slate-800">Nueva Contraseña</h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Paso 3: Cree su nueva contraseña de acceso.
+                </p>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">
+                  Nueva Contraseña
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    placeholder="Nueva contraseña fuerte"
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-12 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-[var(--utn-red)] focus:ring-2 focus:ring-red-100 transition-all duration-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
+                  >
+                    {showNewPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleResetPassword}
+                disabled={loading}
+                className="w-full bg-[var(--utn-red)] hover:bg-[var(--utn-red-dark)] text-white font-semibold py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm shadow-md"
+              >
+                {loading ? "Actualizando..." : "Restablecer Contraseña"}
+              </button>
+            </>
+          )}
+
         </div>
       </div>
     </div>

@@ -283,8 +283,7 @@ export default function DashboardPage() {
       console.error(error);
     }
   };
-  console.log("TopClientesDeudaChart:", TopClientesDeudaChart);
-  console.log("TopClientesPagos:", topClientesPagos);
+
 
   return (
     <>

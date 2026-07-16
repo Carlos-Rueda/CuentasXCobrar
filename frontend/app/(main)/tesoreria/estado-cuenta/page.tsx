@@ -157,7 +157,7 @@ export default function EstadoCuentaPage() {
   const sumPagosExternos = pagosExternosFiltrados.reduce((sum, t) => sum + t.monto, 0);
   const sumComprasEgresos = comprasFiltradas.reduce((sum, t) => sum + t.monto, 0);
 
-  // Función para exportar la cuenta seleccionada a un XML nativo de Excel (SpreadsheetML)
+  // Función para exportar la cuenta seleccionada a un CSV estructurado y compatible con Excel
   const exportarAExcel = () => {
     if (!selectedReport) return;
 
@@ -169,156 +169,48 @@ export default function EstadoCuentaPage() {
       ? `${localFechaInicio || "Inicio"} al ${localFechaFin || "Fin"}`
       : "Histórico Completo";
 
-    let xml = `<?xml version="1.0" encoding="utf-8"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:o="urn:schemas-microsoft-com:office:office"
- xmlns:x="urn:schemas-microsoft-com:office:excel"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:html="http://www.w3.org/TR/REC-html40">
- <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
-  <Author>UTN Principal</Author>
- </DocumentProperties>
- <Styles>
-  <Style ss:ID="Default" ss:Name="Normal">
-   <Alignment ss:Vertical="Bottom"/>
-   <Borders/>
-   <Font ss:FontName="Segoe UI" x:Family="Swiss" ss:Size="10" ss:Color="#333333"/>
-   <Interior/>
-   <NumberFormat/>
-   <Protection/>
-  </Style>
-  <Style ss:ID="Title">
-   <Font ss:FontName="Segoe UI" x:Family="Swiss" ss:Size="14" ss:Color="#1E293B" ss:Bold="1"/>
-  </Style>
-  <Style ss:ID="SubTitle">
-   <Font ss:FontName="Segoe UI" x:Family="Swiss" ss:Size="10" ss:Color="#475569" ss:Bold="1"/>
-  </Style>
-  <Style ss:ID="Header">
-   <Font ss:FontName="Segoe UI" x:Family="Swiss" ss:Size="10" ss:Color="#FFFFFF" ss:Bold="1"/>
-   <Interior ss:Color="#D32F2F" ss:Pattern="Solid"/>
-  </Style>
-  <Style ss:ID="TableHeader">
-   <Font ss:FontName="Segoe UI" x:Family="Swiss" ss:Size="10" ss:Color="#1E293B" ss:Bold="1"/>
-   <Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/>
-  </Style>
-  <Style ss:ID="Currency">
-   <NumberFormat ss:Format="$#,##0.00"/>
-  </Style>
-  <Style ss:ID="BoldCurrency">
-   <Font ss:FontName="Segoe UI" x:Family="Swiss" ss:Size="10" ss:Color="#1E293B" ss:Bold="1"/>
-   <NumberFormat ss:Format="$#,##0.00"/>
-  </Style>
- </Styles>
- <Worksheet ss:Name="Estado de Cuenta">
-  <Table>
-   <Column ss:Width="100"/>
-   <Column ss:Width="120"/>
-   <Column ss:Width="180"/>
-   <Column ss:Width="250"/>
-   <Column ss:Width="100"/>
-   
-   <Row ss:Height="22">
-    <Cell ss:StyleID="Title"><Data ss:Type="String">REPORTE DE ESTADO DE CUENTA BANCARIO</Data></Cell>
-   </Row>
-   <Row>
-    <Cell ss:StyleID="SubTitle"><Data ss:Type="String">Banco:</Data></Cell>
-    <Cell><Data ss:Type="String">${banco}</Data></Cell>
-   </Row>
-   <Row>
-    <Cell ss:StyleID="SubTitle"><Data ss:Type="String">Número de Cuenta:</Data></Cell>
-    <Cell><Data ss:Type="String">${nroCuenta}</Data></Cell>
-   </Row>
-   <Row>
-    <Cell ss:StyleID="SubTitle"><Data ss:Type="String">Titular:</Data></Cell>
-    <Cell><Data ss:Type="String">${titular}</Data></Cell>
-   </Row>
-   <Row>
-    <Cell ss:StyleID="SubTitle"><Data ss:Type="String">Tipo de Cuenta:</Data></Cell>
-    <Cell><Data ss:Type="String">${tipo}</Data></Cell>
-   </Row>
-   <Row>
-    <Cell ss:StyleID="SubTitle"><Data ss:Type="String">Período:</Data></Cell>
-    <Cell><Data ss:Type="String">${periodo}</Data></Cell>
-   </Row>
-   <Row></Row>
+    // Construcción del contenido del CSV
+    // Usamos sep=; al inicio para que Excel lo abra directamente en columnas
+    let csvContent = "sep=;\n";
+    csvContent += "REPORTE DE ESTADO DE CUENTA BANCARIO\n";
+    csvContent += `Banco:;${banco}\n`;
+    csvContent += `Número de Cuenta:;${nroCuenta}\n`;
+    csvContent += `Titular:;${titular}\n`;
+    csvContent += `Tipo de Cuenta:;${tipo}\n`;
+    csvContent += `Período:;${periodo}\n\n`;
 
-   <!-- Resumen Financiero -->
-   <Row ss:Height="18">
-    <Cell ss:StyleID="Header" ss:MergeAcross="1"><Data ss:Type="String">RESUMEN FINANCIERO</Data></Cell>
-   </Row>
-   <Row>
-    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">Concepto</Data></Cell>
-    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">Monto</Data></Cell>
-   </Row>
-   <Row>
-    <Cell><Data ss:Type="String">Facturación Externa</Data></Cell>
-    <Cell ss:StyleID="Currency"><Data ss:Type="Number">${selectedReport.saldo_facturacion}</Data></Cell>
-   </Row>
-   <Row>
-    <Cell><Data ss:Type="String">Pagos Recaudados (CXC)</Data></Cell>
-    <Cell ss:StyleID="Currency"><Data ss:Type="Number">${sumRecaudadoCxc}</Data></Cell>
-   </Row>
-   <Row>
-    <Cell><Data ss:Type="String">Transferencias Recibidas</Data></Cell>
-    <Cell ss:StyleID="Currency"><Data ss:Type="Number">${sumTransfRecibidas}</Data></Cell>
-   </Row>
-   <Row>
-    <Cell><Data ss:Type="String">Transferencias Enviadas</Data></Cell>
-    <Cell ss:StyleID="Currency"><Data ss:Type="Number">${sumTransfEnviadas}</Data></Cell>
-   </Row>
-   <Row>
-    <Cell><Data ss:Type="String">Pagos Externos (Egresos)</Data></Cell>
-    <Cell ss:StyleID="Currency"><Data ss:Type="Number">${sumPagosExternos}</Data></Cell>
-   </Row>
-   <Row>
-    <Cell><Data ss:Type="String">Pagos de Compras (Modulo Externo)</Data></Cell>
-    <Cell ss:StyleID="Currency"><Data ss:Type="Number">${sumComprasEgresos}</Data></Cell>
-   </Row>
-   <Row>
-    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">Saldo Consolidado Total</Data></Cell>
-    <Cell ss:StyleID="BoldCurrency"><Data ss:Type="Number">${selectedReport.saldo_total}</Data></Cell>
-   </Row>
-   <Row></Row>
+    csvContent += "RESUMEN FINANCIERO\n";
+    csvContent += "Concepto;Monto\n";
+    csvContent += `Facturación Externa;${selectedReport.saldo_facturacion.toFixed(2)}\n`;
+    csvContent += `Pagos Recaudados (CXC);${sumRecaudadoCxc.toFixed(2)}\n`;
+    csvContent += `Transferencias Recibidas;${sumTransfRecibidas.toFixed(2)}\n`;
+    csvContent += `Transferencias Enviadas;${sumTransfEnviadas.toFixed(2)}\n`;
+    csvContent += `Pagos Externos (Egresos);${sumPagosExternos.toFixed(2)}\n`;
+    csvContent += `Pagos de Compras (Modulo Externo);${sumComprasEgresos.toFixed(2)}\n`;
+    csvContent += `Saldo Consolidado Total;${selectedReport.saldo_total.toFixed(2)}\n\n`;
 
-   <!-- Detalle de Movimientos -->
-   <Row ss:Height="18">
-    <Cell ss:StyleID="Header" ss:MergeAcross="4"><Data ss:Type="String">DETALLE DE MOVIMIENTOS</Data></Cell>
-   </Row>
-   <Row>
-    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">Fecha</Data></Cell>
-    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">Concepto</Data></Cell>
-    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">Referencia</Data></Cell>
-    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">Descripción</Data></Cell>
-    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">Monto</Data></Cell>
-   </Row>
-   
-   ${todosLosMovimientos.map((t) => {
-     const fechaFormateada = new Date(t.fecha).toLocaleDateString();
-     const refLimpia = (t.referencia || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-     const descLimpia = (t.descripcion || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-     return `   <Row>
-    <Cell><Data ss:Type="String">${fechaFormateada}</Data></Cell>
-    <Cell><Data ss:Type="String">${t.origen}</Data></Cell>
-    <Cell><Data ss:Type="String">${refLimpia}</Data></Cell>
-    <Cell><Data ss:Type="String">${descLimpia}</Data></Cell>
-    <Cell ss:StyleID="Currency"><Data ss:Type="Number">${t.monto}</Data></Cell>
-   </Row>`;
-   }).join("\n")}
-  </Table>
- </Worksheet>
-</Workbook>`;
+    csvContent += "DETALLE DE MOVIMIENTOS\n";
+    csvContent += "Fecha;Concepto;Referencia;Descripción;Monto\n";
 
-    const blob = new Blob([xml], { type: "application/vnd.ms-excel" });
+    todosLosMovimientos.forEach((t) => {
+      const fechaFormateada = new Date(t.fecha).toLocaleDateString();
+      const refLimpia = (t.referencia || "").replace(/;/g, ",").replace(/\n/g, " ");
+      const descLimpia = (t.descripcion || "").replace(/;/g, ",").replace(/\n/g, " ");
+      const montoFormateado = t.monto.toFixed(2);
+      csvContent += `${fechaFormateada};${t.origen};${refLimpia};${descLimpia};${montoFormateado}\n`;
+    });
+
+    // Agregar UTF-8 BOM para soporte correcto de acentos y caracteres especiales en Excel
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    const nombreArchivo = `Estado_Cuenta_${banco.replace(/\s+/g, "_")}_${localFechaInicio || "historico"}_${localFechaFin || "actual"}.xml`;
+    const nombreArchivo = `Estado_Cuenta_${banco.replace(/\s+/g, "_")}_${localFechaInicio || "historico"}_${localFechaFin || "actual"}.csv`;
     link.setAttribute("download", nombreArchivo);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showToast("Reporte XML Excel descargado exitosamente", "success");
+    showToast("Reporte CSV descargado exitosamente", "success");
   };
 
   return (
@@ -449,13 +341,13 @@ export default function EstadoCuentaPage() {
                         <X className="w-4 h-4" />
                         Limpiar
                       </button>
-                      <button
+                       <button
                         type="button"
                         onClick={exportarAExcel}
                         className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-50 text-emerald-700 text-sm font-semibold hover:bg-emerald-100 transition-colors w-full"
                       >
                         <FileText className="w-4 h-4" />
-                        Exportar Excel
+                        Exportar CSV (Excel)
                       </button>
                     </div>
                   </div>

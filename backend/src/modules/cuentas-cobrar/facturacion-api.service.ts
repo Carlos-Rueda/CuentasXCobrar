@@ -148,9 +148,6 @@ export class FacturacionApiService {
           ));
 
       if (isUnauthorized) {
-        console.log(
-          'Token de facturación no autorizado o expirado. Obteniendo nuevo token...',
-        );
         const token = await this.getFreshToken();
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
@@ -419,8 +416,6 @@ export class FacturacionApiService {
       const data = await this.queryGraphQL<{ saldoCuenta: { saldoActual: number } | null }>(query, { cuentaId });
       return data?.saldoCuenta?.saldoActual || 0;
     } catch (error: any) {
-      const msg = error instanceof Error ? error.message : String(error);
-      console.log(`[FacturacionApi] Info: Saldo no disponible para cuenta ${cuentaId} (se asume 0): ${msg}`);
       return 0;
     }
   }

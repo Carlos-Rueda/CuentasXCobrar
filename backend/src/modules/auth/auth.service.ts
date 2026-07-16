@@ -85,4 +85,100 @@ export class AuthService {
       );
     }
   }
+
+  async forgotPassword(email: string) {
+    const graphqlUrl =
+      process.env.SECURITY_GRAPHQL_URL ||
+      'https://proyecto-moduloseguridad.onrender.com/graphql/';
+    const baseUrl = graphqlUrl.replace('/graphql/', '').replace('/graphql', '');
+    const url = `${baseUrl}/api/auth/forgot-password/`;
+
+    try {
+      const response = await axios.post(
+        url,
+        { email },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      return response.data;
+    } catch (error: any) {
+      if (error.response) {
+        throw new HttpException(
+          error.response.data?.message || 'Error al solicitar código',
+          error.response.status || HttpStatus.BAD_REQUEST,
+        );
+      }
+      throw new HttpException(
+        error.message || 'Error al conectar con el módulo de seguridad',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async verifyCode(email: string, codigo: string) {
+    const graphqlUrl =
+      process.env.SECURITY_GRAPHQL_URL ||
+      'https://proyecto-moduloseguridad.onrender.com/graphql/';
+    const baseUrl = graphqlUrl.replace('/graphql/', '').replace('/graphql', '');
+    const url = `${baseUrl}/api/auth/verify-code/`;
+
+    try {
+      const response = await axios.post(
+        url,
+        { email, codigo },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      return response.data;
+    } catch (error: any) {
+      if (error.response) {
+        throw new HttpException(
+          error.response.data?.message || 'Código inválido',
+          error.response.status || HttpStatus.BAD_REQUEST,
+        );
+      }
+      throw new HttpException(
+        error.message || 'Error al conectar con el módulo de seguridad',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async resetPassword(email: string, codigo: string, newPassword: string) {
+    const graphqlUrl =
+      process.env.SECURITY_GRAPHQL_URL ||
+      'https://proyecto-moduloseguridad.onrender.com/graphql/';
+    const baseUrl = graphqlUrl.replace('/graphql/', '').replace('/graphql', '');
+    const url = `${baseUrl}/api/auth/reset-password/`;
+
+    try {
+      const response = await axios.post(
+        url,
+        { email, codigo, new_password: newPassword },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      return response.data;
+    } catch (error: any) {
+      if (error.response) {
+        throw new HttpException(
+          error.response.data?.message || 'Error al cambiar la contraseña',
+          error.response.status || HttpStatus.BAD_REQUEST,
+        );
+      }
+      throw new HttpException(
+        error.message || 'Error al conectar con el módulo de seguridad',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }
