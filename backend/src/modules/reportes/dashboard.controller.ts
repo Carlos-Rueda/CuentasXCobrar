@@ -2,6 +2,7 @@ import { Controller, Get, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { PrismaService } from '../../prisma/prisma.service';
 import { FacturacionApiService } from '../cuentas-cobrar/facturacion-api.service';
+import { ComprasApiService } from '../cuentas-cobrar/compras-api.service';
 import { JwtAuthGuard } from '../cuentas-cobrar/jwt-auth.guard';
 
 @ApiBearerAuth()
@@ -11,6 +12,7 @@ export class DashboardController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly facturacionApi: FacturacionApiService,
+    private readonly comprasApi: ComprasApiService,
   ) {}
 
 
@@ -32,8 +34,16 @@ export class DashboardController {
       },
     });
 
+    // Obtener gastos del módulo de compras
+    const gastosCompras = await this.comprasApi.obtenerGastos();
+    console.log(`[DEBUG] Total gastos obtenidos de Compras API: ${gastosCompras.length}`);
+    if (gastosCompras.length > 0) {
+      console.log(`[DEBUG] Primer gasto de muestra: ${JSON.stringify(gastosCompras[0])}`);
+    }
+
     const reportList = await Promise.all(
       cuentas.map(async (cuenta) => {
+        console.log(`[DEBUG] Procesando cuenta BD: ID=${cuenta.id}, Banco=${cuenta.entidad_bancaria}`);
         // 1. Sumar recaudación por pagos de clientes
         const pagos = await this.prisma.pagos_clientes.findMany({
           where: {
@@ -71,11 +81,33 @@ export class DashboardController {
           },
         });
 
-        const historialTransacciones: any[] = [];
+        const transferencias: any[] = [];
+        const pagosExternos: any[] = [];
+        const pagosRecaudadosCxc: any[] = [];
+        const ingresosManuales: any[] = [];
+        const comprasEgresos: any[] = [];
+
+        // Mapear gastos de compras (con comparación segura de UUIDs sin distinción de mayúsculas/minúsculas)
+        const gastosCuenta = gastosCompras.filter(
+          (g) => g.cuenta_bancaria_id?.toLowerCase().trim() === cuenta.id.toLowerCase().trim()
+        );
+        const total_compras = gastosCuenta.reduce((sum, g) => sum + Number(g.monto || 0), 0);
+        console.log(`[DEBUG] Cuenta ${cuenta.entidad_bancaria}: Encontrados ${gastosCuenta.length} gastos, Suma=${total_compras}`);
+
+        for (const g of gastosCuenta) {
+          comprasEgresos.push({
+            id: `compra-${g.id}`,
+            fecha: g.fecha_pago || new Date().toISOString(),
+            tipo: 'egreso',
+            referencia: g.factura_id ? `Factura Compra ${g.factura_id}` : `Saldo Proveedor ${g.saldo_credito_id || g.id}`,
+            descripcion: g.motivo || 'Gasto registrado de compras',
+            monto: Number(g.monto || 0),
+          });
+        }
 
         for (const p of pagos) {
           const totalPago = p.detalles_pago.reduce((sum, d) => sum + Number(d.monto_pagado), 0);
-          historialTransacciones.push({
+          pagosRecaudadosCxc.push({
             id: p.id,
             fecha: p.fecha_pago ? p.fecha_pago.toISOString() : (p.created_at ? p.created_at.toISOString() : new Date().toISOString()),
             tipo: 'ingreso',
@@ -91,7 +123,7 @@ export class DashboardController {
           if (mov.tipo === 'ingreso') {
             if (mov.cuenta_destino_id === cuenta.id) {
               saldo_movimientos += monto;
-              historialTransacciones.push({
+              ingresosManuales.push({
                 id: mov.id,
                 fecha: mov.created_at ? mov.created_at.toISOString() : new Date().toISOString(),
                 tipo: 'ingreso',
@@ -103,7 +135,7 @@ export class DashboardController {
           } else if (mov.tipo === 'egreso') {
             if (mov.cuenta_origen_id === cuenta.id) {
               saldo_movimientos -= monto;
-              historialTransacciones.push({
+              pagosExternos.push({
                 id: mov.id,
                 fecha: mov.created_at ? mov.created_at.toISOString() : new Date().toISOString(),
                 tipo: 'egreso',
@@ -116,7 +148,7 @@ export class DashboardController {
             if (mov.cuenta_destino_id === cuenta.id) {
               saldo_movimientos += monto;
               const nombreOrig = mov.cuentas_bancarias_movimientos_cuenta_origen_idTocuentas_bancarias?.entidad_bancaria || 'Otra Cuenta';
-              historialTransacciones.push({
+              transferencias.push({
                 id: mov.id,
                 fecha: mov.created_at ? mov.created_at.toISOString() : new Date().toISOString(),
                 tipo: 'ingreso',
@@ -128,7 +160,7 @@ export class DashboardController {
             if (mov.cuenta_origen_id === cuenta.id) {
               saldo_movimientos -= monto;
               const nombreDest = mov.cuentas_bancarias_movimientos_cuenta_destino_idTocuentas_bancarias?.entidad_bancaria || 'Otra Cuenta';
-              historialTransacciones.push({
+              transferencias.push({
                 id: mov.id,
                 fecha: mov.created_at ? mov.created_at.toISOString() : new Date().toISOString(),
                 tipo: 'egreso',
@@ -140,9 +172,14 @@ export class DashboardController {
           }
         }
 
-        historialTransacciones.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+        const sortByDate = (arr: any[]) => arr.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+        sortByDate(transferencias);
+        sortByDate(pagosExternos);
+        sortByDate(pagosRecaudadosCxc);
+        sortByDate(ingresosManuales);
+        sortByDate(comprasEgresos);
 
-        const saldo_cxc = ingresos_pagos + saldo_movimientos;
+        const saldo_cxc = ingresos_pagos + saldo_movimientos - total_compras;
         const saldo_facturacion = await this.facturacionApi.obtenerSaldoCuenta(cuenta.id);
         const saldo_total = saldo_cxc + saldo_facturacion;
 
@@ -150,10 +187,16 @@ export class DashboardController {
           cuentaId: cuenta.id,
           nombreBanco: cuenta.entidad_bancaria,
           numeroCuenta: cuenta.nro_cuenta,
+          nombreCuenta: cuenta.nombre_cuenta,
+          tipoCuenta: cuenta.tipo_cuenta,
           saldo_cxc,
           saldo_facturacion,
           saldo_total,
-          transacciones: historialTransacciones,
+          transferencias,
+          pagosExternos,
+          pagosRecaudadosCxc,
+          ingresosManuales,
+          comprasEgresos,
         };
       }),
     );

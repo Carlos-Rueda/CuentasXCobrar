@@ -188,6 +188,30 @@ export class CuentasBancariasService implements OnModuleInit {
       throw new NotFoundException(`Cuenta bancaria con ID ${cuentaId} no encontrada`);
     }
 
+    // 1. Sumar recaudación por pagos de clientes (Ingresos de CXC)
+    const pagos = await this.prismaService.pagos_clientes.findMany({
+      where: {
+        cuenta_bancaria_id: cuentaId,
+        estado: {
+          equals: 'activo',
+          mode: 'insensitive',
+        },
+      },
+      include: {
+        detalles_pago: true,
+      },
+    });
+
+    let ingresos_pagos = 0;
+    for (const p of pagos) {
+      const sumDetalles = p.detalles_pago.reduce(
+        (sum, d) => sum + Number(d.monto_pagado),
+        0,
+      );
+      ingresos_pagos += sumDetalles;
+    }
+
+    // 2. Calcular otros movimientos
     const movimientos = await this.prismaService.movimientos.findMany({
       where: {
         OR: [
@@ -197,26 +221,87 @@ export class CuentasBancariasService implements OnModuleInit {
       },
     });
 
-    let total = 0;
+    let saldo_movimientos = 0;
     for (const mov of movimientos) {
       const monto = Number(mov.monto);
       if (mov.tipo === 'ingreso') {
-        total += monto;
+        if (mov.cuenta_destino_id === cuentaId) {
+          saldo_movimientos += monto;
+        }
       } else if (mov.tipo === 'egreso') {
-        total -= monto;
+        if (mov.cuenta_origen_id === cuentaId) {
+          saldo_movimientos -= monto;
+        }
       } else if (mov.tipo === 'transferencia') {
         if (mov.cuenta_destino_id === cuentaId) {
-          total += monto;
+          saldo_movimientos += monto;
         }
         if (mov.cuenta_origen_id === cuentaId) {
-          total -= monto;
+          saldo_movimientos -= monto;
         }
       }
     }
 
+    // 3. Sumar egresos de compras (desde API externa)
+    let total_compras = 0;
+    try {
+      const response = await fetch('https://capitalist-hilde-darpolc-e92dd24f.koyeb.app/api/cxc/gastos');
+      if (response.ok) {
+        const body = await response.json();
+        const gastos = body.data || [];
+        const gastosCuenta = gastos.filter(
+          (g: any) => g.cuenta_bancaria_id?.toLowerCase().trim() === cuentaId.toLowerCase().trim()
+        );
+        total_compras = gastosCuenta.reduce((sum: number, g: any) => sum + Number(g.monto || 0), 0);
+      }
+    } catch (e) {
+      console.error('Error al obtener gastos en calcularSaldo:', e);
+    }
+
+    // 4. Obtener saldo de facturación (desde API externa GraphQL)
+    let saldo_facturacion = 0;
+    try {
+      let token = '';
+      const tokenRes = await fetch('https://ad-modulo-facturacion.onrender.com/auth/test-token');
+      if (tokenRes.ok) {
+        const tokenData = await tokenRes.json();
+        token = tokenData?.token || '';
+      }
+
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const gqlQuery = {
+        query: `
+          query SaldoCuenta($cuentaId: ID!) {
+            saldoCuenta(cuentaId: $cuentaId) {
+              saldoActual
+            }
+          }
+        `,
+        variables: { cuentaId },
+      };
+
+      const gqlRes = await fetch('https://ad-modulo-facturacion.onrender.com/graphql', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(gqlQuery),
+      });
+
+      if (gqlRes.ok) {
+        const gqlBody = await gqlRes.json();
+        saldo_facturacion = gqlBody?.data?.saldoCuenta?.saldoActual || 0;
+      }
+    } catch (e) {
+      console.error('Error al obtener saldo facturacion en calcularSaldo:', e);
+    }
+
+    const saldo_cxc = ingresos_pagos + saldo_movimientos - total_compras;
+    const saldo_total = saldo_cxc + saldo_facturacion;
+
     return {
       cuenta_id: cuentaId,
-      saldo_disponible: total,
+      saldo_disponible: Number(saldo_total.toFixed(2)),
     };
   }
 }

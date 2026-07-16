@@ -5,6 +5,7 @@ import { EstadoCuentaDto, MovimientoDto } from './dto/estado-cuenta.dto';
 import { ValidadorDeudaDto } from './dto/validador-deuda.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { FacturacionApiService } from './facturacion-api.service';
+import { ComprasApiService } from './compras-api.service';
 
 @Injectable()
 export class CuentasCobrarService {
@@ -13,6 +14,7 @@ export class CuentasCobrarService {
     private readonly pagosService: PagosService,
     private readonly prismaService: PrismaService,
     private readonly facturacionApiService: FacturacionApiService,
+    private readonly comprasApiService: ComprasApiService,
   ) {}
 
   async generarEstadoCuenta(clienteId: string): Promise<EstadoCuentaDto> {
@@ -189,6 +191,9 @@ export class CuentasCobrarService {
       },
     });
 
+    // Obtener los gastos del módulo de compras
+    const gastosCompras = await this.comprasApiService.obtenerGastos();
+
     const reportList = await Promise.all(
       cuentas.map(async (cuenta) => {
         // 1. Sumar recaudación por pagos de clientes (Ingresos de CXC)
@@ -245,14 +250,20 @@ export class CuentasCobrarService {
           }
         }
 
-        const saldo_cxc = ingresos_pagos + saldo_movimientos;
+        // 3. Sumar egresos de compras (con comparación segura de UUIDs sin distinción de mayúsculas/minúsculas)
+        const gastosCuenta = gastosCompras.filter(
+          (g) => g.cuenta_bancaria_id?.toLowerCase().trim() === cuenta.id.toLowerCase().trim()
+        );
+        const total_compras = gastosCuenta.reduce((sum, g) => sum + Number(g.monto || 0), 0);
+
+        const saldo_cxc = ingresos_pagos + saldo_movimientos - total_compras;
         const saldo_facturacion = await this.facturacionApiService.obtenerSaldoCuenta(cuenta.id);
         const saldo_total = saldo_cxc + saldo_facturacion;
 
         return {
           cuentaId: cuenta.id,
           nombre: cuenta.entidad_bancaria,
-          saldo_disponible: saldo_total,
+          saldo_disponible: Number(saldo_total.toFixed(2)),
         };
       }),
     );
