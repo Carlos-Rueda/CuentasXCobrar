@@ -29,7 +29,7 @@ export default function CuentasBancariasPage() {
 
   const cargarCuentas = async () => {
     try {
-      const response = await fetch(`${API_URL}/cuentas-bancarias`);
+      const response = await fetch(`${API_URL}/cuentas-bancarias?all=true`);
       if (response.ok) {
         const data = await response.json();
         setCuentas(data);
@@ -284,6 +284,25 @@ export default function CuentasBancariasPage() {
           <p className="text-gray-500">RUC: {row.ruc}</p>
         </div>
       ),
+    },
+    {
+      key: "estado",
+      label: "Estado",
+      sortable: true,
+      render: (row) => {
+        const esActivo = row.estado === "ACTIVO";
+        return (
+          <span
+            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+              esActivo
+                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                : "bg-rose-50 text-rose-700 border border-rose-200"
+            }`}
+          >
+            {esActivo ? "Activo" : "Inactivo"}
+          </span>
+        );
+      },
     },
   ];
 

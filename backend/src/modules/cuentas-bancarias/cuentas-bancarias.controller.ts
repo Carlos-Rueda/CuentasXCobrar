@@ -11,6 +11,7 @@ import {
   NotFoundException,
   UseInterceptors,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -41,10 +42,10 @@ export class CuentasBancariasController {
   @ApiResponse({
     status: 200,
     description: 'Lista de cuentas bancarias obtenida con éxito.',
-    type: [CuentaBancariaEntity],
   })
-  async findAll(): Promise<CuentaBancariaEntity[]> {
-    return await this.cuentasBancariasService.findAll();
+  async findAll(@Query('all') all?: string): Promise<any[]> {
+    const showAll = all === 'true';
+    return await this.cuentasBancariasService.findAll(showAll);
   }
 
   @Get(':id')

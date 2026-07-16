@@ -118,12 +118,9 @@ export default function PagosPage({
       });
       if (response.ok) {
         const data = await response.json();
-        const activas = data.filter(
-          (c: any) => c.estado?.toLowerCase() === "activo",
-        );
-        setCuentasBancarias(activas);
-        if (activas.length > 0 && !pagoAEditar) {
-          setCuentaBancariaId(activas[0].id);
+        setCuentasBancarias(data);
+        if (data.length > 0 && !pagoAEditar) {
+          setCuentaBancariaId(data[0].id);
         }
       }
     } catch (error) {

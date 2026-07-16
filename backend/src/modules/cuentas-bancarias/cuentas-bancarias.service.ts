@@ -45,11 +45,28 @@ export class CuentasBancariasService implements OnModuleInit {
   /**
    * Obtiene todas las cuentas bancarias de la base de datos real.
    */
-  async findAll(): Promise<CuentaBancariaEntity[]> {
-    const list = await this.prismaService.cuentas_bancarias.findMany({
-      orderBy: { created_at: 'asc' },
-    });
-    return list.map((item) => this.mapToEntity(item));
+  async findAll(all: boolean = false): Promise<any[]> {
+    if (all) {
+      const list = await this.prismaService.cuentas_bancarias.findMany({
+        orderBy: { created_at: 'asc' },
+      });
+      return list.map((item) => this.mapToEntity(item));
+    } else {
+      const list = await this.prismaService.cuentas_bancarias.findMany({
+        where: {
+          estado: {
+            equals: 'ACTIVO',
+            mode: 'insensitive',
+          },
+        },
+        orderBy: { created_at: 'asc' },
+      });
+      return list.map((item) => ({
+        id: item.id,
+        nombreCuenta: item.nombre_cuenta,
+        tipoCuenta: item.tipo_cuenta,
+      }));
+    }
   }
 
   /**
