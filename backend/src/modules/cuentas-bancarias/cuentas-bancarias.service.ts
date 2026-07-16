@@ -43,14 +43,32 @@ export class CuentasBancariasService implements OnModuleInit {
   }
 
   /**
-   * Obtiene todas las cuentas bancarias de la base de datos real.
+   * Mapea un registro de base de datos a un formato simplificado de lista sin descripcion ni estado.
    */
-  async findAll(all: boolean = false): Promise<any[]> {
-    if (all) {
+  private mapToListItem(db: any) {
+    return {
+      id: db.id,
+      codigo: db.codigo,
+      nombreCuenta: db.nombre_cuenta,
+      entidadBancaria: db.entidad_bancaria,
+      titular: db.titular || '',
+      tipoCuenta: db.tipo_cuenta || '',
+      nroCuenta: db.nro_cuenta || '',
+      ruc: db.ruc || '',
+    };
+  }
+
+  async findAll(allMode?: string): Promise<any[]> {
+    if (allMode === 'true') {
       const list = await this.prismaService.cuentas_bancarias.findMany({
         orderBy: { created_at: 'asc' },
       });
       return list.map((item) => this.mapToEntity(item));
+    } else if (allMode === 'all') {
+      const list = await this.prismaService.cuentas_bancarias.findMany({
+        orderBy: { created_at: 'asc' },
+      });
+      return list.map((item) => this.mapToListItem(item));
     } else {
       const list = await this.prismaService.cuentas_bancarias.findMany({
         where: {
@@ -61,11 +79,7 @@ export class CuentasBancariasService implements OnModuleInit {
         },
         orderBy: { created_at: 'asc' },
       });
-      return list.map((item) => ({
-        id: item.id,
-        nombreCuenta: item.nombre_cuenta,
-        tipoCuenta: item.tipo_cuenta,
-      }));
+      return list.map((item) => this.mapToListItem(item));
     }
   }
 
