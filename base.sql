@@ -47,3 +47,10 @@ CREATE TABLE detalles_pago (
 
 -- Activamos la seguridad para los Detalles de Pago
 ALTER TABLE detalles_pago ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE cuentas_bancarias
+ADD COLUMN titular VARCHAR,
+ADD COLUMN tipo_cuenta VARCHAR,
+ADD COLUMN nro_cuenta VARCHAR,
+ADD COLUMN ruc VARCHAR;

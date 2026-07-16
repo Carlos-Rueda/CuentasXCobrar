@@ -1,145 +1,462 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { API_URL } from "@/app/config";
+import { useToast } from "@/app/components/toast";
+import { Eye, EyeOff, User, Lock, Mail, ArrowLeft, KeyRound, ShieldCheck } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { showToast } = useToast();
 
-  const [usuario,    setUsuario]    = useState("");
-  const [contrasena, setContrasena] = useState("");
-  const [error,      setError]      = useState("");
-  const [loading,    setLoading]    = useState(false);
+  const [usuario, setUsuario] = useState("HenryMoreta");
+  const [contrasena, setContrasena] = useState("Elvolver2026*");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Estados para el flujo de recuperación de contraseña
+  const [mode, setMode] = useState<"login" | "forgot_email" | "forgot_code" | "forgot_reset">("login");
+  const [email, setEmail] = useState("");
+  const [codigo, setCodigo] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+
+  // Redirigir al dashboard si ya hay una sesión activa en esta pestaña
+  useEffect(() => {
+    const token = sessionStorage.getItem("auth_token");
+    if (token && mode === "login") {
+      router.push("/dashboard");
+    }
+  }, [router, mode]);
 
   const handleLogin = async () => {
-    setError("");
-
     if (!usuario.trim() || !contrasena.trim()) {
-      setError("Ingrese su usuario y contraseña");
+      showToast("Ingrese su usuario y contraseña", "error");
       return;
     }
 
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_URL}/cxc/auth/login-mock`, {
-        method:  "POST",
+      const res = await fetch(`${API_URL}/auth/login`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({
-          usuario:    usuario.trim(),
-          contrasena: contrasena.trim(),
+        body: JSON.stringify({
+          usuario: usuario.trim(),
+          clave: contrasena.trim(),
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        // El backend lanza 401 con mensaje en data.message
-        setError(data?.message || "Credenciales inválidas");
+        showToast(data?.message || "Credenciales incorrectas", "error");
         return;
       }
 
-      // Guardar sesión en localStorage
-      localStorage.setItem("access_token", data.access_token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      if (data.success && data.token) {
+        // Decodificar token para extraer información del usuario si está disponible
+        let userObj = { nombre: "Usuario", rol: "ADMIN" };
+        try {
+          const base64Url = data.token.split(".")[1];
+          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+          const payload = JSON.parse(window.atob(base64));
 
-      // Redirigir al dashboard
-      router.push("/dashboard");
+          // Verificar permisos del módulo
+          if (!payload.permissions || !Array.isArray(payload.permissions) || !payload.permissions.some((p: string) => p.startsWith('CXC_'))) {
+            showToast("El usuario no cuenta con permisos asignados para el módulo de Cuentas por Cobrar", "error");
+            setLoading(false);
+            return;
+          }
 
+          // Guardar token en sessionStorage (para aislamiento estricto de pestañas)
+          sessionStorage.setItem("auth_token", data.token);
+          sessionStorage.setItem("access_token", data.token); // compatibilidad
+          
+          // Intentar obtener el nombre/usuario desde el payload o usar el ingresado
+          const rawNombre = payload.nombre || payload.name || payload.usuario || payload.username || payload.sub;
+          const nombreFormateado = rawNombre 
+            ? (rawNombre.charAt(0).toUpperCase() + rawNombre.slice(1)) 
+            : (usuario.trim() ? (usuario.trim().charAt(0).toUpperCase() + usuario.trim().slice(1)) : "Usuario");
+ 
+          userObj = {
+            nombre: nombreFormateado,
+            rol: payload.rol || payload.role || (Array.isArray(payload.roles) ? payload.roles[0] : payload.roles) || "ADMIN",
+          };
+        } catch (e) {
+          // Fallback al usuario ingresado si falla la decodificación
+          const fallbackNombre = usuario.trim() ? (usuario.trim().charAt(0).toUpperCase() + usuario.trim().slice(1)) : "Usuario";
+          userObj = { nombre: fallbackNombre, rol: "ADMIN" };
+        }
+        sessionStorage.setItem("user", JSON.stringify(userObj));
+
+        showToast(data.message || "Autenticación exitosa", "success");
+        router.push("/dashboard");
+      } else {
+        showToast(data?.message || "Error al iniciar sesión", "error");
+      }
     } catch {
-      setError("No se pudo conectar con el servidor. Verifique que el backend esté encendido.");
+      showToast("No se pudo conectar con el servidor. Verifique que el backend esté encendido.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Flujo 1: Solicitar código
+  const handleRequestCode = async () => {
+    if (!email.trim()) {
+      showToast("Ingrese su correo electrónico", "error");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data?.message || "Error al solicitar el código", "error");
+        return;
+      }
+      showToast(data.message || "Código enviado al correo", "success");
+      setMode("forgot_code");
+    } catch {
+      showToast("No se pudo conectar con el servidor.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Flujo 2: Verificar código
+  const handleVerifyCode = async () => {
+    if (!codigo.trim()) {
+      showToast("Ingrese el código de verificación", "error");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/auth/verify-code`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), codigo: codigo.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data?.message || "Código inválido", "error");
+        return;
+      }
+      showToast(data.message || "Código válido", "success");
+      setMode("forgot_reset");
+    } catch {
+      showToast("No se pudo conectar con el servidor.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Flujo 3: Restablecer contraseña
+  const handleResetPassword = async () => {
+    if (!newPassword.trim()) {
+      showToast("Ingrese la nueva contraseña", "error");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          codigo: codigo.trim(),
+          new_password: newPassword.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data?.message || "Error al cambiar la contraseña", "error");
+        return;
+      }
+      showToast(data.message || "Contraseña actualizada con éxito", "success");
+      // Resetear estados y volver a login
+      setEmail("");
+      setCodigo("");
+      setNewPassword("");
+      setMode("login");
+    } catch {
+      showToast("No se pudo conectar con el servidor.", "error");
     } finally {
       setLoading(false);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") handleLogin();
+    if (e.key === "Enter") {
+      if (mode === "login") handleLogin();
+      else if (mode === "forgot_email") handleRequestCode();
+      else if (mode === "forgot_code") handleVerifyCode();
+      else if (mode === "forgot_reset") handleResetPassword();
+    }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
+    <div className="relative min-h-screen bg-slate-50 flex items-center justify-center p-4 overflow-hidden">
+      {/* Subtle UTN Red Glow Accents */}
+      <div className="absolute top-[-20%] left-[-20%] w-[50%] h-[50%] rounded-full bg-red-100/50 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-20%] right-[-20%] w-[50%] h-[50%] rounded-full bg-red-50/60 blur-[120px] pointer-events-none" />
 
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-emerald-600 leading-tight">
-            Cuentas por<br />Cobrar
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">Sistema Financiero</p>
-        </div>
-
-        {/* Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
-          <h2 className="text-lg font-semibold text-slate-800 mb-1">Iniciar sesión</h2>
-          <p className="text-sm text-slate-400 mb-6">Ingresa tus credenciales para continuar</p>
-
-          {/* Error */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 mb-5">
-              {error}
+      <div className="w-full max-w-md z-10">
+        {/* Card Contenedora */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-100 p-8 md:p-10 transition-all duration-300">
+          
+          {/* Header del Formulario */}
+          <div className="flex flex-col items-center mb-8">
+            <div className="mb-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/utn.png"
+                alt="UTN Logo"
+                className="w-16 h-16 object-contain"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                  (e.currentTarget.nextSibling as HTMLElement).style.display = "flex";
+                }}
+              />
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ display: "none", background: "var(--utn-red)" }}>
+                <span className="text-white font-black text-lg">UTN</span>
+              </div>
             </div>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-800">
+              Cuentas por Cobrar
+            </h1>
+            <p className="text-xs text-[var(--utn-red)] mt-1.5 uppercase tracking-wider font-bold">
+              Universidad Técnica del Norte
+            </p>
+          </div>
+
+          {mode === "login" && (
+            <>
+              {/* Campo: Usuario */}
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">
+                  Usuario
+                </label>
+                <div className="relative">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Ingrese su usuario"
+                    value={usuario}
+                    onChange={e => setUsuario(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    autoComplete="username"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-4 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-[var(--utn-red)] focus:ring-2 focus:ring-red-100 transition-all duration-200"
+                  />
+                </div>
+              </div>
+
+              {/* Campo: Contraseña */}
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">
+                  Contraseña
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={contrasena}
+                    onChange={e => setContrasena(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    autoComplete="current-password"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-12 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-[var(--utn-red)] focus:ring-2 focus:ring-red-100 transition-all duration-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+                <div className="flex justify-end mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setMode("forgot_email")}
+                    className="text-xs font-semibold text-[var(--utn-red)] hover:underline hover:text-[var(--utn-red-dark)] focus:outline-none"
+                  >
+                    ¿Olvidó su contraseña?
+                  </button>
+                </div>
+              </div>
+
+              {/* Botón Ingresar */}
+              <button
+                type="button"
+                onClick={handleLogin}
+                disabled={loading}
+                className="w-full bg-[var(--utn-red)] hover:bg-[var(--utn-red-dark)] text-white font-semibold py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.005] active:scale-[0.995] text-sm shadow-md shadow-red-100 mt-4"
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Iniciando sesión...
+                  </span>
+                ) : (
+                  "Ingresar al Sistema"
+                )}
+              </button>
+            </>
           )}
 
-          {/* Usuario */}
-          <div className="mb-4">
-            <label className="block text-xs font-medium text-slate-500 mb-1.5">
-              Usuario
-            </label>
-            <input
-              type="text"
-              placeholder="Ingrese su usuario"
-              value={usuario}
-              onChange={e => { setUsuario(e.target.value); setError(""); }}
-              onKeyDown={handleKeyDown}
-              autoComplete="username"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-            />
-          </div>
+          {mode === "forgot_email" && (
+            <>
+              <div className="mb-6">
+                <button
+                  type="button"
+                  onClick={() => setMode("login")}
+                  className="flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors mb-4"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Volver al Login
+                </button>
+                <h2 className="text-lg font-bold text-slate-800">Recuperar Contraseña</h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Paso 1: Ingrese su correo institucional para recibir un código de seguridad.
+                </p>
+              </div>
 
-          {/* Contraseña */}
-          <div className="mb-6">
-            <label className="block text-xs font-medium text-slate-500 mb-1.5">
-              Contraseña
-            </label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={contrasena}
-              onChange={e => { setContrasena(e.target.value); setError(""); }}
-              onKeyDown={handleKeyDown}
-              autoComplete="current-password"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-            />
-          </div>
+              <div className="mb-6">
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">
+                  Correo Electrónico
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="email"
+                    placeholder="correo@utn.edu.ec"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-4 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-[var(--utn-red)] focus:ring-2 focus:ring-red-100 transition-all duration-200"
+                  />
+                </div>
+              </div>
 
-          {/* Botón */}
-          <button
-            type="button"
-            onClick={handleLogin}
-            disabled={loading}
-            className="w-full bg-emerald-600 text-white font-medium py-3 rounded-xl hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
-          >
-            {loading ? "Verificando..." : "Ingresar"}
-          </button>
+              <button
+                type="button"
+                onClick={handleRequestCode}
+                disabled={loading}
+                className="w-full bg-[var(--utn-red)] hover:bg-[var(--utn-red-dark)] text-white font-semibold py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm shadow-md"
+              >
+                {loading ? "Enviando código..." : "Enviar Código de Seguridad"}
+              </button>
+            </>
+          )}
+
+          {mode === "forgot_code" && (
+            <>
+              <div className="mb-6">
+                <button
+                  type="button"
+                  onClick={() => setMode("forgot_email")}
+                  className="flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors mb-4"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Cambiar Correo
+                </button>
+                <h2 className="text-lg font-bold text-slate-800">Verificar Código</h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Paso 2: Ingrese el código enviado a <strong>{email}</strong>.
+                </p>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">
+                  Código de Verificación
+                </label>
+                <div className="relative">
+                  <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Ej. A1B2C3"
+                    value={codigo}
+                    onChange={e => setCodigo(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-4 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-[var(--utn-red)] focus:ring-2 focus:ring-red-100 transition-all duration-200 tracking-widest font-mono text-center"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleVerifyCode}
+                disabled={loading}
+                className="w-full bg-[var(--utn-red)] hover:bg-[var(--utn-red-dark)] text-white font-semibold py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm shadow-md"
+              >
+                {loading ? "Verificando..." : "Verificar Código"}
+              </button>
+            </>
+          )}
+
+          {mode === "forgot_reset" && (
+            <>
+              <div className="mb-6">
+                <h2 className="text-lg font-bold text-slate-800">Nueva Contraseña</h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Paso 3: Cree su nueva contraseña de acceso.
+                </p>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">
+                  Nueva Contraseña
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    placeholder="Nueva contraseña fuerte"
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-12 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-[var(--utn-red)] focus:ring-2 focus:ring-red-100 transition-all duration-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
+                  >
+                    {showNewPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleResetPassword}
+                disabled={loading}
+                className="w-full bg-[var(--utn-red)] hover:bg-[var(--utn-red-dark)] text-white font-semibold py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm shadow-md"
+              >
+                {loading ? "Actualizando..." : "Restablecer Contraseña"}
+              </button>
+            </>
+          )}
+
         </div>
-
-        {/* Credencial de prueba */}
-        <div className="mt-4 bg-blue-50 border border-blue-100 rounded-xl p-4">
-          <p className="text-xs font-medium text-blue-700 mb-2">Credencial de prueba:</p>
-          <button
-            type="button"
-            onClick={() => { setUsuario("admin"); setContrasena("admin123"); setError(""); }}
-            className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
-          >
-            usuario: admin / contraseña: admin123
-          </button>
-        </div>
-
-        <p className="text-center text-xs text-slate-400 mt-6">
-          Proyecto Integrador · Sistema CXC
-        </p>
       </div>
     </div>
   );

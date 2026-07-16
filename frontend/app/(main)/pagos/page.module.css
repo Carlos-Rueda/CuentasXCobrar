@@ -49,19 +49,38 @@
 }
 
 .group input,
+.group select,
 .group textarea {
   padding: 12px 14px;
   border: 1px solid #d1d5db;
   border-radius: 10px;
   font-size: 15px;
+  background-color: white;
+  color: #1f2937;
   transition: 0.3s;
 }
 
 .group input:focus,
+.group select:focus,
 .group textarea:focus {
   outline: none;
   border-color: #2563eb;
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+}
+
+.group .table input[type="number"] {
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  width: 110px;
+  background-color: #f8fafc;
+}
+
+.group .table input[type="number"]:focus {
+  background-color: white;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
 .button {

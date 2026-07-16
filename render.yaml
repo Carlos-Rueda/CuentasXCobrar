@@ -1,0 +1,45 @@
+services:
+  # Backend NestJS Web Service
+  - type: web
+    name: cuentasxcobrar-backend
+    env: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npx prisma db push && npm run start:prod
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: FACTURACION_JWT_TOKEN
+        sync: false
+      - key: JWT_SECRET
+        value: cxc_grupo_secret_key_2026
+      - key: AUTH_API_URL
+        value: https://712286fsib.execute-api.us-east-1.amazonaws.com/default/api-auth-central
+      - key: MODULE_API_KEY
+        value: dev_key_cxc_111
+      - key: AUDITORIA_API_URL
+        value: https://98l52rpey8.execute-api.us-east-1.amazonaws.com/default/api-pistas-auditoria
+      - key: FACTURACION_GRAPHQL_URL
+        value: https://ad-modulo-facturacion-e51e.onrender.com/graphql
+      - key: FACTURACION_API_KEY
+        value: api_key_facturacion_cxc_2026
+
+  # Frontend Next.js Web Service
+  - type: web
+    name: cuentasxcobrar-frontend
+    env: node
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: cuentasxcobrar-backend
+          property: url

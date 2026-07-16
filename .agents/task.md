@@ -1,0 +1,5 @@
+- [ ] Implementar la autenticación automática en `AuditoriaService` para obtener el JWT del Módulo de Seguridad Central.
+- [ ] Modificar `AuditoriaInterceptor` para enviar las pistas sin depender del token del cliente.
+- [ ] Eliminar los archivos de prueba temporales (`decode-token.js`).
+- [ ] Probar localmente.
+- [ ] Hacer commit y push a las ramas `dev` y `test` en Git.

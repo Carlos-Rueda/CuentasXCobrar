@@ -10,15 +10,21 @@ datasource db {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model cuentas_bancarias {
-  id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  codigo           String           @unique @db.VarChar
-  nombre_cuenta    String           @db.VarChar
-  entidad_bancaria String           @db.VarChar
-  descripcion      String?
-  estado           String?          @default("activo") @db.VarChar
-  created_at       DateTime?        @default(now()) @db.Timestamptz(6)
-  updated_at       DateTime?        @default(now()) @db.Timestamptz(6)
-  pagos_clientes   pagos_clientes[]
+  id                                                           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo                                                       String           @unique @db.VarChar
+  nombre_cuenta                                                String           @db.VarChar
+  entidad_bancaria                                             String           @db.VarChar
+  descripcion                                                  String?
+  estado                                                       String?          @default("activo") @db.VarChar
+  created_at                                                   DateTime?        @default(now()) @db.Timestamptz(6)
+  updated_at                                                   DateTime?        @default(now()) @db.Timestamptz(6)
+  titular                                                      String?          @db.VarChar
+  tipo_cuenta                                                  String?          @db.VarChar
+  nro_cuenta                                                   String?          @db.VarChar
+  ruc                                                          String?          @db.VarChar
+  movimientos_movimientos_cuenta_destino_idTocuentas_bancarias movimientos[]    @relation("movimientos_cuenta_destino_idTocuentas_bancarias")
+  movimientos_movimientos_cuenta_origen_idTocuentas_bancarias  movimientos[]    @relation("movimientos_cuenta_origen_idTocuentas_bancarias")
+  pagos_clientes                                               pagos_clientes[]
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -44,5 +50,23 @@ model pagos_clientes {
   created_at         DateTime?          @default(now()) @db.Timestamptz(6)
   updated_at         DateTime?          @default(now()) @db.Timestamptz(6)
   detalles_pago      detalles_pago[]
+  movimientos        movimientos[]
   cuentas_bancarias  cuentas_bancarias? @relation(fields: [cuenta_bancaria_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model movimientos {
+  id                                                                 String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tipo                                                               String             @db.VarChar
+  cuenta_origen_id                                                   String?            @db.Uuid
+  cuenta_destino_id                                                  String?            @db.Uuid
+  monto                                                              Decimal            @db.Decimal(12, 2)
+  descripcion                                                        String
+  pago_cliente_id                                                    String?            @db.Uuid
+  estado                                                             String?            @default("completado") @db.VarChar
+  created_at                                                         DateTime?          @default(now()) @db.Timestamptz(6)
+  cuentas_bancarias_movimientos_cuenta_destino_idTocuentas_bancarias cuentas_bancarias? @relation("movimientos_cuenta_destino_idTocuentas_bancarias", fields: [cuenta_destino_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  cuentas_bancarias_movimientos_cuenta_origen_idTocuentas_bancarias  cuentas_bancarias? @relation("movimientos_cuenta_origen_idTocuentas_bancarias", fields: [cuenta_origen_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pagos_clientes                                                     pagos_clientes?    @relation(fields: [pago_cliente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }

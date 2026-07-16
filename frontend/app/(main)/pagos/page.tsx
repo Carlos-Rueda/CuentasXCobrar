@@ -1,7 +1,31 @@
 "use client";
 
+import Link from "next/link";
 import FormularioPago from "./components/FormularioPago";
+import styles from "./page.module.css";
 
 export default function PagosPage() {
-  return <FormularioPago />;
+  return (
+    <div className={styles.page}>
+      <div className={styles.card}>
+        <div className={styles.header} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h1>Registro de Pagos</h1>
+            <p>Cabecera del pago del cliente</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link href="/pagos/pagos-externos" className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg text-sm transition-colors" style={{ textDecoration: "none" }}>
+              Registrar Pago Externo
+            </Link>
+            <Link href="/pagos/reporte" className={styles.button} style={{ textDecoration: "none" }}>
+              Ver Historial de Pagos
+            </Link>
+          </div>
+        </div>
+        <div className={styles.form}>
+          <FormularioPago />
+        </div>
+      </div>
+    </div>
+  );
 }

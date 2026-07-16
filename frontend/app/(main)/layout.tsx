@@ -3,91 +3,194 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import {
+  LayoutGrid,
+  Users,
+  CreditCard,
+  BarChart3,
+  Landmark,
+  LogOut,
+  ChevronRight,
+  ArrowLeftRight,
+  Banknote,
+  FileText,
+} from "lucide-react";
 
 const NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: "⊞" },
-  { href: "/clientes",  label: "Clientes",  icon: "👥" },
-  { href: "/facturas",  label: "Facturas",  icon: "🧾" },
-  { href: "/pagos/reporte",     label: "Cobros",    icon: "💳" },
-  { href: "/reportes",  label: "Reportes",  icon: "📊" },
-  { href: "/cuentas-bancarias", label: "Cuentas Bancarias", icon: "🏦" },
+  { href: "/dashboard",         label: "Dashboard",         Icon: LayoutGrid },
+  { href: "/clientes",          label: "Clientes",          Icon: Users       },
+  { href: "/pagos/reporte",     label: "Pagos",             Icon: CreditCard  },
+  { href: "/pagos/pagos-externos", label: "Pagos Externos", Icon: Banknote    },
+  { href: "/reportes",          label: "Reportes",          Icon: BarChart3   },
+  { href: "/cuentas-bancarias", label: "Cuentas Bancarias", Icon: Landmark    },
+  { href: "/tesoreria/transferencias", label: "Transferencias", Icon: ArrowLeftRight },
+  { href: "/tesoreria/estado-cuenta", label: "Estado de Cuenta", Icon: FileText },
 ];
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+   const pathname = usePathname();
   const router   = useRouter();
   const userRef  = useRef<{ nombre: string; rol: string } | null>(null);
   const [user, setUser] = useState<{ nombre: string; rol: string } | null>(null);
+  const [permissions, setPermissions] = useState<string[]>([]);
 
   useEffect(() => {
-    const stored = localStorage.getItem("user");
+    // Verificar si el token existe en sessionStorage. Si no existe, redirigir al login
+    const token = sessionStorage.getItem("auth_token");
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
+    try {
+      const base64Url = token.split(".")[1];
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const payload = JSON.parse(window.atob(base64));
+      let currentPerms: string[] = [];
+      if (payload && Array.isArray(payload.permissions)) {
+        currentPerms = payload.permissions;
+        setPermissions(payload.permissions);
+      } else {
+        setPermissions([]);
+      }
+
+      // Proteger rutas según permisos
+      if (pathname === "/clientes" && !currentPerms.includes("CXC_CLIENTES")) {
+        router.push("/dashboard");
+      } else if (pathname.startsWith("/pagos/pagos-externos") && !currentPerms.includes("CXC_PAGOSEXTERNOS")) {
+        router.push("/dashboard");
+      } else if (pathname.startsWith("/pagos") && !currentPerms.includes("CXC_PAGOS")) {
+        router.push("/dashboard");
+      } else if (pathname.startsWith("/reportes") && !currentPerms.includes("CXC_REPORTES")) {
+        router.push("/dashboard");
+      } else if (pathname.startsWith("/cuentas-bancarias") && !currentPerms.includes("CXC_CUENTASBANCARIAS")) {
+        router.push("/dashboard");
+      } else if (pathname.startsWith("/tesoreria/transferencias") && !currentPerms.includes("CXC_TRANSFERENCIAS")) {
+        router.push("/dashboard");
+      } else if (pathname.startsWith("/tesoreria/estado-cuenta") && !currentPerms.includes("CXC_ESTADOCUENTA")) {
+        router.push("/dashboard");
+      } else if (currentPerms.length === 0) {
+        sessionStorage.clear();
+        router.push("/login");
+      }
+    } catch (e) {
+      setPermissions([]);
+    }
+    
+    const stored = sessionStorage.getItem("user");
     if (stored && !userRef.current) {
       userRef.current = JSON.parse(stored);
       setUser(JSON.parse(stored));
     }
-  }, []);
+  }, [router, pathname]);
 
   const cerrarSesion = () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("user");
+    sessionStorage.removeItem("access_token");
+    sessionStorage.removeItem("auth_token");
+    sessionStorage.removeItem("user");
     router.push("/login");
   };
 
   return (
-    <div className="flex h-screen bg-slate-100">
-      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm">
-        <div className="px-6 py-6 border-b border-slate-100">
-          <h1 className="text-xl font-bold text-emerald-600 leading-tight">
-            Cuentas por<br />Cobrar
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">Sistema Financiero</p>
+    <div className="flex h-screen" style={{ background: "var(--background)", fontFamily: "'Inter', system-ui, sans-serif" }}>
+
+      {/* ── Sidebar ── */}
+      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col shadow-sm flex-shrink-0">
+
+        {/* Logo */}
+        <div className="px-6 py-5 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            {/* Logo UTN — usar imagen real desde /public/utn.png */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/utn.png"
+              alt="UTN"
+              className="w-10 h-10 rounded-xl object-contain flex-shrink-0"
+              onError={(e) => {
+                // Fallback mientras no esté el archivo
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+                (e.currentTarget.nextSibling as HTMLElement).style.display = "flex";
+              }}
+            />
+            <div className="w-10 h-10 rounded-xl flex-shrink-0 items-center justify-center" style={{ display: "none", background: "var(--utn-red)" }}>
+              <span className="text-white font-black text-sm">UTN</span>
+            </div>
+            <div>
+              <h1 className="text-sm font-bold leading-tight" style={{ color: "var(--utn-gray-dark)" }}>
+                Cuentas por Cobrar
+              </h1>
+              <p className="text-xs" style={{ color: "var(--utn-gray)" }}>Sistema Financiero</p>
+            </div>
+          </div>
         </div>
 
+        {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {NAV.map(({ href, label, icon }) => {
+          {NAV.filter(({ href }) => {
+            if (href === "/dashboard") return permissions.includes("CXC_DASHBOARD");
+            if (href === "/clientes") return permissions.includes("CXC_CLIENTES");
+            if (href === "/pagos/reporte") return permissions.includes("CXC_PAGOS");
+            if (href === "/pagos/pagos-externos") return permissions.includes("CXC_PAGOSEXTERNOS");
+            if (href === "/reportes") return permissions.includes("CXC_REPORTES");
+            if (href === "/cuentas-bancarias") return permissions.includes("CXC_CUENTASBANCARIAS");
+            if (href === "/tesoreria/transferencias") return permissions.includes("CXC_TRANSFERENCIAS");
+            if (href === "/tesoreria/estado-cuenta") return permissions.includes("CXC_ESTADOCUENTA");
+            return true;
+          }).map(({ href, label, Icon }) => {
             const active = pathname === href || pathname.startsWith(href + "/");
             return (
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150"
+                style={
                   active
-                    ? "bg-emerald-50 text-emerald-700"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-800"
-                }`}
+                    ? { background: "var(--utn-red-light)", color: "var(--utn-red)" }
+                    : { color: "var(--utn-gray)" }
+                }
+                onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "#F9FAFB"; }}
+                onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
               >
-                <span className="text-base">{icon}</span>
-                {label}
-                {active && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                <Icon className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1">{label}</span>
+                {active && <ChevronRight className="w-3.5 h-3.5 opacity-60" />}
               </Link>
             );
           })}
         </nav>
 
-        <div className="px-4 py-4 border-t border-slate-100">
+        {/* Usuario */}
+        <div className="px-4 py-4 border-t border-gray-100">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-sm font-semibold">
-              {user?.nombre?.[0] ?? "A"}
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
+              style={{ background: "var(--utn-red)" }}>
+              {user?.nombre?.[0]?.toUpperCase() ?? "A"}
             </div>
             <div className="overflow-hidden">
-              <p className="text-sm font-medium text-slate-800 truncate">{user?.nombre ?? "Anahí López"}</p>
-              <p className="text-xs text-slate-400 truncate">{user?.rol ?? "Frontend UI/UX"}</p>
+              <p className="text-sm font-semibold truncate" style={{ color: "var(--utn-gray-dark)" }}>
+                {user?.nombre ?? "Usuario"}
+              </p>
+              <p className="text-xs truncate" style={{ color: "var(--utn-gray)" }}>
+                {user?.rol ?? "ADMIN"}
+              </p>
             </div>
           </div>
           <button
             onClick={cerrarSesion}
-            className="w-full text-sm font-medium py-2 px-3 rounded-xl bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600 transition-colors"
+            className="w-full flex items-center justify-center gap-2 text-sm font-medium py-2 px-3 rounded-lg border border-gray-200 transition-colors"
+            style={{ color: "var(--utn-gray)" }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--utn-red)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--utn-red-light)"; (e.currentTarget as HTMLElement).style.background = "var(--utn-red-light)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--utn-gray)"; (e.currentTarget as HTMLElement).style.borderColor = "#E5E7EB"; (e.currentTarget as HTMLElement).style.background = "transparent"; }}
           >
+            <LogOut className="w-4 h-4" />
             Cerrar sesión
           </button>
         </div>
       </aside>
 
+      {/* ── Contenido ── */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-6 shadow-sm flex-shrink-0">
-          <h2 className="text-sm font-semibold text-slate-700">Sistema de Cuentas por Cobrar</h2>
-          <span className="text-xs text-slate-400">Proyecto Integrador</span>
-        </header>
+        <header className="h-14 bg-white border-b border-gray-200 flex-shrink-0" />
         <main className="flex-1 overflow-auto p-6">
           {children}
         </main>

@@ -1,0 +1,3 @@
+syntax = "proto3";
+message AuditoriaRequest { string token = 1; int32 id_funcion = 2; string accion = 3; string descripcion = 4; string observacion = 5; string ip_usuario = 6; }
+message AuditoriaResponse { bool success = 1; string message = 2; }

@@ -7,34 +7,108 @@ import 'dotenv/config';
 @Injectable()
 export class FacturasService {
   private readonly graphqlUrl =
-    'https://ad-modulo-facturacion.onrender.com/graphql';
+    process.env.FACTURACION_GRAPHQL_URL ||
+    'https://ad-modulo-facturacion-e51e.onrender.com/graphql';
+
+  private cachedToken: string = '';
+
+  private async getFreshToken(): Promise<string> {
+    try {
+      const response = await fetch(
+        'https://ad-modulo-facturacion-e51e.onrender.com/auth/test-token',
+      );
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.token) {
+          this.cachedToken = data.token;
+          return data.token;
+        }
+      }
+    } catch (error) {
+      console.error(
+        'Error fetching fresh token from test-token endpoint in FacturasService:',
+        error,
+      );
+    }
+    return '';
+  }
 
   /**
    * Helper privado para realizar peticiones POST a la API GraphQL.
    */
   private async queryGraphQL(query: string, variables: any = {}) {
-    const token =
-      process.env.FACTURACION_JWT_TOKEN ||
-      process.env.FACTURACION_API_TOKEN ||
-      '';
+    const apiKey = process.env.FACTURACION_API_KEY || 'api_key_facturacion_cxc_2026';
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+
+    if (apiKey) {
+      headers['x-api-key'] = apiKey;
+    } else {
+      let token =
+        this.cachedToken ||
+        process.env.FACTURACION_JWT_TOKEN ||
+        process.env.FACTURACION_API_TOKEN ||
+        '';
+
+      if (!token) {
+        token = await this.getFreshToken();
+      }
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
     }
 
-    const response = await fetch(this.graphqlUrl, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ query, variables }),
-    });
+    try {
+      let response = await fetch(this.graphqlUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ query, variables }),
+      });
 
-    const body = await response.json();
-    if (body.errors) {
-      throw new Error(body.errors[0].message || 'GraphQL Error');
+      if (!response.ok && response.status !== 401) {
+        throw new Error(`HTTP status ${response.status}`);
+      }
+
+      let body = await response.json();
+
+      // Si no autorizado, renovar token e intentar de nuevo (solo si no se usó apiKey)
+      const isUnauthorized =
+        !apiKey &&
+        (response.status === 401 ||
+          body.errors?.some(
+            (e: any) =>
+              e.message?.toLowerCase().includes('no autorizado') ||
+              e.code === 'UNAUTHENTICATED',
+          ));
+
+      if (isUnauthorized) {
+        const token = await this.getFreshToken();
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+          response = await fetch(this.graphqlUrl, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ query, variables }),
+          });
+          if (!response.ok) {
+            throw new Error(`HTTP status ${response.status}`);
+          }
+          body = await response.json();
+        }
+      }
+
+      if (body.errors && body.errors.length > 0) {
+        throw new Error(body.errors[0].message || 'GraphQL Error');
+      }
+
+      return body.data;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Hubo un problema de comunicación con el Módulo de Facturación: ${message}`,
+      );
     }
-    return body.data;
   }
 
   /**
@@ -81,7 +155,7 @@ export class FacturasService {
   async findAllClientes(): Promise<ClienteDto[]> {
     const query = `
       query {
-        clientes {
+        clientes(limit: 1000) {
           items {
             id
             cedula
@@ -93,7 +167,16 @@ export class FacturasService {
       }
     `;
     const data = await this.queryGraphQL(query);
-    return (data.clientes?.items || []).map((c: any) => this.mapCliente(c));
+    const items = data.clientes?.items || [];
+    const mapped = items.map((c: any) => this.mapCliente(c));
+    const map = new Map<string, ClienteDto>();
+    for (const c of mapped) {
+      const key = c.cedula || c.ruc || c.nombre;
+      if (!map.has(key)) {
+        map.set(key, c);
+      }
+    }
+    return Array.from(map.values());
   }
 
   /**
@@ -124,7 +207,7 @@ export class FacturasService {
   async findAllFacturas(): Promise<FacturaDto[]> {
     const query = `
       query {
-        facturas {
+        facturas(limit: 1000) {
           items {
             id
             numeroFactura
@@ -137,7 +220,15 @@ export class FacturasService {
       }
     `;
     const data = await this.queryGraphQL(query);
-    return (data.facturas?.items || []).map((f: any) => this.mapFactura(f));
+    const mapped = (data.facturas?.items || []).map((f: any) =>
+      this.mapFactura(f),
+    );
+    return mapped.filter(
+      (f: FacturaDto) =>
+        f.estado &&
+        (f.estado.toUpperCase() === 'EMITIDA' ||
+          f.estado.toUpperCase() === 'PAGO_PENDIENTE'),
+    );
   }
 
   /**
@@ -167,7 +258,17 @@ export class FacturasService {
     if (!data.factura) {
       throw new NotFoundException(`Factura con ID ${id} no encontrada`);
     }
-    return this.mapFactura(data.factura);
+    const factura = this.mapFactura(data.factura);
+    if (
+      !factura.estado ||
+      (factura.estado.toUpperCase() !== 'EMITIDA' &&
+        factura.estado.toUpperCase() !== 'PAGO_PENDIENTE')
+    ) {
+      throw new NotFoundException(
+        `Factura con ID ${id} no está en un estado emitido/válido`,
+      );
+    }
+    return factura;
   }
 
   /**
@@ -196,12 +297,17 @@ export class FacturasService {
       const facturas = (data.facturas?.items || []).map((f: any) =>
         this.mapFactura(f),
       );
-      return facturas.filter((f: FacturaDto) => f.estado === 'PENDIENTE');
+      return facturas.filter(
+        (f: FacturaDto) =>
+          f.estado === 'PENDIENTE' || f.estado === 'PAGO_PENDIENTE',
+      );
     } catch {
       // Fallback: Filtrado en memoria en caso de que la API de filter falle o varíe
       const todas = await this.findAllFacturas();
       return todas.filter(
-        (f) => f.clienteId === clienteId && f.estado === 'PENDIENTE',
+        (f) =>
+          f.clienteId === clienteId &&
+          (f.estado === 'PENDIENTE' || f.estado === 'PAGO_PENDIENTE'),
       );
     }
   }

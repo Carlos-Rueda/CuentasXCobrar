@@ -2,8 +2,11 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { API_URL } from "@/app/config";
+import DataTable, { ColumnDef } from "@/app/components/DataTable";
+import DatePicker from "@/app/components/DatePicker";
+import { useToast } from "@/app/components/toast";
 
 type Registro = {
   id: string;
@@ -12,16 +15,11 @@ type Registro = {
   factura: string;
   fecha: string;
   estado: "Pagado" | "Parcial" | "Por Pagar";
+  estadoOriginal?: string;
   monto: number;
   pagado: number;
   ultimoPago: string | null;
 };
-
-type SortKey = "cliente" | "factura" | "fecha" | "estado" | "monto";
-type SortDir = "asc" | "desc";
-
-
-const PER_PAGE = 5;
 
 function imprimirRecibo(r: Registro) {
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${r.factura}</title>
@@ -35,7 +33,7 @@ function imprimirRecibo(r: Registro) {
     td:last-child{font-weight:500}
     .footer{margin-top:40px;font-size:12px;color:#999;text-align:center}
   </style></head><body>
-  <h1>Recibo de cobro</h1>
+  <h1>Recibo de pago</h1>
   <div class="sub">Sistema de Cuentas por Cobrar</div>
   <table>
     <tr><td>Cliente</td><td>${r.cliente}</td></tr>
@@ -51,307 +49,567 @@ function imprimirRecibo(r: Registro) {
   <div class="footer">Generado el ${new Date().toLocaleDateString("es-EC")}</div>
   </body></html>`;
   const w = window.open("", "_blank", "width=600,height=700");
-  if (!w) { alert("El navegador bloqueó la ventana emergente."); return; }
+  if (!w) {
+    alert("El navegador bloqueó la ventana emergente.");
+    return;
+  }
   w.document.write(html);
   w.document.close();
-  setTimeout(() => { w.focus(); w.print(); }, 800);
-}
-
-async function descargarPDF(r: Registro) {
-  try {
-    const res = await fetch(`${API_URL}/facturas/${r.id}/pdf`);
-    if (!res.ok) {
-      alert(`No se encontró el comprobante para la factura "${r.factura}" en el servidor.`);
-      return;
-    }
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Factura-${r.factura}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error(error);
-    alert("Error al conectar con el servidor para descargar el PDF.");
-  }
-}
-
-// ── Icono de orden ─────────────────────────────────────────────────────────────
-function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey | null; sortDir: SortDir }) {
-  if (sortKey !== col) return <span className="ml-1 text-slate-300">↕</span>;
-  return <span className="ml-1 text-blue-500">{sortDir === "asc" ? "↑" : "↓"}</span>;
+  setTimeout(() => {
+    w.focus();
+    w.print();
+  }, 800);
 }
 
 export default function ReportesPage() {
   const [registros, setRegistros] = useState<Registro[]>([]);
-  const [fCliente, setFCliente] = useState("");
-  const [fCedula,  setFCedula]  = useState("");
-  const [fFactura, setFFactura] = useState("");
-  const [fEstado,  setFEstado]  = useState("");
-  const [filtros,  setFiltros]  = useState({ cliente: "", cedula: "", factura: "", estado: "" });
-  const [page,     setPage]     = useState(1);
-  const [sortKey,  setSortKey]  = useState<SortKey | null>(null);
-  const [sortDir,  setSortDir]  = useState<SortDir>("asc");
+  const { showToast } = useToast();
+  const [filtradosActuales, setFiltradosActuales] = useState<Registro[]>([]);
+  const [descargando, setDescargando] = useState(false);
+
+  // ── Filtro por fechas ──────────────────────────────────────────────────────
+  const [fechaInicio, setFechaInicio] = useState("");
+  const [fechaFin, setFechaFin] = useState("");
+  const [dateError, setDateError] = useState("");
+
+  const registrosPorFecha = useMemo(() => {
+    if (!fechaInicio && !fechaFin) return registros;
+    if (fechaInicio && fechaFin && fechaInicio > fechaFin) {
+      setDateError(
+        "La fecha de inicio no puede ser posterior a la fecha de fin.",
+      );
+      return registros;
+    }
+    setDateError("");
+    return registros.filter((r) => {
+      if (!r.fecha) return true;
+      const f = r.fecha.slice(0, 10); // YYYY-MM-DD
+      if (fechaInicio && f < fechaInicio) return false;
+      if (fechaFin && f > fechaFin) return false;
+      return true;
+    });
+  }, [registros, fechaInicio, fechaFin]);
 
   const cargarDatos = async () => {
-    try {
-      const resClients = await fetch(`${API_URL}/facturas/clientes`, { cache: 'no-store' });
-      const listClients = await resClients.json();
+    // Cada fetch falla de forma independiente para que un endpoint caído
+    // no bloquee los datos que sí están disponibles
+    const fetchSafe = async (url: string): Promise<any[]> => {
+      try {
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) return [];
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+      } catch {
+        return [];
+      }
+    };
 
-      const resFacturas = await fetch(`${API_URL}/facturas`, { cache: 'no-store' });
-      const listFacturas = await resFacturas.json();
+    const [rawClients, listFacturas, listPagos] = await Promise.all([
+      fetchSafe(`${API_URL}/facturas/clientes`),
+      fetchSafe(`${API_URL}/facturas`),
+      fetchSafe(`${API_URL}/pagos/reporte`),
+    ]);
 
-      const resPagos = await fetch(`${API_URL}/pagos/reporte`, { cache: 'no-store' });
-      const listPagos = await resPagos.json();
+    const uniqueMap = new Map(
+      rawClients.map((c: any) => [c.cedula || c.ruc || c.nombre, c]),
+    );
+    const clientesLimpios = Array.from(uniqueMap.values()).filter(
+      (c: any) =>
+        c.nombre && c.nombre.trim() !== "" && c.nombre.trim() !== "undefined",
+    );
 
-      const mappedRegistros: Registro[] = listFacturas.map((f: any) => {
-        const client = listClients.find((c: any) => c.id === f.clienteId);
-        
-        let pagado = 0;
-        let ultimoPago: string | null = null;
-        
-        listPagos.forEach((pago: any) => {
-          const detail = pago.detalles?.find((d: any) => d.facturaId === f.id);
-          if (detail) {
-            pagado += detail.montoAbonado;
-            ultimoPago = pago.fecha;
-          }
-        });
+    const mappedRegistros: Registro[] = listFacturas
+      .filter(
+        (f: any) =>
+          f.estado &&
+          f.estado.toUpperCase() !== "ANULADA" &&
+          f.estado.toUpperCase() !== "INACTIVA",
+      )
+      .map((f: any) => {
+        const client = clientesLimpios.find(
+        (c: any) => c.id === f.clienteId,
+      ) as any;
 
-        if (f.estado === "PAGADA" && pagado === 0) {
-          pagado = f.total;
+      let pagado = 0;
+      let ultimoPago: string | null = null;
+
+      listPagos.forEach((pago: any) => {
+        const isActivo = pago.estado?.toLowerCase() === "activo";
+        if (!isActivo) return;
+
+        const detail = pago.detalles?.find((d: any) => d.facturaId === f.id);
+        if (detail) {
+          pagado += Number(detail.montoAbonado) || 0;
+          ultimoPago = pago.fecha;
         }
-
-        let estado: "Pagado" | "Parcial" | "Por Pagar" = "Por Pagar";
-        if (pagado >= f.total) {
-          estado = "Pagado";
-        } else if (pagado > 0) {
-          estado = "Parcial";
-        }
-
-        return {
-          id: f.id,
-          cliente: client ? client.nombre : f.clienteId,
-          cedula: client ? client.ruc : "—",
-          factura: f.numero,
-          fecha: f.fechaEmision,
-          estado,
-          monto: f.total,
-          pagado,
-          ultimoPago: ultimoPago ? new Date(ultimoPago).toLocaleDateString("es-EC") : null
-        };
       });
 
-      setRegistros(mappedRegistros);
-    } catch (err) {
-      console.error("Error al cargar datos:", err);
-    }
+      if (f.estado === "PAGADA" && pagado === 0) {
+        pagado = f.total;
+      }
+
+      let estado: "Pagado" | "Parcial" | "Por Pagar" = "Por Pagar";
+      if (pagado >= f.total) {
+        estado = "Pagado";
+      } else if (pagado > 0) {
+        estado = "Parcial";
+      }
+
+      return {
+        id: f.id,
+        cliente: client ? client.nombre : f.clienteId,
+        cedula: client ? client.ruc : "—",
+        factura: f.numero,
+        fecha: f.fechaEmision,
+        estado,
+        estadoOriginal: f.estado,
+        monto: f.total,
+        pagado,
+        ultimoPago: ultimoPago
+          ? new Date(ultimoPago).toLocaleDateString("es-EC")
+          : null,
+      };
+    });
+
+    setRegistros(mappedRegistros);
   };
 
   useEffect(() => {
     cargarDatos();
   }, []);
 
-  const aplicarFiltros = () => {
-    setFiltros({ cliente: fCliente, cedula: fCedula, factura: fFactura, estado: fEstado });
-    setPage(1);
-  };
-
-  const limpiarFiltros = () => {
-    setFCliente(""); setFCedula(""); setFFactura(""); setFEstado("");
-    setFiltros({ cliente: "", cedula: "", factura: "", estado: "" });
-    setSortKey(null); setSortDir("asc"); setPage(1);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === "Enter") aplicarFiltros(); };
-
-  const toggleSort = (col: SortKey) => {
-    if (sortKey === col) setSortDir(d => d === "asc" ? "desc" : "asc");
-    else { setSortKey(col); setSortDir("asc"); }
-    setPage(1);
-  };
-
-  const filtrados = useMemo(() => {
-    let data = registros.filter(r =>
-      r.cliente.toLowerCase().includes(filtros.cliente.toLowerCase()) &&
-      r.cedula.includes(filtros.cedula) &&
-      r.factura.toLowerCase().includes(filtros.factura.toLowerCase()) &&
-      (filtros.estado === "" || r.estado === filtros.estado)
-    );
-
-    if (sortKey) {
-      data = [...data].sort((a, b) => {
-        let va: string | number = a[sortKey];
-        let vb: string | number = b[sortKey];
-        if (typeof va === "string") va = va.toLowerCase();
-        if (typeof vb === "string") vb = vb.toLowerCase();
-        if (va < vb) return sortDir === "asc" ? -1 : 1;
-        if (va > vb) return sortDir === "asc" ? 1 : -1;
-        return 0;
-      });
+  async function descargarPDF(r: Registro) {
+    try {
+      const res = await fetch(`${API_URL}/facturas/${r.id}/pdf`);
+      if (!res.ok) {
+        showToast(
+          `No se encontró el comprobante para la factura ${r.factura}.`,
+          "error",
+        );
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Factura-${r.factura}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      showToast("No fue posible descargar el comprobante PDF.", "error");
     }
-    return data;
-  }, [filtros, sortKey, sortDir]);
+  }
 
-  const totalPages   = Math.max(1, Math.ceil(filtrados.length / PER_PAGE));
-  const pagina       = Math.min(page, totalPages);
-  const slice        = filtrados.slice((pagina - 1) * PER_PAGE, pagina * PER_PAGE);
-  const totalMonto   = filtrados.reduce((s, r) => s + r.monto,  0);
-  const totalCobrado = filtrados.reduce((s, r) => s + r.pagado, 0);
-  const totalDeuda   = totalMonto - totalCobrado;
+  const activas = filtradosActuales.filter(
+    (r) => r.estadoOriginal?.toUpperCase() !== "ANULADA" && r.estadoOriginal?.toUpperCase() !== "INACTIVA"
+  );
+  const totalMonto = activas.reduce((s, r) => s + r.monto, 0);
+  const totalCobrado = filtradosActuales.reduce((s, r) => s + r.pagado, 0);
+  const totalDeuda = Math.max(0, totalMonto - totalCobrado);
 
-  const badgeClass: Record<string, string> = {
-    "Pagado":    "bg-emerald-100 text-emerald-700",
-    "Parcial":   "bg-amber-100 text-amber-700",
-    "Por Pagar": "bg-red-100 text-red-700",
+  // ── Generar PDF empresarial ────────────────────────────────────────────────
+  const generarPDF = async () => {
+    if (filtradosActuales.length === 0) return;
+    setDescargando(true);
+    try {
+      const { jsPDF } = await import("jspdf");
+      const autoTable = (await import("jspdf-autotable")).default;
+
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+      });
+      const fecha = new Date().toLocaleDateString("es-EC", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      });
+
+      // ── Encabezado ────────────────────────────────────────────────────────
+      doc.setFillColor(190, 0, 34); // UTN rojo
+      doc.rect(0, 0, 297, 22, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("UNIVERSIDAD TÉCNICA DEL NORTE", 14, 10);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text("Sistema de Cuentas por Cobrar — Reporte Empresarial", 14, 17);
+      doc.setFontSize(9);
+      doc.text(`Generado el ${fecha}`, 240, 10);
+      doc.text(`Total registros: ${filtradosActuales.length}`, 240, 17);
+
+      // ── Métricas ──────────────────────────────────────────────────────────
+      doc.setTextColor(55, 65, 81);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      const y = 30;
+      const metrics = [
+        {
+          label: "Total facturado",
+          value: `$${totalMonto.toLocaleString("es-EC", { minimumFractionDigits: 2 })}`,
+        },
+        {
+          label: "Total cobrado",
+          value: `$${totalCobrado.toLocaleString("es-EC", { minimumFractionDigits: 2 })}`,
+        },
+        {
+          label: "Por cobrar",
+          value: `$${totalDeuda.toLocaleString("es-EC", { minimumFractionDigits: 2 })}`,
+        },
+      ];
+      metrics.forEach((m, i) => {
+        const x = 14 + i * 90;
+        doc.setFillColor(249, 250, 251);
+        doc.roundedRect(x, y, 80, 14, 2, 2, "F");
+        doc.setFontSize(7);
+        doc.setTextColor(107, 114, 128);
+        doc.text(m.label.toUpperCase(), x + 4, y + 5);
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(55, 65, 81);
+        doc.text(m.value, x + 4, y + 12);
+        doc.setFont("helvetica", "normal");
+      });
+
+      // ── Tabla ─────────────────────────────────────────────────────────────
+      autoTable(doc, {
+        startY: 50,
+        head: [
+          [
+            "N° Factura",
+            "Cliente",
+            "Cédula / RUC",
+            "Fecha Emisión",
+            "Monto ($)",
+            "Cobrado ($)",
+            "Último Pago",
+          ],
+        ],
+        body: filtradosActuales.map((r) => [
+          r.factura || "—",
+          r.cliente,
+          r.cedula,
+          r.fecha || "—",
+          r.monto.toLocaleString("es-EC", { minimumFractionDigits: 2 }),
+          r.pagado.toLocaleString("es-EC", { minimumFractionDigits: 2 }),
+          r.ultimoPago || "Sin pagos",
+        ]),
+        foot: [
+          [
+            "",
+            "",
+            "",
+            "TOTALES",
+            `$${totalMonto.toLocaleString("es-EC", { minimumFractionDigits: 2 })}`,
+            `$${totalCobrado.toLocaleString("es-EC", { minimumFractionDigits: 2 })}`,
+            "",
+          ],
+        ],
+        headStyles: {
+          fillColor: [190, 0, 34],
+          textColor: 255,
+          fontSize: 8,
+          fontStyle: "bold",
+        },
+        footStyles: {
+          fillColor: [55, 65, 81],
+          textColor: 255,
+          fontSize: 8,
+          fontStyle: "bold",
+        },
+        bodyStyles: { fontSize: 7.5, textColor: [55, 65, 81] },
+        alternateRowStyles: { fillColor: [249, 250, 251] },
+        columnStyles: {
+          0: { cellWidth: 30 },
+          4: { halign: "right" },
+          5: { halign: "right" },
+        },
+        styles: { overflow: "linebreak", cellPadding: 2 },
+        margin: { left: 14, right: 14 },
+      });
+
+      // ── Pie de página ─────────────────────────────────────────────────────
+      const pages = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7);
+        doc.setTextColor(156, 163, 175);
+        doc.text(
+          `Página ${i} de ${pages} — Documento confidencial, uso interno`,
+          14,
+          205,
+        );
+        doc.text("UTN — Sistema CXC", 270, 205);
+      }
+
+      doc.save(`Reporte-CXC-${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (err) {
+      console.error("Error generando PDF:", err);
+      showToast("No existen datos para generar el reporte PDF.", "error");
+    } finally {
+      setDescargando(false);
+    }
   };
 
-  const thClass = (col: SortKey) =>
-    `px-5 py-3 text-left text-xs font-semibold text-slate-500 tracking-wider cursor-pointer select-none hover:text-slate-700 transition-colors`;
+  const columns: ColumnDef<Registro>[] = [
+    {
+      key: "cliente",
+      label: "Cliente",
+      sortable: true,
+      render: (r) => (
+        <div>
+          <p className="font-medium text-gray-900">{r.cliente}</p>
+          <p className="font-mono text-xs text-gray-500 mt-0.5">{r.cedula}</p>
+        </div>
+      ),
+    },
+    { key: "factura", label: "N° Factura", sortable: true },
+    {
+      key: "fecha",
+      label: "Fecha Emisión",
+      sortable: true,
+      render: (r) => <span className="text-xs text-gray-600">{r.fecha}</span>,
+    },
+    {
+      key: "monto",
+      label: "Total ($)",
+      sortable: true,
+      render: (r) => (
+        <span className="font-semibold text-gray-900">
+          ${r.monto.toLocaleString()}
+        </span>
+      ),
+    },
+    {
+      key: "pagado",
+      label: "Cobrado ($)",
+      sortable: true,
+      render: (r) => (
+        <span className="text-emerald-700 font-medium">
+          ${r.pagado.toLocaleString()}
+        </span>
+      ),
+    },
+    {
+      key: "ultimoPago",
+      label: "Último Pago",
+      sortable: false,
+      render: (r) =>
+        r.ultimoPago ? (
+          <span className="text-xs font-medium text-gray-700">
+            {r.ultimoPago}
+          </span>
+        ) : (
+          <span className="text-xs text-gray-400">Sin pagos</span>
+        ),
+    },
+  ];
 
   return (
-    <div>
-      <h1 className="text-4xl font-bold text-slate-800 mb-8">Reportes</h1>
+    <div className="flex flex-col gap-6">
+      {/* ── Encabezado ── */}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <nav className="metric-label">
+            <span>Inicio</span>
+            <span className="mx-1">/</span>
+            <span className="text-gray-700 font-medium">Reportes</span>
+          </nav>
+          <h1 className="page-title">Reporte Empresarial</h1>
+          <p className="text-gray-500 text-sm mt-0.5">
+            Consolidado de cuentas por cobrar. Usa el buscador para filtrar y
+            luego descarga el informe.
+          </p>
+        </div>
 
-      {/* ── Filtros ── */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
-        <h2 className="text-xs font-semibold text-slate-400 tracking-widest mb-4 uppercase">Filtros de búsqueda</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-          <input type="text" placeholder="Cliente"    value={fCliente} onChange={e => setFCliente(e.target.value)} onKeyDown={handleKeyDown}
-            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <input type="text" placeholder="Cédula"     value={fCedula}  onChange={e => setFCedula(e.target.value)}  onKeyDown={handleKeyDown}
-            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <input type="text" placeholder="N° factura" value={fFactura} onChange={e => setFFactura(e.target.value)} onKeyDown={handleKeyDown}
-            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <select value={fEstado} onChange={e => setFEstado(e.target.value)}
-            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">Todos los estados</option>
-            <option value="Pagado">Pagado</option>
-            <option value="Parcial">Parcial</option>
-            <option value="Por Pagar">Por Pagar</option>
-          </select>
-        </div>
-        <div className="flex gap-2">
-          <button type="button" onClick={aplicarFiltros}
-            className="px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors">
-            Buscar
-          </button>
-          <button type="button" onClick={limpiarFiltros}
-            className="px-5 py-2.5 border border-slate-200 text-slate-600 text-sm font-medium rounded-xl hover:bg-slate-50 transition-colors">
-            Limpiar
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={generarPDF}
+          disabled={descargando || filtradosActuales.length === 0}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+          style={{ background: descargando ? "#9A001B" : "var(--utn-red)" }}
+        >
+          {descargando ? (
+            <>
+              <svg
+                className="w-4 h-4 animate-spin"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+              Generando PDF...
+            </>
+          ) : (
+            <>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"
+                />
+              </svg>
+              Descargar Informe PDF
+              {filtradosActuales.length > 0 && (
+                <span className="bg-white/25 text-xs px-1.5 py-0.5 rounded-full">
+                  {filtradosActuales.length}
+                </span>
+              )}
+            </>
+          )}
+        </button>
       </div>
 
-      {/* ── Métricas ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      {/* ── Filtro de fechas ── */}
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-4">
+          Rango de fechas
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <DatePicker
+            label="Fecha de Inicio"
+            value={fechaInicio}
+            onChange={(v) => {
+              setFechaInicio(v);
+              setDateError("");
+            }}
+          />
+          <DatePicker
+            label="Fecha de Fin"
+            value={fechaFin}
+            onChange={(v) => {
+              setFechaFin(v);
+              setDateError("");
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setFechaInicio("");
+              setFechaFin("");
+              setDateError("");
+            }}
+            disabled={!fechaInicio && !fechaFin}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-300 text-sm text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+            Limpiar fechas
+          </button>
+        </div>
+        {dateError && (
+          <p className="mt-3 text-xs font-medium text-red-600 flex items-center gap-1">
+            <svg
+              className="w-3.5 h-3.5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z"
+                clipRule="evenodd"
+              />
+            </svg>
+            {dateError}
+          </p>
+        )}
+        {(fechaInicio || fechaFin) && !dateError && (
+          <p className="mt-3 text-xs text-gray-500">
+            Mostrando{" "}
+            <strong className="text-gray-700">
+              {registrosPorFecha.length}
+            </strong>{" "}
+            de {registros.length} registros
+            {fechaInicio && (
+              <>
+                {" "}
+                desde <strong className="text-gray-700">{fechaInicio}</strong>
+              </>
+            )}
+            {fechaFin && (
+              <>
+                {" "}
+                hasta <strong className="text-gray-700">{fechaFin}</strong>
+              </>
+            )}
+          </p>
+        )}
+      </div>
+
+      {/* ── Métricas (reflejan la búsqueda actual) ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Registros",  value: filtrados.length,                    color: "text-slate-800"   },
-          { label: "Total",      value: `$${totalMonto.toLocaleString()}`,   color: "text-slate-800"   },
-          { label: "Cobrado",    value: `$${totalCobrado.toLocaleString()}`, color: "text-emerald-600" },
-          { label: "Por cobrar", value: `$${totalDeuda.toLocaleString()}`,   color: "text-red-600"     },
+          {
+            label: "Registros",
+            value: filtradosActuales.length,
+            color: "text-gray-900",
+          },
+          {
+            label: "Total",
+            value: `$${totalMonto.toLocaleString()}`,
+            color: "text-gray-900",
+          },
+          {
+            label: "Cobrado",
+            value: `$${totalCobrado.toLocaleString()}`,
+            color: "text-emerald-600",
+          },
+          {
+            label: "Por cobrar",
+            value: `$${totalDeuda.toLocaleString()}`,
+            color: "text-red-700",
+          },
         ].map(({ label, value, color }) => (
-          <div key={label} className="bg-slate-50 rounded-xl p-4">
-            <p className="text-xs text-slate-500 mb-1">{label}</p>
-            <p className={`text-xl font-semibold ${color}`}>{value}</p>
+          <div key={label} className="bg-white border border-gray-200 shadow-sm rounded-2xl p-4">
+            <p className="metric-label mb-2">{label}</p>
+            <p className={`metric-value ${color}`}>{value}</p>
           </div>
         ))}
       </div>
 
-      {/* ── Tabla ── */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th className={thClass("cliente")} onClick={() => toggleSort("cliente")}>
-                Cliente <SortIcon col="cliente" sortKey={sortKey} sortDir={sortDir} />
-              </th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 tracking-wider">Cédula</th>
-              <th className={thClass("factura")} onClick={() => toggleSort("factura")}>
-                Factura <SortIcon col="factura" sortKey={sortKey} sortDir={sortDir} />
-              </th>
-              <th className={thClass("fecha")} onClick={() => toggleSort("fecha")}>
-                Fecha <SortIcon col="fecha" sortKey={sortKey} sortDir={sortDir} />
-              </th>
-              <th className={thClass("estado")} onClick={() => toggleSort("estado")}>
-                Estado <SortIcon col="estado" sortKey={sortKey} sortDir={sortDir} />
-              </th>
-              <th className={thClass("monto")} onClick={() => toggleSort("monto")}>
-                Monto <SortIcon col="monto" sortKey={sortKey} sortDir={sortDir} />
-              </th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 tracking-wider">Saldo / deuda</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 tracking-wider">Último pago</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 tracking-wider">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {slice.length === 0 ? (
-              <tr><td colSpan={9} className="px-5 py-10 text-center text-slate-400 text-sm">Sin resultados con los filtros actuales</td></tr>
-            ) : slice.map(r => {
-              const deuda = r.monto - r.pagado;
-              return (
-                <tr key={r.factura} className="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-                  <td className="px-5 py-3 font-medium text-slate-800">{r.cliente}</td>
-                  <td className="px-5 py-3 font-mono text-xs text-slate-600">{r.cedula}</td>
-                  <td className="px-5 py-3 text-slate-700">{r.factura}</td>
-                  <td className="px-5 py-3 text-slate-500 text-xs">{r.fecha}</td>
-                  <td className="px-5 py-3">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${badgeClass[r.estado]}`}>
-                      {r.estado}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 font-semibold text-slate-800">${r.monto.toLocaleString()}</td>
-                  <td className="px-5 py-3">
-                    <p className="text-xs text-slate-500">${r.pagado.toLocaleString()} de ${r.monto.toLocaleString()}</p>
-                    {deuda > 0
-                      ? <p className="text-xs font-medium text-red-600 mt-0.5">Debe ${deuda.toLocaleString()}</p>
-                      : <p className="text-xs font-medium text-emerald-600 mt-0.5">Saldo saldado ✓</p>}
-                  </td>
-                  <td className="px-5 py-3">
-                    {r.ultimoPago
-                      ? <><p className="text-xs font-medium text-slate-700">{r.ultimoPago}</p><p className="text-xs text-slate-400">último pago</p></>
-                      : <p className="text-xs text-slate-400">Sin pagos</p>}
-                  </td>
-                  <td className="px-5 py-3">
-                    <div className="flex gap-2">
-                      <button type="button" onClick={() => imprimirRecibo(r)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-medium hover:bg-slate-100 transition-colors">
-                        🖨 Imprimir
-                      </button>
-                      <button type="button" onClick={() => descargarPDF(r)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-300 text-emerald-700 text-xs font-medium hover:bg-emerald-50 transition-colors">
-                        ↓ PDF
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
-        {/* ── Paginación ── */}
-        <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100">
-          <p className="text-xs text-slate-500">
-            Mostrando {Math.min((pagina - 1) * PER_PAGE + 1, filtrados.length)}–{Math.min(pagina * PER_PAGE, filtrados.length)} de {filtrados.length}
-          </p>
-          <div className="flex items-center gap-1">
-            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={pagina === 1}
-              className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">‹</button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-              <button key={p} onClick={() => setPage(p)}
-                className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
-                  p === pagina ? "bg-blue-600 text-white border-blue-600" : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                }`}>{p}</button>
-            ))}
-            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={pagina === totalPages}
-              className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">›</button>
-          </div>
-        </div>
-      </div>
+      <DataTable
+        columns={columns}
+        data={registrosPorFecha}
+        rowKey={(r) => r.id}
+        searchKeys={["cliente", "cedula", "factura"]}
+        pageOptions={[10, 25, 50, 100]}
+        onFilteredChange={setFiltradosActuales}
+        emptyMessage="Sin resultados para el rango de fechas y búsqueda seleccionados."
+      />
     </div>
   );
 }
