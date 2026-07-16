@@ -63,7 +63,8 @@ interface FacturasResponse {
 @Injectable()
 export class FacturacionApiService {
   private readonly graphqlUrl =
-    'https://ad-modulo-facturacion.onrender.com/graphql';
+    process.env.FACTURACION_GRAPHQL_URL ||
+    'https://ad-modulo-facturacion-e51e.onrender.com/graphql';
 
   /**
    * Helper privado para realizar peticiones POST HTTP a la API de GraphQL externa.
@@ -73,7 +74,7 @@ export class FacturacionApiService {
   private async getFreshToken(): Promise<string> {
     try {
       const response = await fetch(
-        'https://ad-modulo-facturacion.onrender.com/auth/test-token',
+        'https://ad-modulo-facturacion-e51e.onrender.com/auth/test-token',
       );
       if (response.ok) {
         const data = await response.json();
@@ -98,21 +99,26 @@ export class FacturacionApiService {
     query: string,
     variables: Record<string, unknown> = {},
   ): Promise<T> {
-    let token =
-      this.cachedToken ||
-      process.env.FACTURACION_JWT_TOKEN ||
-      process.env.FACTURACION_API_TOKEN ||
-      '';
-
-    if (!token) {
-      token = await this.getFreshToken();
-    }
-
+    const apiKey = process.env.FACTURACION_API_KEY || 'api_key_facturacion_cxc_2026';
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+
+    if (apiKey) {
+      headers['x-api-key'] = apiKey;
+    } else {
+      let token =
+        this.cachedToken ||
+        process.env.FACTURACION_JWT_TOKEN ||
+        process.env.FACTURACION_API_TOKEN ||
+        '';
+
+      if (!token) {
+        token = await this.getFreshToken();
+      }
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
     }
 
     try {
@@ -131,20 +137,21 @@ export class FacturacionApiService {
         errors?: Array<{ message: string; code?: string }>;
       };
 
-      // Si no autorizado, renovar token e intentar de nuevo
+      // Si no autorizado, renovar token e intentar de nuevo (solo si no se usó apiKey)
       const isUnauthorized =
-        response.status === 401 ||
-        body.errors?.some(
-          (e) =>
-            e.message?.toLowerCase().includes('no autorizado') ||
-            e.code === 'UNAUTHENTICATED',
-        );
+        !apiKey &&
+        (response.status === 401 ||
+          body.errors?.some(
+            (e) =>
+              e.message?.toLowerCase().includes('no autorizado') ||
+              e.code === 'UNAUTHENTICATED',
+          ));
 
       if (isUnauthorized) {
         console.log(
           'Token de facturación no autorizado o expirado. Obteniendo nuevo token...',
         );
-        token = await this.getFreshToken();
+        const token = await this.getFreshToken();
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
           response = await fetch(this.graphqlUrl, {

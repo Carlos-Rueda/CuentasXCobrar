@@ -24,6 +24,10 @@ services:
         value: dev_key_cxc_111
       - key: AUDITORIA_API_URL
         value: https://98l52rpey8.execute-api.us-east-1.amazonaws.com/default/api-pistas-auditoria
+      - key: FACTURACION_GRAPHQL_URL
+        value: https://ad-modulo-facturacion-e51e.onrender.com/graphql
+      - key: FACTURACION_API_KEY
+        value: api_key_facturacion_cxc_2026
 
   # Frontend Next.js Web Service
   - type: web
