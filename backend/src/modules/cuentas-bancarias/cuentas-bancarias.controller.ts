@@ -174,11 +174,11 @@ export class CuentasBancariasController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CXC_ADMIN')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Eliminar una cuenta bancaria' })
-  @ApiParam({ name: 'id', description: 'ID de la cuenta bancaria a eliminar' })
+  @ApiOperation({ summary: 'Inactivar una cuenta bancaria' })
+  @ApiParam({ name: 'id', description: 'ID de la cuenta bancaria a inactivar' })
   @ApiResponse({
     status: 204,
-    description: 'Cuenta bancaria eliminada con éxito.',
+    description: 'Cuenta bancaria inactivada con éxito.',
   })
   @ApiResponse({
     status: 404,

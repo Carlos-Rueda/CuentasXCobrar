@@ -261,9 +261,9 @@ export default function CuentasBancariasPage() {
 
       if (response.ok || response.status === 204) {
         await cargarCuentas();
-        showToast("Cuenta bancaria eliminada correctamente", "success");
+        showToast("Cuenta bancaria inactivada correctamente", "success");
       } else {
-        showToast("Error al eliminar la cuenta bancaria", "error");
+        showToast("Error al inactivar la cuenta bancaria", "error");
       }
     } catch (error) {
       console.error(error);
@@ -294,7 +294,7 @@ export default function CuentasBancariasPage() {
             onClick={() => eliminarCuenta(row.id)}
             className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-50 text-red-700 hover:bg-red-100 active:scale-[0.98] transition-all"
           >
-            Eliminar
+            Inactivar
           </button>
         </div>
       ),
@@ -728,7 +728,7 @@ export default function CuentasBancariasPage() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
             <div className="bg-red-700 px-6 py-5 text-white">
-              <h2 className="text-lg font-bold">Confirmar eliminación</h2>
+              <h2 className="text-lg font-bold">Confirmar inactivación</h2>
             </div>
 
             <div className="p-6">
@@ -751,11 +751,11 @@ export default function CuentasBancariasPage() {
               </div>
 
               <p className="text-center text-gray-700">
-                ¿Está seguro de eliminar esta cuenta bancaria?
+                ¿Está seguro de inactivar esta cuenta bancaria?
               </p>
 
               <p className="text-center text-sm text-gray-500 mt-2">
-                Esta acción no se puede deshacer.
+                La cuenta pasará a estar inactiva en el sistema.
               </p>
             </div>
 
@@ -774,7 +774,7 @@ export default function CuentasBancariasPage() {
                 onClick={confirmarEliminar}
                 className="px-5 py-2 rounded-lg bg-red-700 text-white hover:bg-red-800"
               >
-                Eliminar
+                Inactivar
               </button>
             </div>
           </div>

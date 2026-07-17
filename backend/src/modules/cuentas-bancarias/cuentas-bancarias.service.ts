@@ -228,18 +228,19 @@ export class CuentasBancariasService implements OnModuleInit {
       throw new NotFoundException(`Cuenta bancaria con ID ${id} no encontrada`);
     }
 
-    // Registrar auditoría antes de eliminar
+    // Registrar auditoría al inactivar
     await this.auditoriaService.registrar({
       token,
       idFuncion: 9,
-      accion: 'ELIMINAR',
-      descripcion: 'Eliminación de cuenta bancaria',
-      observacion: `Cuenta ${exists.codigo} eliminada correctamente`,
+      accion: 'INACTIVAR',
+      descripcion: 'Inactivación de cuenta bancaria',
+      observacion: `Cuenta ${exists.codigo} inactivada correctamente`,
       ip,
     });
 
-    await this.prismaService.cuentas_bancarias.delete({
+    await this.prismaService.cuentas_bancarias.update({
       where: { id },
+      data: { estado: 'inactivo' },
     });
   }
 
