@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { ClienteDto } from './dto/cliente.dto';
 import { FacturaDto, DetalleFacturaDto } from './dto/factura.dto';
 import * as PDFDocument from 'pdfkit';
+import { PdfHelper } from '../pdf-helper';
 import 'dotenv/config';
 
 @Injectable()
@@ -352,44 +353,78 @@ export class FacturasService {
 
     return new Promise((resolve, reject) => {
       try {
-        const DocConstructor = (PDFDocument.default || PDFDocument) as any;
-        const doc = new DocConstructor({ margin: 50 });
+        const doc = PdfHelper.createDocument();
         const chunks: Buffer[] = [];
 
         doc.on('data', (chunk: Buffer) => chunks.push(chunk));
         doc.on('end', () => resolve(Buffer.concat(chunks)));
         doc.on('error', (err: any) => reject(err));
 
-        // Diseño del PDF
-        doc.fontSize(20).text('COMPROBANTE DE FACTURA', { align: 'center' });
-        doc.moveDown();
+        // Cabecera estándar
+        PdfHelper.drawHeader(doc, 'Comprobante de Factura');
 
-        doc.fontSize(12).text(`N° Factura: ${factura.numero}`);
-        doc.text(`Fecha Emisión: ${factura.fechaEmision}`);
-        doc.text(`Cliente: ${cliente.nombre}`);
-        doc.text(`RUC/Cédula: ${cliente.ruc}`);
-        doc.text(`Correo: ${cliente.correo}`);
-        doc.text(`Teléfono: ${cliente.telefono}`);
-        doc.text(`Estado: ${factura.estado}`);
-        doc.text(`Total Facturado: $${factura.total.toFixed(2)}`);
-        doc.moveDown();
+        // Metadatos
+        const leftItems = [
+          { label: 'N° Factura', value: factura.numero || id },
+          { label: 'Fecha Emisión', value: factura.fechaEmision || 'N/A' },
+          { label: 'Estado', value: factura.estado || 'N/A' },
+        ];
+        const rightItems = [
+          { label: 'Cliente', value: cliente.nombre || 'N/A' },
+          { label: 'RUC/Cédula', value: cliente.ruc || 'N/A' },
+          { label: 'Correo', value: cliente.correo || 'N/A' },
+          { label: 'Teléfono', value: cliente.telefono || 'N/A' },
+        ];
+        PdfHelper.drawMetadata(doc, leftItems, rightItems);
 
-        doc.fontSize(14).text('Detalles de la Factura', { underline: true });
+        // Sección Detalles
+        doc.font('Helvetica-Bold').fontSize(11).fillColor(PdfHelper.TEXT_DARK).text('DETALLES DE LA FACTURA');
         doc.moveDown(0.5);
+
+        // Tabla de ítems
+        const columns = [
+          { label: 'Producto/Servicio', width: 220 },
+          { label: 'Cant.', width: 60, align: 'right' },
+          { label: 'P. Unitario', width: 90, align: 'right' },
+          { label: 'Total', width: 102, align: 'right' },
+        ];
+        PdfHelper.drawTableHeader(doc, columns);
 
         if (factura.detalles && factura.detalles.length > 0) {
           factura.detalles.forEach((det, idx) => {
-            doc
-              .fontSize(12)
-              .text(
-                `${idx + 1}. Producto: ${det.producto} - Cantidad: ${det.cantidad} - Precio Unitario: $${det.precioUnitario.toFixed(2)}`,
-              );
+            const totalItem = Number(det.cantidad) * Number(det.precioUnitario);
+            PdfHelper.drawTableRow(
+              doc,
+              [
+                det.producto || 'N/A',
+                String(det.cantidad),
+                `$${det.precioUnitario.toFixed(2)}`,
+                `$${totalItem.toFixed(2)}`,
+              ],
+              columns,
+              idx % 2 === 1,
+            );
           });
         } else {
-          doc.fontSize(12).text('Sin detalles de ítems.');
+          PdfHelper.drawTableRow(
+            doc,
+            ['Sin detalles de ítems.', '', '', ''],
+            columns,
+            false,
+          );
         }
+        
+        doc.moveDown(1);
+        
+        // Totalizador
+        const totalY = doc.y;
+        doc.rect(350, totalY, 212, 22).fill(PdfHelper.BG_LIGHT);
+        doc.fillColor(PdfHelper.TEXT_DARK).font('Helvetica-Bold').fontSize(10);
+        doc.text('TOTAL FACTURADO:', 360, totalY + 6);
+        doc.fillColor(PdfHelper.UTN_RED).font('Helvetica-Bold').fontSize(10);
+        doc.text(`$${factura.total.toFixed(2)}`, 450, totalY + 6, { align: 'right', width: 100 });
 
-        doc.end();
+        PdfHelper.finalize(doc);
       } catch (error) {
         reject(error);
       }

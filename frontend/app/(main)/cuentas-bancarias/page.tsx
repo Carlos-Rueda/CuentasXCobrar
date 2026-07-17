@@ -1,7 +1,8 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+
 import { API_URL } from "@/app/config";
 import { useToast } from "@/app/components/toast";
 import DataTable, { ColumnDef } from "@/app/components/DataTable";
@@ -62,6 +63,10 @@ export default function CuentasBancariasPage() {
       case "nroCuenta":
         if (!value.trim()) return "El número de cuenta es obligatorio";
         if (!/^\d{8,20}$/.test(value.trim())) return "Debe contener entre 8 y 20 dígitos numéricos";
+        const existe = cuentas.some(
+          (c) => c.nroCuenta?.trim() === value.trim() && c.id !== editandoId
+        );
+        if (existe) return "Este número de cuenta ya está registrado";
         return "";
       case "ruc":
         if (!value.trim()) return "El RUC es obligatorio";
@@ -74,7 +79,7 @@ export default function CuentasBancariasPage() {
       default:
         return "";
     }
-  }, []);
+  }, [cuentas, editandoId]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
@@ -104,6 +109,20 @@ export default function CuentasBancariasPage() {
     setErrores(nuevosErrores);
     return Object.values(nuevosErrores).every((e) => !e);
   };
+
+  const formularioValido = useMemo(() => {
+    if (!formData.nombreCuenta.trim()) return false;
+    if (!formData.entidadBancaria.trim()) return false;
+    if (!formData.titular.trim()) return false;
+    if (!formData.nroCuenta.trim()) return false;
+    if (!formData.ruc.trim()) return false;
+
+    // Check if there are any non-empty errors
+    const tieneErrores = Object.values(errores).some((e) => e !== "");
+    if (tieneErrores) return false;
+    return true;
+  }, [formData, errores]);
+
 
   const abrirModalNueva = () => {
     setEditandoId(null);
@@ -531,7 +550,7 @@ export default function CuentasBancariasPage() {
               <button
                 type="button"
                 onClick={guardarCuenta}
-                disabled={guardando}
+                disabled={guardando || !formularioValido}
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[var(--utn-red)] hover:bg-[var(--utn-red-dark)] text-white text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {guardando ? (

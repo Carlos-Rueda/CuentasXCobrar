@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+@theme {
+  --color-utn-red: var(--utn-red);
+  --color-utn-red-dark: var(--utn-red-dark);
+  --color-utn-red-light: var(--utn-red-light);
+  --color-utn-gray-dark: var(--utn-gray-dark);
+  --color-utn-gray: var(--utn-gray);
+  --color-utn-gray-light: var(--utn-gray-light);
+}
+
 /* ── Paleta UTN ─────────────────────────────────────────────────────────────
    Rojo      #BE0022  →  acciones primarias, activos, botones
    Rojo dark #9A001B  →  hover
