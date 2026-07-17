@@ -1,10 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { CuentasBancariasController } from './cuentas-bancarias.controller';
+import { CuentasBancariasController, CuentasBancariasSalidaController } from './cuentas-bancarias.controller';
 import { CuentasBancariasService } from './cuentas-bancarias.service';
 import { NotFoundException } from '@nestjs/common';
 
 describe('CuentasBancariasController', () => {
   let controller: CuentasBancariasController;
+  let salidaController: CuentasBancariasSalidaController;
   let service: CuentasBancariasService;
 
   const mockCuentasBancariasService = {
@@ -17,11 +18,17 @@ describe('CuentasBancariasController', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [CuentasBancariasController],
+      controllers: [CuentasBancariasController, CuentasBancariasSalidaController],
       providers: [
         {
           provide: CuentasBancariasService,
           useValue: mockCuentasBancariasService,
+        },
+        {
+          provide: 'AUDITORIA_PACKAGE',
+          useValue: {
+            registrarTraza: jest.fn().mockResolvedValue(undefined),
+          },
         },
       ],
     }).compile();
@@ -29,11 +36,15 @@ describe('CuentasBancariasController', () => {
     controller = module.get<CuentasBancariasController>(
       CuentasBancariasController,
     );
+    salidaController = module.get<CuentasBancariasSalidaController>(
+      CuentasBancariasSalidaController,
+    );
     service = module.get<CuentasBancariasService>(CuentasBancariasService);
   });
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+    expect(salidaController).toBeDefined();
   });
 
   describe('findAll', () => {
@@ -50,7 +61,7 @@ describe('CuentasBancariasController', () => {
       ];
       mockCuentasBancariasService.findAll.mockResolvedValueOnce(mockResult);
 
-      const result = await controller.findAll();
+      const result = await salidaController.findAll();
       expect(result).toBe(mockResult);
     });
   });

@@ -36,14 +36,11 @@ export class DashboardController {
 
     // Obtener gastos del módulo de compras
     const gastosCompras = await this.comprasApi.obtenerGastos();
-    console.log(`[DEBUG] Total gastos obtenidos de Compras API: ${gastosCompras.length}`);
-    if (gastosCompras.length > 0) {
-      console.log(`[DEBUG] Primer gasto de muestra: ${JSON.stringify(gastosCompras[0])}`);
-    }
+
 
     const reportList = await Promise.all(
       cuentas.map(async (cuenta) => {
-        console.log(`[DEBUG] Procesando cuenta BD: ID=${cuenta.id}, Banco=${cuenta.entidad_bancaria}`);
+
         // 1. Sumar recaudación por pagos de clientes
         const pagos = await this.prisma.pagos_clientes.findMany({
           where: {
@@ -92,7 +89,7 @@ export class DashboardController {
           (g) => g.cuenta_bancaria_id?.toLowerCase().trim() === cuenta.id.toLowerCase().trim()
         );
         const total_compras = gastosCuenta.reduce((sum, g) => sum + Number(g.monto || 0), 0);
-        console.log(`[DEBUG] Cuenta ${cuenta.entidad_bancaria}: Encontrados ${gastosCuenta.length} gastos, Suma=${total_compras}`);
+
 
         for (const g of gastosCuenta) {
           comprasEgresos.push({

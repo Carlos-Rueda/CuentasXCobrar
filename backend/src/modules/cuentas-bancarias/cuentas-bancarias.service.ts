@@ -43,13 +43,44 @@ export class CuentasBancariasService implements OnModuleInit {
   }
 
   /**
-   * Obtiene todas las cuentas bancarias de la base de datos real.
+   * Mapea un registro de base de datos a un formato simplificado de lista sin descripcion ni estado.
    */
-  async findAll(): Promise<CuentaBancariaEntity[]> {
-    const list = await this.prismaService.cuentas_bancarias.findMany({
-      orderBy: { created_at: 'asc' },
-    });
-    return list.map((item) => this.mapToEntity(item));
+  private mapToListItem(db: any) {
+    return {
+      id: db.id,
+      codigo: db.codigo,
+      nombreCuenta: db.nombre_cuenta,
+      entidadBancaria: db.entidad_bancaria,
+      titular: db.titular || '',
+      tipoCuenta: db.tipo_cuenta || '',
+      nroCuenta: db.nro_cuenta || '',
+      ruc: db.ruc || '',
+    };
+  }
+
+  async findAll(allMode?: string): Promise<any[]> {
+    if (allMode === 'true') {
+      const list = await this.prismaService.cuentas_bancarias.findMany({
+        orderBy: { created_at: 'asc' },
+      });
+      return list.map((item) => this.mapToEntity(item));
+    } else if (allMode === 'all') {
+      const list = await this.prismaService.cuentas_bancarias.findMany({
+        orderBy: { created_at: 'asc' },
+      });
+      return list.map((item) => this.mapToListItem(item));
+    } else {
+      const list = await this.prismaService.cuentas_bancarias.findMany({
+        where: {
+          estado: {
+            equals: 'ACTIVO',
+            mode: 'insensitive',
+          },
+        },
+        orderBy: { created_at: 'asc' },
+      });
+      return list.map((item) => this.mapToListItem(item));
+    }
   }
 
   /**
@@ -261,15 +292,22 @@ export class CuentasBancariasService implements OnModuleInit {
     // 4. Obtener saldo de facturación (desde API externa GraphQL)
     let saldo_facturacion = 0;
     try {
-      let token = '';
-      const tokenRes = await fetch('https://ad-modulo-facturacion.onrender.com/auth/test-token');
-      if (tokenRes.ok) {
-        const tokenData = await tokenRes.json();
-        token = tokenData?.token || '';
-      }
+      const apiKey = process.env.FACTURACION_API_KEY || 'api_key_facturacion_cxc_2026';
+      const graphqlUrl = process.env.FACTURACION_GRAPHQL_URL || 'https://ad-modulo-facturacion-e51e.onrender.com/graphql';
 
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      if (apiKey) {
+        headers['x-api-key'] = apiKey;
+      } else {
+        let token = '';
+        const tokenRes = await fetch('https://ad-modulo-facturacion-e51e.onrender.com/auth/test-token');
+        if (tokenRes.ok) {
+          const tokenData = await tokenRes.json();
+          token = tokenData?.token || '';
+        }
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+      }
 
       const gqlQuery = {
         query: `
@@ -282,7 +320,7 @@ export class CuentasBancariasService implements OnModuleInit {
         variables: { cuentaId },
       };
 
-      const gqlRes = await fetch('https://ad-modulo-facturacion.onrender.com/graphql', {
+      const gqlRes = await fetch(graphqlUrl, {
         method: 'POST',
         headers,
         body: JSON.stringify(gqlQuery),

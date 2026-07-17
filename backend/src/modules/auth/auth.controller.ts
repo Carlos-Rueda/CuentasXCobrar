@@ -29,4 +29,28 @@ export class AuthController {
 
     return this.authService.login(dto, ipUsuario);
   }
+
+  @Post('forgot-password')
+  @ApiOperation({ summary: 'Solicitar código de restablecimiento de contraseña' })
+  async forgotPassword(@Body() body: { email: string }) {
+    return this.authService.forgotPassword(body.email);
+  }
+
+  @Post('verify-code')
+  @ApiOperation({ summary: 'Verificar código de seguridad' })
+  async verifyCode(@Body() body: { email: string; codigo: string }) {
+    return this.authService.verifyCode(body.email, body.codigo);
+  }
+
+  @Post('reset-password')
+  @ApiOperation({ summary: 'Restablecer la contraseña' })
+  async resetPassword(
+    @Body() body: { email: string; codigo: string; new_password: string },
+  ) {
+    return this.authService.resetPassword(
+      body.email,
+      body.codigo,
+      body.new_password,
+    );
+  }
 }

@@ -85,8 +85,6 @@ describe('CuentasBancariasService', () => {
           tipoCuenta: 'Corriente',
           nroCuenta: '2100987654',
           ruc: '1790011223001',
-          descripcion: 'Desc A',
-          estado: 'ACTIVO',
         },
       ]);
     });

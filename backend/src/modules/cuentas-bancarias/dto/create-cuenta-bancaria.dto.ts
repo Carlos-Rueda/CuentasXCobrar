@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiHideProperty } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsOptional, IsIn } from 'class-validator';
 
 export class CreateCuentaBancariaDto {
@@ -56,20 +56,12 @@ export class CreateCuentaBancariaDto {
   @IsNotEmpty()
   ruc: string;
 
-  @ApiProperty({
-    example: 'Cuenta principal para cobros',
-    description: 'Descripción opcional',
-    required: false,
-  })
+  @ApiHideProperty()
   @IsString()
   @IsOptional()
   descripcion?: string;
 
-  @ApiProperty({
-    example: 'ACTIVO',
-    description: 'Estado de la cuenta bancaria',
-    required: false,
-  })
+  @ApiHideProperty()
   @IsString()
   @IsOptional()
   @IsIn(['ACTIVO', 'INACTIVO'])

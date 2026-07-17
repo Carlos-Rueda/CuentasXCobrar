@@ -11,6 +11,7 @@ import {
   NotFoundException,
   UseInterceptors,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,6 +19,7 @@ import {
   ApiResponse,
   ApiParam,
   ApiBearerAuth,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { CuentasBancariasService } from './cuentas-bancarias.service';
 import { CuentaBancariaEntity } from './cuenta-bancaria.entity';
@@ -28,6 +30,44 @@ import { JwtAuthGuard } from '../cuentas-cobrar/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 
+@ApiTags('API de Salida')
+@UseInterceptors(AuditoriaInterceptor)
+@Controller('cuentas-bancarias')
+export class CuentasBancariasSalidaController {
+  constructor(
+    private readonly cuentasBancariasService: CuentasBancariasService,
+  ) {}
+
+  @Get()
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Obtener todas las cuentas bancarias' })
+  @ApiQuery({
+    name: 'all',
+    required: false,
+    description: 'Obtener todas las cuentas (incluyendo inactivas) con "true" o "all". Si no se envía, solo se obtienen las activas.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de cuentas bancarias obtenida con éxito.',
+  })
+  async findAll(@Query('all') all?: string): Promise<any[]> {
+    return await this.cuentasBancariasService.findAll(all);
+  }
+
+  @Get(':id/saldo')
+  @ApiOperation({ summary: 'Obtener el saldo disponible de una cuenta bancaria' })
+  @ApiParam({ name: 'id', description: 'ID de la cuenta bancaria para consultar saldo' })
+  @ApiResponse({
+    status: 200,
+    description: 'Saldo disponible calculado con éxito.',
+  })
+  @ApiResponse({ status: 404, description: 'Cuenta bancaria no encontrada.' })
+  async getSaldo(@Param('id') id: string) {
+    return await this.cuentasBancariasService.calcularSaldo(id);
+  }
+}
+
 @ApiTags('Cuentas Bancarias')
 @UseInterceptors(AuditoriaInterceptor)
 @Controller('cuentas-bancarias')
@@ -35,17 +75,6 @@ export class CuentasBancariasController {
   constructor(
     private readonly cuentasBancariasService: CuentasBancariasService,
   ) {}
-
-  @Get()
-  @ApiOperation({ summary: 'Obtener todas las cuentas bancarias' })
-  @ApiResponse({
-    status: 200,
-    description: 'Lista de cuentas bancarias obtenida con éxito.',
-    type: [CuentaBancariaEntity],
-  })
-  async findAll(): Promise<CuentaBancariaEntity[]> {
-    return await this.cuentasBancariasService.findAll();
-  }
 
   @Get(':id')
   @ApiOperation({ summary: 'Buscar una cuenta bancaria por ID' })
@@ -62,19 +91,6 @@ export class CuentasBancariasController {
       throw new NotFoundException(`Cuenta bancaria con ID ${id} no encontrada`);
     }
     return cuenta;
-  }
-
-  @Get(':id/saldo')
-  @ApiTags('API de Salida')
-  @ApiOperation({ summary: 'Obtener el saldo disponible de una cuenta bancaria' })
-  @ApiParam({ name: 'id', description: 'ID de la cuenta bancaria para consultar saldo' })
-  @ApiResponse({
-    status: 200,
-    description: 'Saldo disponible calculado con éxito.',
-  })
-  @ApiResponse({ status: 404, description: 'Cuenta bancaria no encontrada.' })
-  async getSaldo(@Param('id') id: string) {
-    return await this.cuentasBancariasService.calcularSaldo(id);
   }
 
   @Post()

@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiHideProperty } from '@nestjs/swagger';
 
 export class CuentaBancariaEntity {
   @ApiProperty({
@@ -49,16 +49,9 @@ export class CuentaBancariaEntity {
   })
   ruc: string;
 
-  @ApiProperty({
-    example: 'Cuenta principal para cobros',
-    description: 'Descripción opcional',
-    required: false,
-  })
+  @ApiHideProperty()
   descripcion?: string;
 
-  @ApiProperty({
-    example: 'ACTIVO',
-    description: 'Estado de la cuenta bancaria (ACTIVO / INACTIVO)',
-  })
+  @ApiHideProperty()
   estado: string;
 }
