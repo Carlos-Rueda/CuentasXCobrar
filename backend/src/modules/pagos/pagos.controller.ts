@@ -34,36 +34,29 @@ export class PagosController {
   constructor(private readonly pagosService: PagosService) {}
 
   @Post()
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('CXC_ADMIN')
-@ApiOperation({ summary: 'Registrar un nuevo pago' })
-@ApiResponse({
-  status: 201,
-  description: 'Pago registrado y facturas actualizadas con éxito.',
-})
-async registrarCobro(
-  @Body() pago: CreatePagoDto,
-  @Req() req: any,
-) {
-  const token = req.headers.authorization?.replace('Bearer ', '');
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CXC_ADMIN')
+  @ApiOperation({ summary: 'Registrar un nuevo pago' })
+  @ApiResponse({
+    status: 201,
+    description: 'Pago registrado y facturas actualizadas con éxito.',
+  })
+  async registrarCobro(@Body() pago: CreatePagoDto, @Req() req: any) {
+    const token = req.headers.authorization?.replace('Bearer ', '');
 
-  let ip =
-    (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-    req.socket.remoteAddress ||
-    req.ip ||
-    '127.0.0.1';
+    let ip =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.socket.remoteAddress ||
+      req.ip ||
+      '127.0.0.1';
 
-  if (ip === '::1') {
-    ip = '127.0.0.1';
+    if (ip === '::1') {
+      ip = '127.0.0.1';
+    }
+
+    return await this.pagosService.registrarCobro(pago, token, ip);
   }
-
-  return await this.pagosService.registrarCobro(
-    pago,
-    token,
-    ip,
-  );
-}
 
   @Get()
   @ApiOperation({ summary: 'Obtener todos los pagos registrados' })
@@ -157,6 +150,9 @@ async registrarCobro(
   }
 
   @Get(':id/pdf')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CXC_ADMIN')
   @ApiOperation({ summary: 'Generar comprobante de pago en PDF' })
   @ApiParam({
     name: 'id',
@@ -166,12 +162,28 @@ async registrarCobro(
     status: 200,
     description: 'Archivo PDF del comprobante de pago.',
   })
-  @ApiResponse({ status: 404, description: 'Pago no encontrado.' })
+  @ApiResponse({
+    status: 404,
+    description: 'Pago no encontrado.',
+  })
   async generarReciboPdf(
     @Param('id') id: string,
+    @Req() req: any,
     @Res() res: express.Response,
   ) {
-    const buffer = await this.pagosService.generarComprobantePdf(id);
+    const token = req.headers.authorization?.replace('Bearer ', '');
+
+    let ip =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.socket.remoteAddress ||
+      req.ip ||
+      '127.0.0.1';
+
+    if (ip === '::1') {
+      ip = '127.0.0.1';
+    }
+
+    const buffer = await this.pagosService.generarComprobantePdf(id, token, ip);
 
     res.set({
       'Content-Type': 'application/pdf',
@@ -183,9 +195,24 @@ async registrarCobro(
   }
 
   @Patch(':id')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CXC_ADMIN')
   @ApiOperation({ summary: 'Editar un pago (solo inactivo)' })
   @ApiParam({ name: 'id', description: 'ID del pago a editar' })
-  async update(@Param('id') id: string, @Body() body: any) {
-    return await this.pagosService.update(id, body);
+  async update(@Param('id') id: string, @Body() body: any, @Req() req: any) {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+
+    let ip =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.socket.remoteAddress ||
+      req.ip ||
+      '127.0.0.1';
+
+    if (ip === '::1') {
+      ip = '127.0.0.1';
+    }
+
+    return await this.pagosService.update(id, body, token, ip);
   }
 }

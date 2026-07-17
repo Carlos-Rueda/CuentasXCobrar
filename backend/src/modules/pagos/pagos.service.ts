@@ -179,12 +179,8 @@ export class PagosService {
   /**
    * Método de compatibilidad para registrar cobros desde otros servicios.
    */
-  async registrarCobro(pagoDto: CreatePagoDto,
-    token: string,
-  ip: string,
-  ) {
-    const pago = await this.create(pagoDto,token,
-    ip,);
+  async registrarCobro(pagoDto: CreatePagoDto, token: string, ip: string) {
+    const pago = await this.create(pagoDto, token, ip);
 
     // Obtener facturas afectadas para simular actualización
     const facturasAfectadas: any[] = [];
@@ -344,7 +340,11 @@ export class PagosService {
   /**
    * Genera el comprobante de pago en PDF utilizando datos reales de Prisma y GraphQL.
    */
-  async generarComprobantePdf(pagoId: string): Promise<Buffer> {
+  async generarComprobantePdf(
+    pagoId: string,
+    token: string,
+    ip: string,
+  ): Promise<Buffer> {
     const pago = await this.prismaService.pagos_clientes.findUnique({
       where: { id: pagoId },
       include: {
@@ -402,6 +402,14 @@ export class PagosService {
         });
       }
     }
+    await this.auditoriaService.registrar({
+      token,
+      idFuncion: 7,
+      accion: 'DESCARGAR',
+      descripcion: 'Descarga de comprobante de pago',
+      observacion: `Se descargó el comprobante del pago ${pago.numero_pago}`,
+      ip,
+    });
 
     return new Promise((resolve, reject) => {
       try {
@@ -527,7 +535,12 @@ export class PagosService {
     });
   }
 
-  async update(id: string, updatePagoDto: any): Promise<PagoEntity> {
+  async update(
+    id: string,
+    updatePagoDto: any,
+    token: string,
+    ip: string,
+  ): Promise<PagoEntity> {
     const pago = await this.prismaService.pagos_clientes.findUnique({
       where: { id },
       include: { detalles_pago: true },
@@ -640,6 +653,14 @@ export class PagosService {
           cuentas_bancarias: true,
         },
       });
+    });
+    await this.auditoriaService.registrar({
+      token,
+      idFuncion: 7,
+      accion: 'EDITAR',
+      descripcion: 'Edición de pago',
+      observacion: `Pago ${updated.numero_pago} editado correctamente`,
+      ip,
     });
 
     return this.toEntity(updated);

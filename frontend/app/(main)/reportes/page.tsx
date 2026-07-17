@@ -127,49 +127,49 @@ export default function ReportesPage() {
       )
       .map((f: any) => {
         const client = clientesLimpios.find(
-        (c: any) => c.id === f.clienteId,
-      ) as any;
+          (c: any) => c.id === f.clienteId,
+        ) as any;
 
-      let pagado = 0;
-      let ultimoPago: string | null = null;
+        let pagado = 0;
+        let ultimoPago: string | null = null;
 
-      listPagos.forEach((pago: any) => {
-        const isActivo = pago.estado?.toLowerCase() === "activo";
-        if (!isActivo) return;
+        listPagos.forEach((pago: any) => {
+          const isActivo = pago.estado?.toLowerCase() === "activo";
+          if (!isActivo) return;
 
-        const detail = pago.detalles?.find((d: any) => d.facturaId === f.id);
-        if (detail) {
-          pagado += Number(detail.montoAbonado) || 0;
-          ultimoPago = pago.fecha;
+          const detail = pago.detalles?.find((d: any) => d.facturaId === f.id);
+          if (detail) {
+            pagado += Number(detail.montoAbonado) || 0;
+            ultimoPago = pago.fecha;
+          }
+        });
+
+        if (f.estado === "PAGADA" && pagado === 0) {
+          pagado = f.total;
         }
+
+        let estado: "Pagado" | "Parcial" | "Por Pagar" = "Por Pagar";
+        if (pagado >= f.total) {
+          estado = "Pagado";
+        } else if (pagado > 0) {
+          estado = "Parcial";
+        }
+
+        return {
+          id: f.id,
+          cliente: client ? client.nombre : f.clienteId,
+          cedula: client ? client.ruc : "—",
+          factura: f.numero,
+          fecha: f.fechaEmision,
+          estado,
+          estadoOriginal: f.estado,
+          monto: f.total,
+          pagado,
+          ultimoPago: ultimoPago
+            ? new Date(ultimoPago).toLocaleDateString("es-EC")
+            : null,
+        };
       });
-
-      if (f.estado === "PAGADA" && pagado === 0) {
-        pagado = f.total;
-      }
-
-      let estado: "Pagado" | "Parcial" | "Por Pagar" = "Por Pagar";
-      if (pagado >= f.total) {
-        estado = "Pagado";
-      } else if (pagado > 0) {
-        estado = "Parcial";
-      }
-
-      return {
-        id: f.id,
-        cliente: client ? client.nombre : f.clienteId,
-        cedula: client ? client.ruc : "—",
-        factura: f.numero,
-        fecha: f.fechaEmision,
-        estado,
-        estadoOriginal: f.estado,
-        monto: f.total,
-        pagado,
-        ultimoPago: ultimoPago
-          ? new Date(ultimoPago).toLocaleDateString("es-EC")
-          : null,
-      };
-    });
 
     setRegistros(mappedRegistros);
   };
@@ -177,6 +177,27 @@ export default function ReportesPage() {
   useEffect(() => {
     cargarDatos();
   }, []);
+  const registrarAuditoria = async () => {
+    try {
+      const token = sessionStorage.getItem("auth_token");
+
+      await fetch(`${API_URL}/auditoria/frontend`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          idFuncion: 8, 
+          accion: "DESCARGAR",
+          descripcion: "Descarga de reporte empresarial",
+          observacion: "El usuario descargó el informe PDF",
+        }),
+      });
+    } catch (error) {
+      console.error("Error registrando auditoría:", error);
+    }
+  };
 
   async function descargarPDF(r: Registro) {
     try {
@@ -204,7 +225,9 @@ export default function ReportesPage() {
   }
 
   const activas = filtradosActuales.filter(
-    (r) => r.estadoOriginal?.toUpperCase() !== "ANULADA" && r.estadoOriginal?.toUpperCase() !== "INACTIVA"
+    (r) =>
+      r.estadoOriginal?.toUpperCase() !== "ANULADA" &&
+      r.estadoOriginal?.toUpperCase() !== "INACTIVA",
   );
   const totalMonto = activas.reduce((s, r) => s + r.monto, 0);
   const totalCobrado = filtradosActuales.reduce((s, r) => s + r.pagado, 0);
@@ -212,6 +235,7 @@ export default function ReportesPage() {
 
   // ── Generar PDF empresarial ────────────────────────────────────────────────
   const generarPDF = async () => {
+    await registrarAuditoria();
     if (filtradosActuales.length === 0) return;
     setDescargando(true);
     try {
@@ -594,7 +618,10 @@ export default function ReportesPage() {
             color: "text-red-700",
           },
         ].map(({ label, value, color }) => (
-          <div key={label} className="bg-white border border-gray-200 shadow-sm rounded-2xl p-4">
+          <div
+            key={label}
+            className="bg-white border border-gray-200 shadow-sm rounded-2xl p-4"
+          >
             <p className="metric-label mb-2">{label}</p>
             <p className={`metric-value ${color}`}>{value}</p>
           </div>
