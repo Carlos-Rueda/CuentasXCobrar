@@ -1,17 +1,24 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PagoExternoDto } from './dto/pago-externo.dto';
 import { TransferenciaDto } from './dto/transferencia.dto';
-
+import { AuditoriaService } from '../auditoria/auditoria.service';
 @Injectable()
 export class MovimientosService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditoriaService: AuditoriaService,
+  ) {}
 
   /**
    * Registra un pago externo manual (egreso) validando la cuenta de origen.
    * @param dto Datos del pago externo
    */
-  async registrarPagoExterno(dto: PagoExternoDto) {
+  async registrarPagoExterno(dto: PagoExternoDto, token: string, ip: string) {
     // 1. Validar que la cuenta bancaria de origen exista en la base de datos
     const cuentaExiste = await this.prisma.cuentas_bancarias.findUnique({
       where: { id: dto.cuenta_origen_id },
@@ -33,6 +40,14 @@ export class MovimientosService {
         estado: 'completado',
       },
     });
+    await this.auditoriaService.registrar({
+      token,
+      idFuncion: 23, // Usa el ID correspondiente a CXC_PAGOSEXTERNOS
+      accion: 'CREAR',
+      descripcion: 'Registro de pago externo',
+      observacion: `Pago externo registrado por $${Number(dto.monto).toFixed(2)} desde la cuenta ${cuentaExiste.codigo}`,
+      ip,
+    });
 
     return nuevoMovimiento;
   }
@@ -41,7 +56,11 @@ export class MovimientosService {
    * Registra una transferencia interna entre cuentas validando ambas cuentas.
    * @param dto Datos de la transferencia
    */
-  async registrarTransferencia(dto: TransferenciaDto) {
+  async registrarTransferencia(
+    dto: TransferenciaDto,
+    token: string,
+    ip: string,
+  ) {
     // 1. Validar que las cuentas de origen y destino sean distintas
     if (dto.cuenta_origen_id === dto.cuenta_destino_id) {
       throw new BadRequestException(
@@ -79,6 +98,14 @@ export class MovimientosService {
         descripcion: dto.descripcion,
         estado: 'completado',
       },
+    });
+    await this.auditoriaService.registrar({
+      token,
+      idFuncion: 24, 
+      accion: 'CREAR',
+      descripcion: 'Registro de transferencia interna',
+      observacion: `Transferencia de $${Number(dto.monto).toFixed(2)} desde la cuenta ${origenExiste.codigo} hacia la cuenta ${destinoExiste.codigo}`,
+      ip,
     });
     return nuevaTransferencia;
   }
@@ -133,4 +160,3 @@ export class MovimientosService {
     });
   }
 }
-

@@ -11,6 +11,7 @@ import { FacturacionApiService } from '../cuentas-cobrar/facturacion-api.service
 import { CreatePagoDto } from './dto/create-pago.dto';
 import { PagoEntity } from './pago.entity';
 import * as PDFDocument from 'pdfkit';
+import { AuditoriaService } from '../auditoria/auditoria.service';
 
 interface DbPagoWithDetalles {
   id: string;
@@ -32,6 +33,7 @@ export class PagosService {
     private readonly prismaService: PrismaService,
     @Inject(forwardRef(() => FacturacionApiService))
     private readonly facturacionApiService: FacturacionApiService,
+    private readonly auditoriaService: AuditoriaService,
   ) {}
 
   /**
@@ -68,7 +70,11 @@ export class PagosService {
   /**
    * Crea un nuevo pago de cliente en la base de datos real (Supabase) con validaciones.
    */
-  async create(pagoDto: CreatePagoDto): Promise<PagoEntity> {
+  async create(
+    pagoDto: CreatePagoDto,
+    token: string,
+    ip: string,
+  ): Promise<PagoEntity> {
     const { clienteId, cuentaBancariaId, descripcion, detalles } = pagoDto;
 
     if (!cuentaBancariaId) {
@@ -158,14 +164,27 @@ export class PagosService {
       });
     });
 
+    await this.auditoriaService.registrar({
+      token,
+      idFuncion: 7,
+      accion: 'CREAR',
+      descripcion: 'Registro de pago',
+      observacion: `Pago ${dbPago.numero_pago} registrado correctamente para el cliente ${clienteExiste.nombre}`,
+      ip,
+    });
+
     return this.toEntity(dbPago);
   }
 
   /**
    * Método de compatibilidad para registrar cobros desde otros servicios.
    */
-  async registrarCobro(pagoDto: CreatePagoDto) {
-    const pago = await this.create(pagoDto);
+  async registrarCobro(pagoDto: CreatePagoDto,
+    token: string,
+  ip: string,
+  ) {
+    const pago = await this.create(pagoDto,token,
+    ip,);
 
     // Obtener facturas afectadas para simular actualización
     const facturasAfectadas: any[] = [];

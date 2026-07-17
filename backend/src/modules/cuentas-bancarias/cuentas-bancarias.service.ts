@@ -3,10 +3,14 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CuentaBancariaEntity } from './cuenta-bancaria.entity';
 import { CreateCuentaBancariaDto } from './dto/create-cuenta-bancaria.dto';
 import { UpdateCuentaBancariaDto } from './dto/update-cuenta-bancaria.dto';
+import { AuditoriaService } from '../auditoria/auditoria.service';
 
 @Injectable()
 export class CuentasBancariasService implements OnModuleInit {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly auditoriaService: AuditoriaService,
+  ) {}
 
   /**
    * Seed de datos iniciales en Supabase si la tabla está vacía.
@@ -125,6 +129,8 @@ export class CuentasBancariasService implements OnModuleInit {
    */
   async create(
     cuenta: CreateCuentaBancariaDto,
+    token: string,
+    ip: string,
   ): Promise<CuentaBancariaEntity | null> {
     const codigo = cuenta.codigo || (await this.generarSiguienteCodigo());
     const dbCuenta = await this.prismaService.cuentas_bancarias.create({
@@ -140,6 +146,15 @@ export class CuentasBancariasService implements OnModuleInit {
         estado: cuenta.estado || 'ACTIVO',
       },
     });
+    // Registrar auditoría
+    await this.auditoriaService.registrar({
+      token: token,
+      idFuncion: 9,
+      accion: 'CREAR',
+      descripcion: 'Creación de cuenta bancaria',
+      observacion: `Cuenta ${dbCuenta.codigo} creada correctamente`,
+      ip: ip,
+    });
     return this.mapToEntity(dbCuenta);
   }
 
@@ -149,6 +164,8 @@ export class CuentasBancariasService implements OnModuleInit {
   async update(
     id: string,
     cuentaActualizada: UpdateCuentaBancariaDto,
+    token: string,
+    ip: string,
   ): Promise<CuentaBancariaEntity | null> {
     const data: any = {};
 
@@ -185,6 +202,15 @@ export class CuentasBancariasService implements OnModuleInit {
         where: { id },
         data,
       });
+      // Registrar auditoría
+      await this.auditoriaService.registrar({
+        token,
+        idFuncion: 9,
+        accion: 'EDITAR',
+        descripcion: 'Edición de cuenta bancaria',
+        observacion: `Cuenta ${dbCuenta.codigo} editada correctamente`,
+        ip,
+      });
       return this.mapToEntity(dbCuenta);
     } catch {
       return null;
@@ -194,13 +220,23 @@ export class CuentasBancariasService implements OnModuleInit {
   /**
    * Elimina una cuenta bancaria.
    */
-  async remove(id: string): Promise<void> {
+  async remove(id: string, token: string, ip: string): Promise<void> {
     const exists = await this.prismaService.cuentas_bancarias.findUnique({
       where: { id },
     });
     if (!exists) {
       throw new NotFoundException(`Cuenta bancaria con ID ${id} no encontrada`);
     }
+
+    // Registrar auditoría antes de eliminar
+    await this.auditoriaService.registrar({
+      token,
+      idFuncion: 9,
+      accion: 'ELIMINAR',
+      descripcion: 'Eliminación de cuenta bancaria',
+      observacion: `Cuenta ${exists.codigo} eliminada correctamente`,
+      ip,
+    });
 
     await this.prismaService.cuentas_bancarias.delete({
       where: { id },
@@ -210,13 +246,17 @@ export class CuentasBancariasService implements OnModuleInit {
   /**
    * Calcula el saldo disponible de una cuenta bancaria de forma dinámica a partir de sus movimientos.
    */
-  async calcularSaldo(cuentaId: string): Promise<{ cuenta_id: string; saldo_disponible: number }> {
+  async calcularSaldo(
+    cuentaId: string,
+  ): Promise<{ cuenta_id: string; saldo_disponible: number }> {
     const cuenta = await this.prismaService.cuentas_bancarias.findUnique({
       where: { id: cuentaId },
     });
 
     if (!cuenta) {
-      throw new NotFoundException(`Cuenta bancaria con ID ${cuentaId} no encontrada`);
+      throw new NotFoundException(
+        `Cuenta bancaria con ID ${cuentaId} no encontrada`,
+      );
     }
 
     // 1. Sumar recaudación por pagos de clientes (Ingresos de CXC)
@@ -245,10 +285,7 @@ export class CuentasBancariasService implements OnModuleInit {
     // 2. Calcular otros movimientos
     const movimientos = await this.prismaService.movimientos.findMany({
       where: {
-        OR: [
-          { cuenta_origen_id: cuentaId },
-          { cuenta_destino_id: cuentaId },
-        ],
+        OR: [{ cuenta_origen_id: cuentaId }, { cuenta_destino_id: cuentaId }],
       },
     });
 
@@ -276,14 +313,21 @@ export class CuentasBancariasService implements OnModuleInit {
     // 3. Sumar egresos de compras (desde API externa)
     let total_compras = 0;
     try {
-      const response = await fetch('https://capitalist-hilde-darpolc-e92dd24f.koyeb.app/api/cxc/gastos');
+      const response = await fetch(
+        'https://capitalist-hilde-darpolc-e92dd24f.koyeb.app/api/cxc/gastos',
+      );
       if (response.ok) {
         const body = await response.json();
         const gastos = body.data || [];
         const gastosCuenta = gastos.filter(
-          (g: any) => g.cuenta_bancaria_id?.toLowerCase().trim() === cuentaId.toLowerCase().trim()
+          (g: any) =>
+            g.cuenta_bancaria_id?.toLowerCase().trim() ===
+            cuentaId.toLowerCase().trim(),
         );
-        total_compras = gastosCuenta.reduce((sum: number, g: any) => sum + Number(g.monto || 0), 0);
+        total_compras = gastosCuenta.reduce(
+          (sum: number, g: any) => sum + Number(g.monto || 0),
+          0,
+        );
       }
     } catch (e) {
       console.error('Error al obtener gastos en calcularSaldo:', e);
@@ -292,16 +336,23 @@ export class CuentasBancariasService implements OnModuleInit {
     // 4. Obtener saldo de facturación (desde API externa GraphQL)
     let saldo_facturacion = 0;
     try {
-      const apiKey = process.env.FACTURACION_API_KEY || 'api_key_facturacion_cxc_2026';
-      const graphqlUrl = process.env.FACTURACION_GRAPHQL_URL || 'https://ad-modulo-facturacion-e51e.onrender.com/graphql';
+      const apiKey =
+        process.env.FACTURACION_API_KEY || 'api_key_facturacion_cxc_2026';
+      const graphqlUrl =
+        process.env.FACTURACION_GRAPHQL_URL ||
+        'https://ad-modulo-facturacion-e51e.onrender.com/graphql';
 
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
 
       if (apiKey) {
         headers['x-api-key'] = apiKey;
       } else {
         let token = '';
-        const tokenRes = await fetch('https://ad-modulo-facturacion-e51e.onrender.com/auth/test-token');
+        const tokenRes = await fetch(
+          'https://ad-modulo-facturacion-e51e.onrender.com/auth/test-token',
+        );
         if (tokenRes.ok) {
           const tokenData = await tokenRes.json();
           token = tokenData?.token || '';

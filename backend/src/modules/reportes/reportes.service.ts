@@ -6,12 +6,14 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { FacturasService } from '../facturas/facturas.service';
 import * as PDFDocument from 'pdfkit';
+import { AuditoriaService } from '../auditoria/auditoria.service';
 
 @Injectable()
 export class ReportesService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly facturasService: FacturasService,
+    private readonly auditoriaService: AuditoriaService,
   ) {}
 
   async calcularPagadoParaFactura(facturaId: string): Promise<number> {
@@ -31,6 +33,8 @@ export class ReportesService {
     clienteId: string,
     fechaInicio?: string,
     fechaFin?: string,
+    token?: string,
+    ip?: string,
   ) {
     if (!clienteId) {
       throw new BadRequestException('El clienteId es requerido.');
@@ -40,6 +44,14 @@ export class ReportesService {
     if (!cliente) {
       throw new NotFoundException(`El cliente con ID ${clienteId} no existe.`);
     }
+    await this.auditoriaService.registrar({
+      token,
+      idFuncion: 6,
+      accion: 'CONSULTAR',
+      descripcion: 'Consulta de estado de cuenta del cliente',
+      observacion: `Se consultó el estado de cuenta del cliente ${cliente.nombre} (${clienteId})`,
+      ip,
+    });
 
     // Obtener todas las facturas del cliente
     let facturasGql = await this.facturasService.findAllFacturas();
@@ -136,6 +148,8 @@ export class ReportesService {
     clienteId: string,
     fechaInicio?: string,
     fechaFin?: string,
+    token?: string,
+    ip?: string,
   ): Promise<Buffer> {
     const data = await this.obtenerEstadoCuenta(
       clienteId,
@@ -143,6 +157,15 @@ export class ReportesService {
       fechaFin,
     );
     const { cliente, facturas, pagos, resumen } = data;
+
+    await this.auditoriaService.registrar({
+      token,
+      idFuncion: 6,
+      accion: 'DESCARGAR',
+      descripcion: 'Descarga de estado de cuenta en PDF',
+      observacion: `Se descargó el estado de cuenta del cliente ${cliente.nombre} (${clienteId})`,
+      ip,
+    });
 
     return new Promise((resolve, reject) => {
       try {

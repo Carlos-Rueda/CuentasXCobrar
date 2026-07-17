@@ -8,6 +8,8 @@ import {
   Param,
   Res,
   Query,
+  Req,
+  UseGuards,
   NotFoundException,
 } from '@nestjs/common';
 import * as express from 'express';
@@ -21,6 +23,10 @@ import {
 import { PagosService } from './pagos.service';
 import { CreatePagoDto } from './dto/create-pago.dto';
 import { PagoEntity } from './pago.entity';
+import { JwtAuthGuard } from '../cuentas-cobrar/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
 @ApiTags('Pagos')
 @Controller('pagos')
@@ -28,14 +34,36 @@ export class PagosController {
   constructor(private readonly pagosService: PagosService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Registrar un nuevo pago' })
-  @ApiResponse({
-    status: 201,
-    description: 'Pago registrado y facturas actualizadas con éxito.',
-  })
-  async registrarCobro(@Body() pago: CreatePagoDto) {
-    return await this.pagosService.registrarCobro(pago);
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('CXC_ADMIN')
+@ApiOperation({ summary: 'Registrar un nuevo pago' })
+@ApiResponse({
+  status: 201,
+  description: 'Pago registrado y facturas actualizadas con éxito.',
+})
+async registrarCobro(
+  @Body() pago: CreatePagoDto,
+  @Req() req: any,
+) {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+
+  let ip =
+    (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+    req.socket.remoteAddress ||
+    req.ip ||
+    '127.0.0.1';
+
+  if (ip === '::1') {
+    ip = '127.0.0.1';
   }
+
+  return await this.pagosService.registrarCobro(
+    pago,
+    token,
+    ip,
+  );
+}
 
   @Get()
   @ApiOperation({ summary: 'Obtener todos los pagos registrados' })
