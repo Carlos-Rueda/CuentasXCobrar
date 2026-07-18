@@ -45,7 +45,7 @@ export default function TopClientesPagosChart({ data }: Props) {
           paddingLeft: 12,
         }}
       >
-        Top 5 Clientes con Más Han Pagado
+        Top 5 Clientes con Mayor Monto Pagado
       </h3>
 
       <ResponsiveContainer width="100%" height={330}>
