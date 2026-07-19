@@ -1,9 +1,10 @@
 import { Controller, Get, Query, Res, Req, HttpStatus } from '@nestjs/common';
 import type { Response } from 'express';
-import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiQuery, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { ReportesService } from './reportes.service';
 
 @ApiTags('Reportes')
+@ApiBearerAuth()
 @Controller('reportes')
 export class ReportesController {
   constructor(private readonly reportesService: ReportesService) {}

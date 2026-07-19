@@ -27,11 +27,14 @@ import { CuentaBancariaEntity } from './cuenta-bancaria.entity';
 import { CreateCuentaBancariaDto } from './dto/create-cuenta-bancaria.dto';
 import { UpdateCuentaBancariaDto } from './dto/update-cuenta-bancaria.dto';
 import { AuditoriaInterceptor } from '../interceptors/auditoria.interceptor';
-import { JwtAuthGuard } from '../cuentas-cobrar/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { AllowExternal } from '../auth/decorators/allow-external.decorator';
 
 @ApiTags('API de Salida')
+@ApiBearerAuth()
+@AllowExternal()
 @UseInterceptors(AuditoriaInterceptor)
 @Controller('cuentas-bancarias')
 export class CuentasBancariasSalidaController {

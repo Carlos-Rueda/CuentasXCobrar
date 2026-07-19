@@ -3,7 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiExcludeEndpoint }
 import { PrismaService } from '../../prisma/prisma.service';
 import { FacturacionApiService } from '../cuentas-cobrar/facturacion-api.service';
 import { ComprasApiService } from '../cuentas-cobrar/compras-api.service';
-import { JwtAuthGuard } from '../cuentas-cobrar/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)

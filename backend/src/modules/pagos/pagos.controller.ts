@@ -23,18 +23,18 @@ import {
 import { PagosService } from './pagos.service';
 import { CreatePagoDto } from './dto/create-pago.dto';
 import { PagoEntity } from './pago.entity';
-import { JwtAuthGuard } from '../cuentas-cobrar/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { ApiBearerAuth } from '@nestjs/swagger';
 
 @ApiTags('Pagos')
+@ApiBearerAuth()
 @Controller('pagos')
 export class PagosController {
   constructor(private readonly pagosService: PagosService) {}
 
   @Post()
-  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CXC_ADMIN')
   @ApiOperation({ summary: 'Registrar un nuevo pago' })

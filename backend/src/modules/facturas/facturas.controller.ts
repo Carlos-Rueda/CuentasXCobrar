@@ -11,10 +11,11 @@ import {
 import { FacturasService } from './facturas.service';
 import { ClienteDto } from './dto/cliente.dto';
 import { FacturaDto } from './dto/factura.dto';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import * as express from 'express';
 
 @ApiTags('Facturación (Integración GraphQL Real)')
+@ApiBearerAuth()
 @Controller('facturas')
 export class FacturasController {
   constructor(private readonly facturasService: FacturasService) {}

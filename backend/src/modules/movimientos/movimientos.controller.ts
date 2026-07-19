@@ -17,9 +17,10 @@ import {
 import { MovimientosService } from './movimientos.service';
 import { PagoExternoDto } from './dto/pago-externo.dto';
 import { TransferenciaDto } from './dto/transferencia.dto';
-import { JwtAuthGuard } from '../cuentas-cobrar/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('Movimientos')
+@ApiBearerAuth()
 @Controller('movimientos')
 export class MovimientosController {
   constructor(private readonly movimientosService: MovimientosService) {}

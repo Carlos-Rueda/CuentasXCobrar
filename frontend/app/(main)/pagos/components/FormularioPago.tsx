@@ -284,11 +284,7 @@ export default function PagosPage({
     .filter(
       (factura) =>
         factura.clienteId === formData.clienteId &&
-        (factura.estado?.toUpperCase() === "PENDIENTE" ||
-          factura.estado?.toUpperCase() === "PAGO_PENDIENTE" ||
-          factura.estado?.toUpperCase() === "SALDO_A_FAVOR" ||
-          factura.estado?.toUpperCase() === "SALDO A FAVOR" ||
-          Number(factura.pendiente) > 0 ||
+        (Number(factura.pendiente) > 0 ||
           (pagoAEditar &&
             pagoAEditar.detalles?.some(
               (d: any) => d.facturaId === factura.id,

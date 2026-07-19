@@ -10,6 +10,9 @@ import { ReportesModule } from './modules/reportes/reportes.module';
 import { AuditoriaModule } from './modules/auditoria/auditoria.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { MovimientosModule } from './modules/movimientos/movimientos.module';
+import { APP_GUARD } from '@nestjs/core';
+import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
+import { FunctionGuard } from './modules/auth/guards/function.guard';
 
 @Module({
   imports: [
@@ -24,6 +27,16 @@ import { MovimientosModule } from './modules/movimientos/movimientos.module';
     MovimientosModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: FunctionGuard,
+    },
+  ],
 })
 export class AppModule {}
