@@ -234,168 +234,42 @@ export default function ReportesPage() {
   const totalDeuda = Math.max(0, totalMonto - totalCobrado);
 
   // ── Generar PDF empresarial ────────────────────────────────────────────────
+  // ── Generar PDF empresarial (Desde el Backend para persistencia nativa en EFS) ────────────────────────────────────────────────
   const generarPDF = async () => {
     await registrarAuditoria();
     if (filtradosActuales.length === 0) return;
     setDescargando(true);
     try {
-      const { jsPDF } = await import("jspdf");
-      const autoTable = (await import("jspdf-autotable")).default;
-
-      const doc = new jsPDF({
-        orientation: "landscape",
-        unit: "mm",
-        format: "a4",
+      const queryParams = new URLSearchParams({
+        ...(fechaInicio && { fechaInicio }),
+        ...(fechaFin && { fechaFin }),
       });
-      const fecha = new Date().toLocaleDateString("es-EC", {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
+      const token = sessionStorage.getItem("auth_token");
+      const res = await fetch(`${API_URL}/reportes/empresarial/pdf?${queryParams}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
-      // ── Encabezado ────────────────────────────────────────────────────────
-      doc.setFillColor(190, 0, 34); // UTN rojo
-      doc.rect(0, 0, 297, 22, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.text("UNIVERSIDAD TÉCNICA DEL NORTE", 14, 10);
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.text("Sistema de Cuentas por Cobrar — Reporte Empresarial", 14, 17);
-      doc.setFontSize(9);
-      doc.text(`Generado el ${fecha}`, 240, 10);
-      doc.text(`Total registros: ${filtradosActuales.length}`, 240, 17);
-
-      // ── Métricas ──────────────────────────────────────────────────────────
-      doc.setTextColor(55, 65, 81);
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      const y = 30;
-      const metrics = [
-        {
-          label: "Total facturado",
-          value: `$${totalMonto.toLocaleString("es-EC", { minimumFractionDigits: 2 })}`,
-        },
-        {
-          label: "Total cobrado",
-          value: `$${totalCobrado.toLocaleString("es-EC", { minimumFractionDigits: 2 })}`,
-        },
-        {
-          label: "Por cobrar",
-          value: `$${totalDeuda.toLocaleString("es-EC", { minimumFractionDigits: 2 })}`,
-        },
-      ];
-      metrics.forEach((m, i) => {
-        const x = 14 + i * 90;
-        doc.setFillColor(249, 250, 251);
-        doc.roundedRect(x, y, 80, 14, 2, 2, "F");
-        doc.setFontSize(7);
-        doc.setTextColor(107, 114, 128);
-        doc.text(m.label.toUpperCase(), x + 4, y + 5);
-        doc.setFontSize(11);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(55, 65, 81);
-        doc.text(m.value, x + 4, y + 12);
-        doc.setFont("helvetica", "normal");
-      });
-
-      // ── Tabla ─────────────────────────────────────────────────────────────
-      autoTable(doc, {
-        startY: 50,
-        head: [
-          [
-            "N° Factura",
-            "Cliente",
-            "Cédula / RUC",
-            "Fecha Emisión",
-            "Monto ($)",
-            "Cobrado ($)",
-            "Último Pago",
-          ],
-        ],
-        body: filtradosActuales.map((r) => [
-          r.factura || "—",
-          r.cliente,
-          r.cedula,
-          r.fecha || "—",
-          r.monto.toLocaleString("es-EC", { minimumFractionDigits: 2 }),
-          r.pagado.toLocaleString("es-EC", { minimumFractionDigits: 2 }),
-          r.ultimoPago || "Sin pagos",
-        ]),
-        foot: [
-          [
-            "",
-            "",
-            "",
-            "TOTALES",
-            `$${totalMonto.toLocaleString("es-EC", { minimumFractionDigits: 2 })}`,
-            `$${totalCobrado.toLocaleString("es-EC", { minimumFractionDigits: 2 })}`,
-            "",
-          ],
-        ],
-        headStyles: {
-          fillColor: [190, 0, 34],
-          textColor: 255,
-          fontSize: 8,
-          fontStyle: "bold",
-        },
-        footStyles: {
-          fillColor: [55, 65, 81],
-          textColor: 255,
-          fontSize: 8,
-          fontStyle: "bold",
-        },
-        bodyStyles: { fontSize: 7.5, textColor: [55, 65, 81] },
-        alternateRowStyles: { fillColor: [249, 250, 251] },
-        columnStyles: {
-          0: { cellWidth: 30 },
-          4: { halign: "right" },
-          5: { halign: "right" },
-        },
-        styles: { overflow: "linebreak", cellPadding: 2 },
-        margin: { left: 14, right: 14 },
-      });
-
-      // ── Pie de página ─────────────────────────────────────────────────────
-      const pages = (doc as any).internal.getNumberOfPages();
-      for (let i = 1; i <= pages; i++) {
-        doc.setPage(i);
-        doc.setFontSize(7);
-        doc.setTextColor(156, 163, 175);
-        doc.text(
-          `Página ${i} de ${pages} — Documento confidencial, uso interno`,
-          14,
-          205,
-        );
-        doc.text("UTN — Sistema CXC", 270, 205);
+      if (!res.ok) {
+        showToast("No fue posible generar el reporte PDF.", "error");
+        return;
       }
 
-      const nombreArchivo = `Reporte-CXC-${new Date().toISOString().slice(0, 10)}.pdf`;
-      const base64Data = (doc as any).output("base64");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Reporte-Empresarial-${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
 
-      // Guardar el PDF en EFS
-      try {
-        const token = sessionStorage.getItem("auth_token");
-        await fetch(`${API_URL}/reportes/save-pdf`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            filename: nombreArchivo,
-            base64: base64Data,
-          }),
-        });
-      } catch (err) {
-        console.error("Error al persistir el PDF en EFS:", err);
-      }
-
-      doc.save(nombreArchivo);
-    } catch (err) {
-      console.error("Error generando PDF:", err);
-      showToast("No existen datos para generar el reporte PDF.", "error");
+      showToast("Reporte PDF generado y guardado en EFS correctamente.", "success");
+    } catch (error) {
+      console.error(error);
+      showToast("No fue posible descargar el reporte PDF.", "error");
     } finally {
       setDescargando(false);
     }

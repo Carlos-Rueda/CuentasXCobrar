@@ -293,4 +293,190 @@ export class ReportesService {
       }
     });
   }
+
+  async generarReporteEmpresarialPdf(
+    fechaInicio?: string,
+    fechaFin?: string,
+    token?: string,
+    ip?: string,
+  ): Promise<Buffer> {
+    const [clientes, facturas, pagosDb] = await Promise.all([
+      this.facturasService.findAllClientes(),
+      this.facturasService.findAllFacturas(),
+      this.prismaService.pagos_clientes.findMany({
+        where: { estado: 'activo' },
+        include: { detalles_pago: true },
+      }),
+    ]);
+
+    const mapped = facturas
+      .filter(
+        (f) =>
+          f.estado &&
+          f.estado.toUpperCase() !== 'ANULADA' &&
+          f.estado.toUpperCase() !== 'INACTIVA',
+      )
+      .map((f) => {
+        const client = clientes.find((c) => c.id === f.clienteId);
+        
+        let pagado = 0;
+        let ultimoPagoDate: Date | null = null;
+
+        pagosDb.forEach((pago) => {
+          const detail = pago.detalles_pago?.find((d) => d.factura_id === f.id);
+          if (detail) {
+            pagado += Number(detail.monto_pagado) || 0;
+            if (pago.fecha_pago) {
+              const pDate = new Date(pago.fecha_pago);
+              if (!ultimoPagoDate || pDate > ultimoPagoDate) {
+                ultimoPagoDate = pDate;
+              }
+            }
+          }
+        });
+
+        return {
+          factura: f.numero || f.id,
+          cliente: client?.nombre || 'N/A',
+          cedula: client?.cedula || 'N/A',
+          fecha: f.fechaEmision ? f.fechaEmision.split('T')[0] : '—',
+          monto: Number(f.total) || 0,
+          pagado,
+          ultimoPago: ultimoPagoDate ? ultimoPagoDate.toISOString().split('T')[0] : '—',
+        };
+      });
+
+    const filtrados = mapped.filter((r) => {
+      if (!r.fecha || r.fecha === '—') return true;
+      if (fechaInicio && r.fecha < fechaInicio) return false;
+      if (fechaFin && r.fecha > fechaFin) return false;
+      return true;
+    });
+
+    return new Promise((resolve, reject) => {
+      try {
+        const PDFDocument = require('pdfkit');
+        const doc = new PDFDocument({
+          size: 'A4',
+          layout: 'landscape',
+          margin: 40,
+          bufferPages: true,
+        });
+        const chunks: Buffer[] = [];
+
+        doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+        doc.on('end', () => {
+          const finalBuffer = Buffer.concat(chunks);
+          try {
+            const fs = require('fs');
+            const path = require('path');
+            const pdfsDir = path.join(process.cwd(), 'pdfs');
+            if (!fs.existsSync(pdfsDir)) {
+              fs.mkdirSync(pdfsDir, { recursive: true });
+            }
+            const filename = `Reporte-Empresarial-${new Date().toISOString().slice(0, 10)}.pdf`;
+            const filePath = path.join(pdfsDir, filename);
+            fs.writeFileSync(filePath, finalBuffer);
+            console.log(`[EFS] PDF de Reporte Empresarial guardado en: ${filePath}`);
+          } catch (err) {
+            console.error('[EFS] Error al guardar PDF de Reporte en EFS:', err);
+          }
+          resolve(finalBuffer);
+        });
+        doc.on('error', (err: Error) => reject(err));
+
+        doc.rect(0, 0, 842, 15).fill('#C0392B');
+
+        doc.fillColor('#C0392B');
+        doc.font('Helvetica-Bold').fontSize(14).text('UNIVERSIDAD TÉCNICA DEL NORTE', 40, 25);
+        doc.fillColor('#718096');
+        doc.font('Helvetica').fontSize(9).text('Sistema de Cuentas por Cobrar — Reporte Empresarial', 40, 42);
+
+        const fechaStr = new Date().toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' });
+        doc.fillColor('#2D3748');
+        doc.font('Helvetica').fontSize(8).text(`Generado el: ${fechaStr}`, 600, 25, { align: 'right', width: 200 });
+        doc.text(`Total registros: ${filtrados.length}`, 600, 37, { align: 'right', width: 200 });
+
+        doc.moveTo(40, 55).lineTo(802, 55).strokeColor('#E2E8F0').lineWidth(1).stroke();
+
+        doc.y = 65;
+        const columns = [
+          { label: 'N° Factura', width: 100 },
+          { label: 'Cliente', width: 220 },
+          { label: 'Cédula / RUC', width: 100 },
+          { label: 'Fecha Emisión', width: 90 },
+          { label: 'Monto ($)', width: 80, align: 'right' },
+          { label: 'Cobrado ($)', width: 80, align: 'right' },
+          { label: 'Último Pago', width: 90 },
+        ];
+
+        doc.rect(40, doc.y, 762, 20).fill('#C0392B');
+        doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(8.5);
+        let curX = 45;
+        columns.forEach(col => {
+          doc.text(col.label, curX, doc.y - 15, { width: col.width, align: col.align || 'left' });
+          curX += col.width + 10;
+        });
+        doc.y = doc.y + 10;
+
+        let totalMonto = 0;
+        let totalCobrado = 0;
+
+        filtrados.forEach((r, idx) => {
+          totalMonto += r.monto;
+          totalCobrado += r.pagado;
+
+          const rowY = doc.y;
+          if (idx % 2 === 1) {
+            doc.rect(40, rowY - 2, 762, 16).fill('#F7FAFC');
+          }
+          doc.fillColor('#2D3748').font('Helvetica').fontSize(8);
+          let cellX = 45;
+          const vals = [
+            r.factura,
+            r.cliente,
+            r.cedula,
+            r.fecha,
+            `$${r.monto.toFixed(2)}`,
+            `$${r.pagado.toFixed(2)}`,
+            r.ultimoPago,
+          ];
+          vals.forEach((v, cIdx) => {
+            const col = columns[cIdx];
+            doc.text(v, cellX, rowY, { width: col.width, align: col.align || 'left' });
+            cellX += col.width + 10;
+          });
+          doc.moveTo(40, rowY + 12).lineTo(802, rowY + 12).strokeColor('#E2E8F0').lineWidth(0.5).stroke();
+          doc.y = rowY + 15;
+
+          if (doc.y > 500 && idx < filtrados.length - 1) {
+            doc.addPage();
+            doc.rect(0, 0, 842, 15).fill('#C0392B');
+            doc.y = 35;
+          }
+        });
+
+        const totY = doc.y + 10;
+        doc.rect(40, totY, 762, 22).fill('#2D3748');
+        doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(9);
+        doc.text('TOTALES', 350, totY + 6);
+        doc.text(`$${totalMonto.toFixed(2)}`, 555, totY + 6, { align: 'right', width: 80 });
+        doc.text(`$${totalCobrado.toFixed(2)}`, 645, totY + 6, { align: 'right', width: 80 });
+
+        const range = doc.bufferedPageRange();
+        for (let i = range.start; i < range.start + range.count; i++) {
+          doc.switchToPage(i);
+          doc.page.margins.bottom = 0;
+          doc.moveTo(40, 545).lineTo(802, 545).strokeColor('#E2E8F0').lineWidth(1).stroke();
+          doc.fillColor('#718096').font('Helvetica').fontSize(7.5);
+          doc.text('© Universidad Técnica del Norte — Reporte Oficial de Tesorería', 40, 552);
+          doc.text(`Página ${i + 1} de ${range.count}`, 690, 552, { align: 'right', width: 112 });
+        }
+
+        doc.end();
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
 }

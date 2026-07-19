@@ -181,4 +181,40 @@ export class ReportesController {
 
     res.status(HttpStatus.OK).send(buffer);
   }
+
+  @Get('empresarial/pdf')
+  @ApiOperation({ summary: 'Obtener reporte empresarial consolidado de facturas en PDF' })
+  async descargarReporteEmpresarialPdf(
+    @Query('fechaInicio') fechaInicio: string,
+    @Query('fechaFin') fechaFin: string,
+    @Req() req,
+    @Res() res: Response,
+  ) {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+
+    let ip =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.socket.remoteAddress ||
+      req.ip ||
+      '127.0.0.1';
+
+    if (ip === '::1') {
+      ip = '127.0.0.1';
+    }
+
+    const buffer = await this.reportesService.generarReporteEmpresarialPdf(
+      fechaInicio,
+      fechaFin,
+      token,
+      ip,
+    );
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename=Reporte-Empresarial-${new Date().toISOString().slice(0, 10)}.pdf`,
+      'Content-Length': buffer.length,
+    });
+
+    res.status(HttpStatus.OK).send(buffer);
+  }
 }
