@@ -25,6 +25,7 @@ const NAV = [
   { href: "/cuentas-bancarias", label: "Cuentas Bancarias", Icon: Landmark    },
   { href: "/tesoreria/transferencias", label: "Transferencias", Icon: ArrowLeftRight },
   { href: "/tesoreria/estado-cuenta", label: "Estado de Cuenta", Icon: FileText },
+  { href: "/archivos-efs", label: "Archivos EFS", Icon: FileText },
 ];
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {

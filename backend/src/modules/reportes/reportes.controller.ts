@@ -1,13 +1,61 @@
-import { Controller, Get, Query, Res, Req, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Query, Res, Req, HttpStatus, Param } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiTags, ApiOperation, ApiQuery, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { ReportesService } from './reportes.service';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @ApiTags('Reportes')
 @ApiBearerAuth()
 @Controller('reportes')
 export class ReportesController {
   constructor(private readonly reportesService: ReportesService) {}
+
+  @Get('efs-files')
+  @ApiOperation({ summary: 'Listar todos los archivos PDF guardados en EFS' })
+  async listarArchivosEfs() {
+    const pdfsDir = path.join(process.cwd(), 'pdfs');
+    if (!fs.existsSync(pdfsDir)) {
+      return [];
+    }
+    const files = fs.readdirSync(pdfsDir);
+    return files
+      .filter((file) => file.endsWith('.pdf'))
+      .map((file) => {
+        const filePath = path.join(pdfsDir, file);
+        const stats = fs.statSync(filePath);
+        return {
+          name: file,
+          size: stats.size,
+          createdAt: stats.birthtime,
+        };
+      });
+  }
+
+  @Get('efs-files/:filename')
+  @ApiOperation({ summary: 'Ver/Descargar un archivo PDF específico de EFS' })
+  async descargarArchivoEfs(
+    @Param('filename') filename: string,
+    @Res() res: Response,
+  ) {
+    const pdfsDir = path.join(process.cwd(), 'pdfs');
+    const filePath = path.join(pdfsDir, filename);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(HttpStatus.NOT_FOUND).send({
+        statusCode: 404,
+        message: 'Archivo no encontrado en EFS',
+      });
+    }
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `inline; filename=${filename}`,
+    });
+
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
+  }
 
   @Get('estado-cuenta')
   @ApiOperation({
