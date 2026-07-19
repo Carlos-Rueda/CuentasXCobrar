@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class ComprasApiService {
-  private readonly apiUrl = 'https://capitalist-hilde-darpolc-e92dd24f.koyeb.app/api/cxc/gastos';
+  private readonly apiUrl = 'http://compras-alb-1632153594.us-east-1.elb.amazonaws.com/api/cxc/gastos';
 
   /**
    * Obtiene la lista de gastos registrados en el módulo de compras.
