@@ -29,6 +29,24 @@ export class ReportesController {
     return res.status(HttpStatus.OK).send({ success: true });
   }
 
+  @Post('save-pdf')
+  @ApiOperation({ summary: 'Guardar un archivo PDF en EFS desde el frontend' })
+  async guardarPdfEfs(
+    @Body() body: { filename: string; base64: string },
+    @Res() res: Response,
+  ) {
+    const { filename, base64 } = body;
+    const pdfsDir = path.join(process.cwd(), 'pdfs');
+    if (!fs.existsSync(pdfsDir)) {
+      fs.mkdirSync(pdfsDir, { recursive: true });
+    }
+    const filePath = path.join(pdfsDir, filename);
+    const buffer = Buffer.from(base64, 'base64');
+    fs.writeFileSync(filePath, buffer);
+    console.log(`[EFS] PDF de Reporte guardado en: ${filePath}`);
+    return res.status(HttpStatus.OK).send({ success: true });
+  }
+
   @Get('efs-files')
   @ApiOperation({ summary: 'Listar todos los archivos PDF y CSV guardados en EFS' })
   async listarArchivosEfs() {

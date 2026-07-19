@@ -104,9 +104,9 @@ export default function ArchivosEfsPage() {
     }
   };
 
-  const filteredFiles = files.filter((file) =>
-    file.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredFiles = files
+    .filter((file) => file.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   return (
     <div className="space-y-6">
@@ -173,10 +173,10 @@ export default function ArchivosEfsPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="px-6 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Acciones</th>
                   <th className="px-6 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nombre del Archivo</th>
                   <th className="px-6 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Tamaño</th>
                   <th className="px-6 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Fecha de Creación</th>
-                  <th className="px-6 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -185,22 +185,8 @@ export default function ArchivosEfsPage() {
                   return (
                     <tr key={file.name} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg" style={{ background: isCsv ? "#ECFDF5" : "var(--utn-red-light)" }}>
-                            <FileText className="w-4 h-4" style={{ color: isCsv ? "#059669" : "var(--utn-red)" }} />
-                          </div>
-                          <span className="text-sm font-medium text-gray-900 truncate max-w-md">{file.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        {formatBytes(file.size)}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        {formatDate(file.createdAt)}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2">
-                          {/* Botón para ver en línea (solo si no es CSV, o para ambos) */}
+                        <div className="flex gap-2">
+                          {/* Botón para ver en línea */}
                           <button
                             onClick={() => handleFileAction(file.name, "view")}
                             disabled={downloadingFile !== null}
@@ -220,6 +206,20 @@ export default function ArchivosEfsPage() {
                             Descargar
                           </button>
                         </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg" style={{ background: isCsv ? "#ECFDF5" : "var(--utn-red-light)" }}>
+                            <FileText className="w-4 h-4" style={{ color: isCsv ? "#059669" : "var(--utn-red)" }} />
+                          </div>
+                          <span className="text-sm font-medium text-gray-900 truncate max-w-md">{file.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500">
+                        {formatBytes(file.size)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500">
+                        {formatDate(file.createdAt)}
                       </td>
                     </tr>
                   );

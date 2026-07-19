@@ -371,7 +371,28 @@ export default function ReportesPage() {
         doc.text("UTN — Sistema CXC", 270, 205);
       }
 
-      doc.save(`Reporte-CXC-${new Date().toISOString().slice(0, 10)}.pdf`);
+      const nombreArchivo = `Reporte-CXC-${new Date().toISOString().slice(0, 10)}.pdf`;
+      const base64Data = doc.output("base64");
+
+      // Guardar el PDF en EFS
+      try {
+        const token = sessionStorage.getItem("auth_token");
+        await fetch(`${API_URL}/reportes/save-pdf`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            filename: nombreArchivo,
+            base64: base64Data,
+          }),
+        });
+      } catch (err) {
+        console.error("Error al persistir el PDF en EFS:", err);
+      }
+
+      doc.save(nombreArchivo);
     } catch (err) {
       console.error("Error generando PDF:", err);
       showToast("No existen datos para generar el reporte PDF.", "error");
