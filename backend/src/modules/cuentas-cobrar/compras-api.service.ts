@@ -22,7 +22,7 @@ export class ComprasApiService {
 
       if (response.ok) {
         const body = await response.json();
-        return body.data || [];
+        return Array.isArray(body) ? body : (body.data || []);
       } else {
         console.warn(`Compras API retornó status ${response.status}`);
       }
