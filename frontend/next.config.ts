@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: 'export',
   // Permite acceso desde la IP de red (no solo localhost)
   allowedDevOrigins: [
     "26.85.45.216",
