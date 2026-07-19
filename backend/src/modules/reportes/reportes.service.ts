@@ -5,13 +5,16 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { FacturasService } from '../facturas/facturas.service';
-import * as PDFDocument from 'pdfkit';
+import { AuditoriaService } from '../auditoria/auditoria.service';
+import { PdfHelper } from '../pdf-helper';
+
 
 @Injectable()
 export class ReportesService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly facturasService: FacturasService,
+    private readonly auditoriaService: AuditoriaService,
   ) {}
 
   async calcularPagadoParaFactura(facturaId: string): Promise<number> {
@@ -31,6 +34,8 @@ export class ReportesService {
     clienteId: string,
     fechaInicio?: string,
     fechaFin?: string,
+    token?: string,
+    ip?: string,
   ) {
     if (!clienteId) {
       throw new BadRequestException('El clienteId es requerido.');
@@ -40,6 +45,14 @@ export class ReportesService {
     if (!cliente) {
       throw new NotFoundException(`El cliente con ID ${clienteId} no existe.`);
     }
+    await this.auditoriaService.registrar({
+      token,
+      idFuncion: 6,
+      accion: 'CONSULTAR',
+      descripcion: 'Consulta de estado de cuenta del cliente',
+      observacion: `Se consultó el estado de cuenta del cliente ${cliente.nombre} (${clienteId})`,
+      ip,
+    });
 
     // Obtener todas las facturas del cliente
     let facturasGql = await this.facturasService.findAllFacturas();
@@ -136,6 +149,8 @@ export class ReportesService {
     clienteId: string,
     fechaInicio?: string,
     fechaFin?: string,
+    token?: string,
+    ip?: string,
   ): Promise<Buffer> {
     const data = await this.obtenerEstadoCuenta(
       clienteId,
@@ -144,153 +159,119 @@ export class ReportesService {
     );
     const { cliente, facturas, pagos, resumen } = data;
 
+    await this.auditoriaService.registrar({
+      token,
+      idFuncion: 6,
+      accion: 'DESCARGAR',
+      descripcion: 'Descarga de estado de cuenta en PDF',
+      observacion: `Se descargó el estado de cuenta del cliente ${cliente.nombre} (${clienteId})`,
+      ip,
+    });
+
     return new Promise((resolve, reject) => {
       try {
-        const DocConstructor = (PDFDocument.default || PDFDocument) as new (
-          options?: PDFKit.PDFDocumentOptions,
-        ) => PDFKit.PDFDocument;
-        const doc = new DocConstructor({ margin: 50 });
+        const doc = PdfHelper.createDocument();
         const chunks: Buffer[] = [];
 
         doc.on('data', (chunk: Buffer) => chunks.push(chunk));
         doc.on('end', () => resolve(Buffer.concat(chunks)));
         doc.on('error', (err: Error) => reject(err));
 
-        // Título Principal
-        doc
-          .font('Helvetica-Bold')
-          .fontSize(22)
-          .text('ESTADO DE CUENTA', { align: 'center' });
-        doc.moveDown(0.2);
-        doc
-          .font('Helvetica')
-          .fontSize(10)
-          .text(
-            `Rango de Fechas: ${fechaInicio || 'Inicio'} hasta ${fechaFin || 'Fin'}`,
-            { align: 'center' },
-          );
-        doc.moveDown(0.5);
-        doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-        doc.moveDown(1);
+        // Cabecera estándar
+        const rangoFechas = `Del ${fechaInicio || 'Inicio'} al ${fechaFin || 'Fin'}`;
+        PdfHelper.drawHeader(doc, `Estado de Cuenta\n(${rangoFechas})`);
 
-        const yStart = doc.y;
-
-        // Datos del Cliente
-        doc
-          .font('Helvetica-Bold')
-          .fontSize(12)
-          .text('DATOS DEL CLIENTE', 50, yStart);
-        doc.font('Helvetica').fontSize(10);
-        doc.moveDown(0.5);
-        doc.text(`Nombre: ${cliente.nombre}`);
-        doc.text(`Identificación: ${cliente.ruc || 'N/A'}`);
-        doc.text(`Correo: ${cliente.correo || 'N/A'}`);
-        doc.text(`Teléfono: ${cliente.telefono || 'N/A'}`);
-
-        // Resumen Financiero
-        doc
-          .font('Helvetica-Bold')
-          .fontSize(12)
-          .text('RESUMEN DE SALDOS', 320, yStart);
-        doc.font('Helvetica').fontSize(10);
-        doc.moveDown(0.5);
-        doc.text(`Total Facturado: $${resumen.totalFacturado.toFixed(2)}`, 320);
-        doc.text(`Total Pagado: $${resumen.totalPagado.toFixed(2)}`, 320);
-        doc
-          .font('Helvetica-Bold')
-          .text(
-            `SALDO TOTAL PENDIENTE: $${resumen.saldoTotal.toFixed(2)}`,
-            320,
-          );
-
-        doc.moveDown(2);
-        doc.x = 50;
+        // Metadatos
+        const leftItems = [
+          { label: 'Cliente', value: cliente.nombre || 'N/A' },
+          { label: 'Identificación', value: cliente.ruc || 'N/A' },
+          { label: 'Correo', value: cliente.correo || 'N/A' },
+          { label: 'Teléfono', value: cliente.telefono || 'N/A' },
+        ];
+        const rightItems = [
+          { label: 'Total Facturado', value: `$${resumen.totalFacturado.toFixed(2)}` },
+          { label: 'Total Pagado', value: `$${resumen.totalPagado.toFixed(2)}` },
+          { label: 'Saldo Pendiente', value: `$${resumen.saldoTotal.toFixed(2)}` },
+        ];
+        PdfHelper.drawMetadata(doc, leftItems, rightItems);
 
         // Tabla de Facturas
-        doc.font('Helvetica-Bold').fontSize(12).text('FACTURAS EMITIDAS');
-        doc.moveDown(0.5);
-        doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+        doc.font('Helvetica-Bold').fontSize(11).fillColor(PdfHelper.TEXT_DARK).text('FACTURAS EMITIDAS');
         doc.moveDown(0.5);
 
-        let tableY = doc.y;
-        doc.font('Helvetica-Bold').fontSize(9);
-        doc.text('No. Factura', 50, tableY);
-        doc.text('Fecha', 160, tableY);
-        doc.text('Estado', 240, tableY);
-        doc.text('Total', 330, tableY, { align: 'right', width: 60 });
-        doc.text('Abonado', 410, tableY, { align: 'right', width: 60 });
-        doc.text('Pendiente', 490, tableY, { align: 'right', width: 60 });
-        doc.moveDown(0.5);
-        doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-        doc.moveDown(0.5);
+        const facturasCols = [
+          { label: 'No. Factura', width: 130 },
+          { label: 'Fecha', width: 75 },
+          { label: 'Estado', width: 95 },
+          { label: 'Total', width: 55, align: 'right' },
+          { label: 'Abonado', width: 55, align: 'right' },
+          { label: 'Pendiente', width: 62, align: 'right' },
+        ];
+        PdfHelper.drawTableHeader(doc, facturasCols);
 
-        doc.font('Helvetica').fontSize(9);
         if (facturas.length > 0) {
-          facturas.forEach((f) => {
-            const lineY = doc.y;
-            doc.text(f.numero || f.id, 50, lineY);
-            doc.text(f.fechaEmision || 'N/A', 160, lineY);
-            doc.text(f.estado || 'N/A', 240, lineY);
-            doc.text(`$${f.total.toFixed(2)}`, 330, lineY, {
-              align: 'right',
-              width: 60,
-            });
-            doc.text(`$${f.pagado.toFixed(2)}`, 410, lineY, {
-              align: 'right',
-              width: 60,
-            });
-            doc.text(`$${f.pendiente.toFixed(2)}`, 490, lineY, {
-              align: 'right',
-              width: 60,
-            });
-            doc.moveDown(0.5);
+          facturas.forEach((f, idx) => {
+            PdfHelper.drawTableRow(
+              doc,
+              [
+                f.numero || f.id,
+                f.fechaEmision || 'N/A',
+                f.estado || 'N/A',
+                `$${f.total.toFixed(2)}`,
+                `$${f.pagado.toFixed(2)}`,
+                `$${f.pendiente.toFixed(2)}`,
+              ],
+              facturasCols,
+              idx % 2 === 1,
+            );
           });
         } else {
-          doc.text('No se registraron facturas en este periodo.', 50);
-          doc.moveDown(0.5);
+          PdfHelper.drawTableRow(
+            doc,
+            ['No se registraron facturas en este periodo.', '', '', '', '', ''],
+            facturasCols,
+            false,
+          );
         }
 
-        doc.moveDown(2);
+        doc.moveDown(1.5);
 
         // Tabla de Pagos
-        doc
-          .font('Helvetica-Bold')
-          .fontSize(12)
-          .text('ABONOS / PAGOS REALIZADOS');
-        doc.moveDown(0.5);
-        doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+        doc.font('Helvetica-Bold').fontSize(11).fillColor(PdfHelper.TEXT_DARK).text('ABONOS / PAGOS REALIZADOS');
         doc.moveDown(0.5);
 
-        tableY = doc.y;
-        doc.font('Helvetica-Bold').fontSize(9);
-        doc.text('No. Transacción', 50, tableY);
-        doc.text('Fecha', 160, tableY);
-        doc.text('Cuenta Destino', 240, tableY);
-        doc.text('Monto', 450, tableY, { align: 'right', width: 100 });
-        doc.moveDown(0.5);
-        doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-        doc.moveDown(0.5);
+        const pagosCols = [
+          { label: 'No. Transacción', width: 130 },
+          { label: 'Fecha', width: 100 },
+          { label: 'Cuenta Destino', width: 180 },
+          { label: 'Monto', width: 62, align: 'right' },
+        ];
+        PdfHelper.drawTableHeader(doc, pagosCols);
 
-        doc.font('Helvetica').fontSize(9);
         if (pagos.length > 0) {
-          pagos.forEach((p) => {
-            const lineY = doc.y;
-            doc.text(p.numeroPago, 50, lineY);
-            doc.text(p.fecha, 160, lineY);
-            doc.text(p.cuentaBancaria, 240, lineY, { width: 200 });
-            doc.text(`$${p.montoTotal.toFixed(2)}`, 450, lineY, {
-              align: 'right',
-              width: 100,
-            });
-            doc.moveDown(0.5);
+          pagos.forEach((p, idx) => {
+            PdfHelper.drawTableRow(
+              doc,
+              [
+                p.numeroPago || 'N/A',
+                p.fecha || 'N/A',
+                p.cuentaBancaria || 'N/A',
+                `$${p.montoTotal.toFixed(2)}`,
+              ],
+              pagosCols,
+              idx % 2 === 1,
+            );
           });
         } else {
-          doc.text('No se registraron abonos en este periodo.', 50);
-          doc.moveDown(0.5);
+          PdfHelper.drawTableRow(
+            doc,
+            ['No se registraron abonos en este periodo.', '', '', ''],
+            pagosCols,
+            false,
+          );
         }
 
-        doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-        doc.end();
+        PdfHelper.finalize(doc);
       } catch (error: unknown) {
         reject(error instanceof Error ? error : new Error(String(error)));
       }

@@ -9,6 +9,12 @@ import CobradoPendienteChart from "./components/CobradoPendienteChart";
 import TopClientesDeudaChart from "./components/TopClientesDeudaChart";
 import TopClientesPagosChart from "./components/TopClientesPagosChart";
 import CuentaBancariaDonut from "./components/CuentaBancariaDonut";
+import {
+  CurrencyDollarIcon,
+  DocumentCurrencyDollarIcon,
+  UsersIcon,
+  UserGroupIcon,
+} from "@heroicons/react/24/solid";
 
 export default function DashboardPage() {
   const [montoConfirmado, setMontoConfirmado] = useState(0);
@@ -128,12 +134,26 @@ export default function DashboardPage() {
 
         resumen[mes].cobrado += Number(p.montoTotal);
       });
-      facturasFiltradas.forEach((f: any) => {
-        const fecha = new Date(f.fechaEmision);
+      facturasFiltradas.forEach((factura: any) => {
+        let pagado = 0;
 
-        const mes = fecha.getMonth();
+        pagosFiltrados.forEach((pago: any) => {
+          if (pago.estado?.toLowerCase() !== "activo") return;
 
-        resumen[mes].pendiente += Number(f.total);
+          const detalle = pago.detalles?.find(
+            (d: any) => d.facturaId === factura.id,
+          );
+
+          if (detalle) {
+            pagado += Number(detalle.montoAbonado) || 0;
+          }
+        });
+
+        const pendienteFactura = Math.max(0, Number(factura.total) - pagado);
+
+        const mes = new Date(factura.fechaEmision).getMonth();
+
+        resumen[mes].pendiente += pendienteFactura;
       });
       // Gráfico de línea (muestra todos los meses)
       setGraficoLinea(resumen);
@@ -274,7 +294,7 @@ export default function DashboardPage() {
       const estado = await estadoRes.json();
 
       const donut = estado.map((c: any) => ({
-        nombre: `${c.nombreBanco} - ${c.numeroCuenta}`,
+        nombre: `${c.nombreBanco} - ***${c.numeroCuenta.slice(-3)}`,
         saldo: c.saldo_total,
       }));
 
@@ -283,7 +303,6 @@ export default function DashboardPage() {
       console.error(error);
     }
   };
-
 
   return (
     <>
@@ -295,22 +314,26 @@ export default function DashboardPage() {
               titulo="Monto confirmado"
               valor={`$${montoConfirmado.toFixed(2)}`}
               color="#16a34a"
+              icon={CurrencyDollarIcon}
             />
             <KpiCard
               titulo="Pendiente"
               valor={`$${pendiente.toFixed(2)}`}
               color="#dc2626"
+              icon={DocumentCurrencyDollarIcon}
             />
             <KpiCard
               titulo="Total clientes"
               valor={totalClientes}
               color="#2563eb"
+               icon={UsersIcon}
             />
 
             <KpiCard
               titulo="Clientes con deuda"
               valor={clientesConDeuda}
               color="#ea580c"
+              icon={UserGroupIcon}
             />
           </div>
 

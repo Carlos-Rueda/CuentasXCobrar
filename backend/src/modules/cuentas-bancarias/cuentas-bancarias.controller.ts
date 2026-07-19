@@ -12,6 +12,7 @@ import {
   UseInterceptors,
   UseGuards,
   Query,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -26,11 +27,14 @@ import { CuentaBancariaEntity } from './cuenta-bancaria.entity';
 import { CreateCuentaBancariaDto } from './dto/create-cuenta-bancaria.dto';
 import { UpdateCuentaBancariaDto } from './dto/update-cuenta-bancaria.dto';
 import { AuditoriaInterceptor } from '../interceptors/auditoria.interceptor';
-import { JwtAuthGuard } from '../cuentas-cobrar/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { AllowExternal } from '../auth/decorators/allow-external.decorator';
 
 @ApiTags('API de Salida')
+@ApiBearerAuth()
+@AllowExternal()
 @UseInterceptors(AuditoriaInterceptor)
 @Controller('cuentas-bancarias')
 export class CuentasBancariasSalidaController {
@@ -45,7 +49,8 @@ export class CuentasBancariasSalidaController {
   @ApiQuery({
     name: 'all',
     required: false,
-    description: 'Obtener todas las cuentas (incluyendo inactivas) con "true" o "all". Si no se envía, solo se obtienen las activas.',
+    description:
+      'Obtener todas las cuentas (incluyendo inactivas) con "true" o "all". Si no se envía, solo se obtienen las activas.',
   })
   @ApiResponse({
     status: 200,
@@ -56,8 +61,13 @@ export class CuentasBancariasSalidaController {
   }
 
   @Get(':id/saldo')
-  @ApiOperation({ summary: 'Obtener el saldo disponible de una cuenta bancaria' })
-  @ApiParam({ name: 'id', description: 'ID de la cuenta bancaria para consultar saldo' })
+  @ApiOperation({
+    summary: 'Obtener el saldo disponible de una cuenta bancaria',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID de la cuenta bancaria para consultar saldo',
+  })
   @ApiResponse({
     status: 200,
     description: 'Saldo disponible calculado con éxito.',
@@ -97,16 +107,23 @@ export class CuentasBancariasController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CXC_ADMIN')
-  @ApiOperation({ summary: 'Crear una nueva cuenta bancaria' })
-  @ApiResponse({
-    status: 201,
-    description: 'Cuenta bancaria creada con éxito.',
-    type: CuentaBancariaEntity,
-  })
   async create(
     @Body() cuenta: CreateCuentaBancariaDto,
+    @Req() req: any,
   ): Promise<CuentaBancariaEntity | null> {
-    return await this.cuentasBancariasService.create(cuenta);
+    const token = req.headers.authorization?.replace('Bearer ', '');
+
+    let ip =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.socket.remoteAddress ||
+      req.ip ||
+      '127.0.0.1';
+
+    if (ip === '::1') {
+      ip = '127.0.0.1';
+    }
+
+    return await this.cuentasBancariasService.create(cuenta, token, ip);
   }
 
   @Put(':id')
@@ -127,14 +144,31 @@ export class CuentasBancariasController {
   async update(
     @Param('id') id: string,
     @Body() cuentaActualizada: UpdateCuentaBancariaDto,
+    @Req() req: any,
   ): Promise<CuentaBancariaEntity> {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+
+    let ip =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.socket.remoteAddress ||
+      req.ip ||
+      '127.0.0.1';
+
+    if (ip === '::1') {
+      ip = '127.0.0.1';
+    }
+
     const cuenta = await this.cuentasBancariasService.update(
       id,
       cuentaActualizada,
+      token,
+      ip,
     );
+
     if (!cuenta) {
       throw new NotFoundException(`Cuenta bancaria con ID ${id} no encontrada`);
     }
+
     return cuenta;
   }
 
@@ -143,14 +177,29 @@ export class CuentasBancariasController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CXC_ADMIN')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Eliminar una cuenta bancaria' })
-  @ApiParam({ name: 'id', description: 'ID de la cuenta bancaria a eliminar' })
+  @ApiOperation({ summary: 'Inactivar una cuenta bancaria' })
+  @ApiParam({ name: 'id', description: 'ID de la cuenta bancaria a inactivar' })
   @ApiResponse({
     status: 204,
-    description: 'Cuenta bancaria eliminada con éxito.',
+    description: 'Cuenta bancaria inactivada con éxito.',
   })
-  @ApiResponse({ status: 404, description: 'Cuenta bancaria no encontrada.' })
-  async remove(@Param('id') id: string): Promise<void> {
-    await this.cuentasBancariasService.remove(id);
+  @ApiResponse({
+    status: 404,
+    description: 'Cuenta bancaria no encontrada.',
+  })
+  async remove(@Param('id') id: string, @Req() req: any): Promise<void> {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+
+    let ip =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.socket.remoteAddress ||
+      req.ip ||
+      '127.0.0.1';
+
+    if (ip === '::1') {
+      ip = '127.0.0.1';
+    }
+
+    await this.cuentasBancariasService.remove(id, token, ip);
   }
 }

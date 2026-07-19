@@ -3,15 +3,17 @@ import { HttpModule } from '@nestjs/axios';
 import { CuentasBancariasService } from './cuentas-bancarias.service';
 import { CuentasBancariasController, CuentasBancariasSalidaController } from './cuentas-bancarias.controller';
 import { AuditoriaService } from '../auditoria/auditoria.service';
-import { AuditoriaInterceptor } from '../interceptors/auditoria.interceptor';
+
 
 @Module({
   imports: [HttpModule],
-  controllers: [CuentasBancariasController, CuentasBancariasSalidaController],
+  controllers: [
+    CuentasBancariasController,
+    CuentasBancariasSalidaController,
+  ],
   providers: [
     CuentasBancariasService,
-    AuditoriaInterceptor,
-    { provide: 'AUDITORIA_PACKAGE', useClass: AuditoriaService },
+    AuditoriaService,
   ],
   exports: [CuentasBancariasService],
 })

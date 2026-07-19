@@ -3,10 +3,12 @@ import { HttpModule } from '@nestjs/axios';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { AuditoriaService } from './auditoria.service';
 import { AuditoriaInterceptor } from '../interceptors/auditoria.interceptor';
+import { AuditoriaController } from './auditoria.controller';
 
 @Global()
 @Module({
   imports: [HttpModule],
+  controllers: [AuditoriaController],
   providers: [
     AuditoriaService,
     {

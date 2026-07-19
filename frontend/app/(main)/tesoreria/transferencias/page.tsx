@@ -329,22 +329,6 @@ export default function TransferenciasPage() {
         </button>
       </div>
 
-      {/* ── Métricas ── */}
-      <div className="grid grid-cols-2 gap-3">
-        {[
-          { label: "Total transferencias", value: totalTransfers, color: "text-gray-900" },
-          {
-            label: "Monto total transferido",
-            value: formatCurrency(montoTotal),
-            color: "text-red-600",
-          },
-        ].map(({ label, value, color }) => (
-          <div key={label} className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
-            <p className="metric-label mb-2">{label}</p>
-            <p className={`metric-value ${color}`}>{value}</p>
-          </div>
-        ))}
-      </div>
 
       {/* ── Filtro de fechas ── */}
       <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5">

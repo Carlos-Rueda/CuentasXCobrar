@@ -16,7 +16,9 @@ import {
   ApiParam,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from './jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Public } from '../auth/decorators/public.decorator';
+import { AllowExternal } from '../auth/decorators/allow-external.decorator';
 import { AuditoriaInterceptor } from '../interceptors/auditoria.interceptor'; // Ajustado a la estructura del módulo
 import * as crypto from 'crypto';
 
@@ -27,6 +29,7 @@ export class CuentasCobrarController {
   constructor(private readonly cuentasCobrarService: CuentasCobrarService) {}
 
   // 1. Endpoint Real: GET /cxc/estado-cuenta/:clienteId
+  @Public()
   @Get('estado-cuenta/:clienteId')
   @ApiOperation({ summary: 'Obtener estado de cuenta completo del cliente' })
   @ApiParam({
@@ -46,6 +49,7 @@ export class CuentasCobrarController {
   }
 
   // 3. Endpoint de Simulación: GET /cxc/validador-deuda/:clienteId
+  @Public()
   @Get('validador-deuda/:clienteId')
   @ApiOperation({
     summary:
@@ -72,6 +76,7 @@ export class CuentasCobrarController {
   @Get('clientes-saldos')
   @ApiTags('API de Salida')
   @ApiBearerAuth()
+  @AllowExternal()
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Listar clientes con saldo a pagar (para módulos externos)',
@@ -87,6 +92,7 @@ export class CuentasCobrarController {
   @Get('cuentas-saldos')
   @ApiTags('API de Salida')
   @ApiBearerAuth()
+  @AllowExternal()
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Listar cuentas bancarias con su saldo disponible consolidado (para módulos externos)',
@@ -99,6 +105,7 @@ export class CuentasCobrarController {
     return this.cuentasCobrarService.generarCuentasSaldos();
   }
 
+  @Public()
   @Post('token')
   @ApiTags('API de Salida')
   @ApiOperation({ summary: 'Generar token JWT para consumir el API de Salida' })

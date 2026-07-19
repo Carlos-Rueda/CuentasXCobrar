@@ -3,7 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiExcludeEndpoint }
 import { PrismaService } from '../../prisma/prisma.service';
 import { FacturacionApiService } from '../cuentas-cobrar/facturacion-api.service';
 import { ComprasApiService } from '../cuentas-cobrar/compras-api.service';
-import { JwtAuthGuard } from '../cuentas-cobrar/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -108,7 +108,7 @@ export class DashboardController {
             id: p.id,
             fecha: p.fecha_pago ? p.fecha_pago.toISOString() : (p.created_at ? p.created_at.toISOString() : new Date().toISOString()),
             tipo: 'ingreso',
-            referencia: `Cobro N° ${p.numero_pago}`,
+            referencia: `Cobro No. ${p.numero_pago}`,
             descripcion: p.descripcion || 'Cobro registrado de cliente',
             monto: totalPago,
           });
@@ -144,25 +144,29 @@ export class DashboardController {
           } else if (mov.tipo === 'transferencia') {
             if (mov.cuenta_destino_id === cuenta.id) {
               saldo_movimientos += monto;
-              const nombreOrig = mov.cuentas_bancarias_movimientos_cuenta_origen_idTocuentas_bancarias?.entidad_bancaria || 'Otra Cuenta';
+              const cbOr = mov.cuentas_bancarias_movimientos_cuenta_origen_idTocuentas_bancarias;
+              const nombreOrig = cbOr?.entidad_bancaria || 'Otra Cuenta';
+              const nroOrig = cbOr?.nro_cuenta ? `(No. ${cbOr.nro_cuenta})` : '';
               transferencias.push({
                 id: mov.id,
                 fecha: mov.created_at ? mov.created_at.toISOString() : new Date().toISOString(),
                 tipo: 'ingreso',
                 referencia: `Transferencia Recibida`,
-                descripcion: `Desde ${nombreOrig} - ${mov.descripcion}`,
+                descripcion: `Desde ${nombreOrig} ${nroOrig} - ${mov.descripcion}`,
                 monto: monto,
               });
             }
             if (mov.cuenta_origen_id === cuenta.id) {
               saldo_movimientos -= monto;
-              const nombreDest = mov.cuentas_bancarias_movimientos_cuenta_destino_idTocuentas_bancarias?.entidad_bancaria || 'Otra Cuenta';
+              const cbDest = mov.cuentas_bancarias_movimientos_cuenta_destino_idTocuentas_bancarias;
+              const nombreDest = cbDest?.entidad_bancaria || 'Otra Cuenta';
+              const nroDest = cbDest?.nro_cuenta ? `(No. ${cbDest.nro_cuenta})` : '';
               transferencias.push({
                 id: mov.id,
                 fecha: mov.created_at ? mov.created_at.toISOString() : new Date().toISOString(),
                 tipo: 'egreso',
                 referencia: `Transferencia Enviada`,
-                descripcion: `Hacia ${nombreDest} - ${mov.descripcion}`,
+                descripcion: `Hacia ${nombreDest} ${nroDest} - ${mov.descripcion}`,
                 monto: monto,
               });
             }
