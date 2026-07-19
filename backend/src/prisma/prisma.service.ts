@@ -15,7 +15,12 @@ export class PrismaService
       throw new Error('DATABASE_URL environment variable is not defined');
     }
 
-    const pool = new Pool({ connectionString });
+    const pool = new Pool({
+      connectionString,
+      ssl: connectionString.includes('localhost') || connectionString.includes('127.0.0.1') 
+        ? false 
+        : { rejectUnauthorized: false }
+    });
     const adapter = new PrismaPg(pool);
     super({ adapter });
   }
