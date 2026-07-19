@@ -178,8 +178,14 @@ export default function ConsultarCliente() {
         ...(fechaInicio && { fechaInicio }),
         ...(fechaFin && { fechaFin }),
       });
+      const token = sessionStorage.getItem("auth_token");
       const res = await fetch(
         `${API_URL}/reportes/estado-cuenta/pdf?${queryParams}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
       if (!res.ok) {
         showToast("No fue posible generar el reporte PDF.", "error");

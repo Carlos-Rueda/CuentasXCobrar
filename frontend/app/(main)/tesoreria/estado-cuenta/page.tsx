@@ -301,6 +301,26 @@ export default function EstadoCuentaPage() {
       csvContent += `${fechaFormateada};${origenLimpio};${refLimpia};${descLimpia};${montoFormateado}\n`;
     });
 
+    const nombreArchivo = `Estado_Cuenta_${banco.replace(/\s+/g, "_")}_${localFechaInicio || "historico"}_${localFechaFin || "actual"}.csv`;
+
+    // Persistir el CSV en EFS
+    try {
+      const token = sessionStorage.getItem("auth_token");
+      await fetch(`${API_URL}/reportes/save-csv`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          filename: nombreArchivo,
+          content: csvContent,
+        }),
+      });
+    } catch (err) {
+      console.error("Error al persistir el CSV en EFS:", err);
+    }
+
     // Agregar UTF-8 BOM para soporte correcto de acentos y caracteres especiales en Excel
     const blob = new Blob(["\uFEFF" + csvContent], {
       type: "text/csv;charset=utf-8;",
@@ -308,7 +328,6 @@ export default function EstadoCuentaPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    const nombreArchivo = `Estado_Cuenta_${banco.replace(/\s+/g, "_")}_${localFechaInicio || "historico"}_${localFechaFin || "actual"}.csv`;
     link.setAttribute("download", nombreArchivo);
     document.body.appendChild(link);
     link.click();

@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Res, Req, HttpStatus, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Res, Req, HttpStatus, Param } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiTags, ApiOperation, ApiQuery, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { ReportesService } from './reportes.service';
@@ -11,8 +11,26 @@ import * as path from 'path';
 export class ReportesController {
   constructor(private readonly reportesService: ReportesService) {}
 
+  @Post('save-csv')
+  @ApiOperation({ summary: 'Guardar un archivo CSV en EFS desde el frontend' })
+  async guardarCsvEfs(
+    @Body() body: { filename: string; content: string },
+    @Res() res: Response,
+  ) {
+    const { filename, content } = body;
+    const pdfsDir = path.join(process.cwd(), 'pdfs');
+    if (!fs.existsSync(pdfsDir)) {
+      fs.mkdirSync(pdfsDir, { recursive: true });
+    }
+    const filePath = path.join(pdfsDir, filename);
+    // Guardar con UTF-8 BOM
+    fs.writeFileSync(filePath, '\uFEFF' + content, 'utf-8');
+    console.log(`[EFS] CSV guardado en: ${filePath}`);
+    return res.status(HttpStatus.OK).send({ success: true });
+  }
+
   @Get('efs-files')
-  @ApiOperation({ summary: 'Listar todos los archivos PDF guardados en EFS' })
+  @ApiOperation({ summary: 'Listar todos los archivos PDF y CSV guardados en EFS' })
   async listarArchivosEfs() {
     const pdfsDir = path.join(process.cwd(), 'pdfs');
     if (!fs.existsSync(pdfsDir)) {
@@ -20,7 +38,7 @@ export class ReportesController {
     }
     const files = fs.readdirSync(pdfsDir);
     return files
-      .filter((file) => file.endsWith('.pdf'))
+      .filter((file) => file.endsWith('.pdf') || file.endsWith('.csv'))
       .map((file) => {
         const filePath = path.join(pdfsDir, file);
         const stats = fs.statSync(filePath);
@@ -33,7 +51,7 @@ export class ReportesController {
   }
 
   @Get('efs-files/:filename')
-  @ApiOperation({ summary: 'Ver/Descargar un archivo PDF específico de EFS' })
+  @ApiOperation({ summary: 'Ver/Descargar un archivo específico de EFS' })
   async descargarArchivoEfs(
     @Param('filename') filename: string,
     @Res() res: Response,
@@ -48,8 +66,9 @@ export class ReportesController {
       });
     }
 
+    const contentType = filename.endsWith('.csv') ? 'text/csv; charset=utf-8' : 'application/pdf';
     res.set({
-      'Content-Type': 'application/pdf',
+      'Content-Type': contentType,
       'Content-Disposition': `inline; filename=${filename}`,
     });
 

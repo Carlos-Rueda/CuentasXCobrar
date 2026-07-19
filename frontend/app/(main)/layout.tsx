@@ -43,6 +43,17 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       return;
     }
 
+    const stored = sessionStorage.getItem("user");
+    let currentUserRole = "";
+    if (stored) {
+      const parsedUser = JSON.parse(stored);
+      currentUserRole = parsedUser.rol || "";
+      if (!userRef.current) {
+        userRef.current = parsedUser;
+        setUser(parsedUser);
+      }
+    }
+
     try {
       const base64Url = token.split(".")[1];
       const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
@@ -55,7 +66,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         setPermissions([]);
       }
 
-      // Proteger rutas según permisos
+      // Proteger rutas según permisos y roles
       if (pathname === "/clientes" && !currentPerms.includes("CXC_CLIENTES")) {
         router.push("/dashboard");
       } else if (pathname.startsWith("/pagos/pagos-externos") && !currentPerms.includes("CXC_PAGOSEXTERNOS")) {
@@ -70,18 +81,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         router.push("/dashboard");
       } else if (pathname.startsWith("/tesoreria/estado-cuenta") && !currentPerms.includes("CXC_ESTADOCUENTA")) {
         router.push("/dashboard");
+      } else if (pathname.startsWith("/archivos-efs") && currentUserRole !== "CXC_ADMIN") {
+        router.push("/dashboard");
       } else if (currentPerms.length === 0) {
         sessionStorage.clear();
         router.push("/login");
       }
     } catch (e) {
       setPermissions([]);
-    }
-    
-    const stored = sessionStorage.getItem("user");
-    if (stored && !userRef.current) {
-      userRef.current = JSON.parse(stored);
-      setUser(JSON.parse(stored));
     }
   }, [router, pathname]);
 
@@ -136,6 +143,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             if (href === "/cuentas-bancarias") return permissions.includes("CXC_CUENTASBANCARIAS");
             if (href === "/tesoreria/transferencias") return permissions.includes("CXC_TRANSFERENCIAS");
             if (href === "/tesoreria/estado-cuenta") return permissions.includes("CXC_ESTADOCUENTA");
+            if (href === "/archivos-efs") return user?.rol === "CXC_ADMIN";
             return true;
           }).map(({ href, label, Icon }) => {
             const active = pathname === href || pathname.startsWith(href + "/");

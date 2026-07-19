@@ -15,13 +15,18 @@ export default function ArchivosEfsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [downloadingFile, setDownloadingFile] = useState<string | null>(null);
 
   const fetchFiles = async () => {
     setLoading(true);
     setError(null);
     try {
+      const token = sessionStorage.getItem("auth_token");
       const response = await fetch(`${API_URL}/reportes/efs-files`, {
         cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
       if (!response.ok) {
         throw new Error("No se pudo obtener la lista de archivos de EFS");
@@ -38,6 +43,42 @@ export default function ArchivosEfsPage() {
   useEffect(() => {
     fetchFiles();
   }, []);
+
+  const handleFileAction = async (filename: string, action: "view" | "download") => {
+    try {
+      setDownloadingFile(filename);
+      const token = sessionStorage.getItem("auth_token");
+      const res = await fetch(`${API_URL}/reportes/efs-files/${filename}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error("No se pudo obtener el archivo del servidor.");
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      if (action === "download") {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        window.open(url, "_blank");
+      }
+
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+    } catch (err: any) {
+      alert(err.message || "Error al procesar el archivo.");
+    } finally {
+      setDownloadingFile(null);
+    }
+  };
 
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return "0 Bytes";
@@ -76,7 +117,7 @@ export default function ArchivosEfsPage() {
             Explorador de Archivos EFS
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Visualiza y descarga los comprobantes y reportes en PDF persistidos en el almacenamiento compartido de AWS EFS.
+            Visualiza y descarga los comprobantes (PDF) y reportes (PDF/CSV) persistidos en el almacenamiento compartido de AWS EFS.
           </p>
         </div>
         <button
@@ -103,7 +144,7 @@ export default function ArchivosEfsPage() {
           />
         </div>
         <div className="text-sm text-gray-500 w-full md:w-auto text-right">
-          Total: <span className="font-semibold text-gray-900">{filteredFiles.length}</span> archivos PDF
+          Total: <span className="font-semibold text-gray-900">{filteredFiles.length}</span> archivos
         </div>
       </div>
 
@@ -122,9 +163,9 @@ export default function ArchivosEfsPage() {
         ) : filteredFiles.length === 0 ? (
           <div className="text-center py-12">
             <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 font-medium">No se encontraron archivos PDF</p>
+            <p className="text-gray-500 font-medium">No se encontraron archivos en EFS</p>
             <p className="text-xs text-gray-400 mt-1">
-              {search ? "Prueba con otra búsqueda." : "Genera un estado de cuenta o comprobante para ver los archivos aquí."}
+              {search ? "Prueba con otra búsqueda." : "Genera un estado de cuenta (PDF/CSV) o un comprobante para ver los archivos aquí."}
             </p>
           </div>
         ) : (
@@ -139,48 +180,50 @@ export default function ArchivosEfsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredFiles.map((file) => (
-                  <tr key={file.name} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-red-50 rounded-lg" style={{ background: "var(--utn-red-light)" }}>
-                          <FileText className="w-4 h-4 text-red-600" style={{ color: "var(--utn-red)" }} />
+                {filteredFiles.map((file) => {
+                  const isCsv = file.name.endsWith(".csv");
+                  return (
+                    <tr key={file.name} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg" style={{ background: isCsv ? "#ECFDF5" : "var(--utn-red-light)" }}>
+                            <FileText className="w-4 h-4" style={{ color: isCsv ? "#059669" : "var(--utn-red)" }} />
+                          </div>
+                          <span className="text-sm font-medium text-gray-900 truncate max-w-md">{file.name}</span>
                         </div>
-                        <span className="text-sm font-medium text-gray-900 truncate max-w-md">{file.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {formatBytes(file.size)}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {formatDate(file.createdAt)}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        {/* Botón para ver en línea */}
-                        <a
-                          href={`${API_URL}/reportes/efs-files/${file.name}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors text-gray-700"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          Visualizar
-                        </a>
-                        {/* Botón para descargar */}
-                        <a
-                          href={`${API_URL}/reportes/efs-files/${file.name}`}
-                          download={file.name}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:bg-red-700 transition-colors"
-                          style={{ background: "var(--utn-red)" }}
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          Descargar
-                        </a>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500">
+                        {formatBytes(file.size)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500">
+                        {formatDate(file.createdAt)}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          {/* Botón para ver en línea (solo si no es CSV, o para ambos) */}
+                          <button
+                            onClick={() => handleFileAction(file.name, "view")}
+                            disabled={downloadingFile !== null}
+                            className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors text-gray-700 disabled:opacity-50"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            Visualizar
+                          </button>
+                          {/* Botón para descargar */}
+                          <button
+                            onClick={() => handleFileAction(file.name, "download")}
+                            disabled={downloadingFile !== null}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                            style={{ background: isCsv ? "#059669" : "var(--utn-red)" }}
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            Descargar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
