@@ -134,16 +134,23 @@ export class PdfHelper {
     for (let i = range.start; i < range.start + range.count; i++) {
       doc.switchToPage(i);
       
+      // Desactivar temporalmente el margen inferior para evitar que el pie de página cree páginas adicionales
+      const oldBottomMargin = doc.page.margins.bottom;
+      doc.page.margins.bottom = 0;
+      
       // Dibuja el encabezado de adorno superior en todas las páginas (si aplica)
       if (i > range.start) {
         doc.rect(0, 0, 612, 15).fill(this.UTN_RED);
       }
 
       // Pie de página
-      doc.moveTo(50, 750).lineTo(562, 750).strokeColor(this.LINE_GRAY).lineWidth(1).stroke();
+      doc.moveTo(50, 740).lineTo(562, 740).strokeColor(this.LINE_GRAY).lineWidth(1).stroke();
       doc.fillColor(this.TEXT_MUTED).font('Helvetica').fontSize(8);
-      doc.text('© Universidad Técnica del Norte — Reporte Oficial de Tesorería', 50, 758);
-      doc.text(`Página ${i + 1} de ${range.count}`, 450, 758, { align: 'right', width: 112 });
+      doc.text('© Universidad Técnica del Norte — Reporte Oficial de Tesorería', 50, 748);
+      doc.text(`Página ${i + 1} de ${range.count}`, 450, 748, { align: 'right', width: 112 });
+
+      // Restaurar el margen original
+      doc.page.margins.bottom = oldBottomMargin;
     }
     doc.end();
   }
