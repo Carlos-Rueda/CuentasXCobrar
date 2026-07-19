@@ -418,7 +418,23 @@ export class PagosService {
         const chunks: Buffer[] = [];
 
         doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-        doc.on('end', () => resolve(Buffer.concat(chunks)));
+        doc.on('end', () => {
+          const finalBuffer = Buffer.concat(chunks);
+          try {
+            const fs = require('fs');
+            const path = require('path');
+            const pdfsDir = path.join(process.cwd(), 'pdfs');
+            if (!fs.existsSync(pdfsDir)) {
+              fs.mkdirSync(pdfsDir, { recursive: true });
+            }
+            const filePath = path.join(pdfsDir, `comprobante-${pagoId}.pdf`);
+            fs.writeFileSync(filePath, finalBuffer);
+            console.log(`[EFS] Comprobante PDF guardado en: ${filePath}`);
+          } catch (err) {
+            console.error('[EFS] Error al guardar el comprobante PDF:', err);
+          }
+          resolve(finalBuffer);
+        });
         doc.on('error', (err: Error) => reject(err));
 
         // Cabecera estándar
