@@ -320,7 +320,7 @@ export class ReportesService {
         const client = clientes.find((c) => c.id === f.clienteId);
         
         let pagado = 0;
-        let ultimoPagoDate: Date | null = null;
+        let ultimoPagoDate: any = null;
 
         pagosDb.forEach((pago) => {
           const detail = pago.detalles_pago?.find((d) => d.factura_id === f.id);
@@ -338,7 +338,7 @@ export class ReportesService {
         return {
           factura: f.numero || f.id,
           cliente: client?.nombre || 'N/A',
-          cedula: client?.cedula || 'N/A',
+          cedula: client?.ruc || 'N/A',
           fecha: f.fechaEmision ? f.fechaEmision.split('T')[0] : '—',
           monto: Number(f.total) || 0,
           pagado,
