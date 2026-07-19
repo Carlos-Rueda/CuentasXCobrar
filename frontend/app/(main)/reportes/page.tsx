@@ -372,7 +372,7 @@ export default function ReportesPage() {
       }
 
       const nombreArchivo = `Reporte-CXC-${new Date().toISOString().slice(0, 10)}.pdf`;
-      const base64Data = doc.output("base64");
+      const base64Data = (doc as any).output("base64");
 
       // Guardar el PDF en EFS
       try {
