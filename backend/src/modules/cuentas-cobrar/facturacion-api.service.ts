@@ -414,15 +414,18 @@ export class FacturacionApiService {
 
   async obtenerSaldoCuenta(cuentaId: string): Promise<number> {
     const query = `
-      query SaldoCuenta($cuentaId: ID!) {
-        saldoCuenta(cuentaId: $cuentaId) {
+      query {
+        obtenerSaldosCuentas {
+          cuentaId
           saldoActual
         }
       }
     `;
     try {
-      const data = await this.queryGraphQL<{ saldoCuenta: { saldoActual: number } | null }>(query, { cuentaId });
-      return data?.saldoCuenta?.saldoActual || 0;
+      const data = await this.queryGraphQL<{ obtenerSaldosCuentas: Array<{ cuentaId: string; saldoActual: number }> }>(query);
+      const saldos = data?.obtenerSaldosCuentas || [];
+      const match = saldos.find((s) => s.cuentaId === cuentaId);
+      return match?.saldoActual || 0;
     } catch (error: any) {
       return 0;
     }

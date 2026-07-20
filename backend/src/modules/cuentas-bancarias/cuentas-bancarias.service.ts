@@ -362,13 +362,13 @@ export class CuentasBancariasService implements OnModuleInit {
 
       const gqlQuery = {
         query: `
-          query SaldoCuenta($cuentaId: ID!) {
-            saldoCuenta(cuentaId: $cuentaId) {
+          query {
+            obtenerSaldosCuentas {
+              cuentaId
               saldoActual
             }
           }
         `,
-        variables: { cuentaId },
       };
 
       const gqlRes = await fetch(graphqlUrl, {
@@ -383,7 +383,9 @@ export class CuentasBancariasService implements OnModuleInit {
 
       if (gqlRes.ok) {
         const gqlBody = await gqlRes.json();
-        saldo_facturacion = gqlBody?.data?.saldoCuenta?.saldoActual || 0;
+        const saldos = gqlBody?.data?.obtenerSaldosCuentas || [];
+        const match = saldos.find((s: any) => s.cuentaId === cuentaId);
+        saldo_facturacion = match?.saldoActual || 0;
       }
     } catch (e) {
       console.error('Error al obtener saldo facturacion en calcularSaldo:', e);
