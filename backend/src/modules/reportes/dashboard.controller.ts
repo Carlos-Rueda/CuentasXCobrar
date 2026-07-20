@@ -95,10 +95,10 @@ export class DashboardController {
         for (const g of gastosCuenta) {
           comprasEgresos.push({
             id: `compra-${g.id}`,
-            fecha: g.fecha_pago || new Date().toISOString(),
+            fecha: g.fecha_registro || g.fecha_pago || new Date().toISOString(),
             tipo: 'egreso',
-            referencia: g.factura_id ? `Factura Compra ${g.factura_id}` : `Saldo Proveedor ${g.saldo_credito_id || g.id}`,
-            descripcion: g.motivo || 'Gasto registrado de compras',
+            referencia: `Compra No. ${g.id}`,
+            descripcion: g.detalle || g.motivo || 'Gasto registrado de compras',
             monto: Number(g.monto || 0),
           });
         }
