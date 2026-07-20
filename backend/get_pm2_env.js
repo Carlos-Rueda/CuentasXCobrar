@@ -53,6 +53,16 @@ try {
       }
     });
   }
+
+  // Mostrar logs recientes de PM2
+  console.log('\n--- ÚLTIMOS LOGS DE PM2 (backend-cuentas) ---');
+  try {
+    const logsOut = execSync('tail -n 50 /home/ec2-user/.pm2/logs/backend-cuentas-out-0.log || pm2 logs backend-cuentas --lines 50 --no-daemon').toString();
+    console.log(logsOut);
+  } catch (e) {
+    console.log('No se pudieron leer los logs de PM2:', e.message);
+  }
+
   console.log('=============================================');
 } catch (globalErr) {
   console.error('Error global en diagnóstico:', globalErr);
