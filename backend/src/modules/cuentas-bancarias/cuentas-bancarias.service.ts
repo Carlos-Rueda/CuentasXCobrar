@@ -320,11 +320,19 @@ export class CuentasBancariasService implements OnModuleInit {
       if (response.ok) {
         const body = await response.json();
         const gastos = Array.isArray(body) ? body : (body.data || []);
-        const gastosCuenta = gastos.filter(
-          (g: any) =>
-            g.cuenta_bancaria_id?.toLowerCase().trim() ===
-            cuentaId.toLowerCase().trim(),
-        );
+        const dbCuentas = await this.prismaService.cuentas_bancarias.findMany({
+          select: { id: true }
+        });
+        const dbCuentaIds = dbCuentas.map((c: any) => c.id.toLowerCase().trim());
+        const primaryAccountId = dbCuentas[0]?.id?.toLowerCase().trim();
+
+        const gastosCuenta = gastos.filter((g: any) => {
+          let targetCuentaId = g.cuenta_bancaria_id?.toLowerCase().trim();
+          if (!targetCuentaId || !dbCuentaIds.includes(targetCuentaId)) {
+            targetCuentaId = primaryAccountId || null;
+          }
+          return targetCuentaId === cuentaId.toLowerCase().trim();
+        });
         total_compras = gastosCuenta.reduce(
           (sum: number, g: any) => sum + Number(g.monto || 0),
           0,
