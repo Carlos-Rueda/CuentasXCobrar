@@ -1,6 +1,14 @@
 import { PrismaService } from '../prisma/prisma.service';
 
+let lastSyncTime = 0;
+const SYNC_COOLDOWN_MS = 60000; // 60 segundos de cooldown
+
 export async function sincronizarGastosCompras(prisma: PrismaService): Promise<void> {
+  const now = Date.now();
+  if (now - lastSyncTime < SYNC_COOLDOWN_MS) {
+    return;
+  }
+  lastSyncTime = now;
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3000);
