@@ -18,7 +18,8 @@ export async function sincronizarGastosCompras(prisma: PrismaService): Promise<v
     const primaryAccountId = dbCuentas[0]?.id;
 
     for (const g of gastos) {
-      let targetCuentaId = g.cuenta_bancaria_id?.toLowerCase().trim();
+      const rawCuentaId = g.cuentaBancariaId || g.cuenta_bancaria_id;
+      let targetCuentaId = rawCuentaId?.toLowerCase().trim();
       if (!targetCuentaId || !dbCuentaIds.includes(targetCuentaId)) {
         targetCuentaId = primaryAccountId;
       }
@@ -35,7 +36,7 @@ export async function sincronizarGastosCompras(prisma: PrismaService): Promise<v
       });
 
       if (!existe) {
-        const dateStr = g.fecha_registro || g.fecha_pago || new Date().toISOString();
+        const dateStr = g.fechaPago || g.fecha_pago || g.fecha_registro || new Date().toISOString();
         const parsedDate = new Date(dateStr);
         await prisma.movimientos.create({
           data: {
@@ -43,7 +44,7 @@ export async function sincronizarGastosCompras(prisma: PrismaService): Promise<v
             cuenta_origen_id: targetCuentaId,
             cuenta_destino_id: null,
             monto: Number(g.monto || 0),
-            descripcion: `Gasto Compras: ${g.detalle || g.motivo || 'Gasto registrado de compras'} (Ref: ${g.id})`,
+            descripcion: `Gasto Compras: ${g.motivo || g.detalle || 'Gasto registrado de compras'} (Ref: ${g.id})`,
             estado: 'completado',
             created_at: isNaN(parsedDate.getTime()) ? new Date() : parsedDate,
           },
