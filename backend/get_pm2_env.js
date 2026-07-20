@@ -30,6 +30,23 @@ try {
     console.log('No se pudo ejecutar docker ps:', e.message);
   }
 
+  // Verificar resolución DNS y /etc/hosts
+  console.log('\n--- DIAGNÓSTICO DE RESOLUCIÓN DE HOST ---');
+  try {
+    const dns = require('dns');
+    dns.lookup('db-backend-cuentas.cm1oqgm0esit.us-east-1.rds.amazonaws.com', (err, address, family) => {
+      if (err) console.log('Error de resolución DNS:', err.message);
+      else console.log(`DNS: db-backend-cuentas... resuelve a: ${address}`);
+    });
+    
+    if (fs.existsSync('/etc/hosts')) {
+      const hosts = fs.readFileSync('/etc/hosts', 'utf8');
+      console.log('Contenido de /etc/hosts:\n', hosts);
+    }
+  } catch (e) {
+    console.log('No se pudo verificar DNS/hosts:', e.message);
+  }
+
   // Obtener PIDs de NestJS
   let pids = [];
   try {
