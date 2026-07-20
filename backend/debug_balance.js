@@ -118,10 +118,18 @@ main().catch(async (err) => {
   console.error('\nError durante la ejecución del script:', err);
   console.log('\n--- DIAGNÓSTICO DE TABLAS EN LA BASE DE DATOS ---');
   try {
+    console.log('DATABASE_URL real en process.env:', process.env.DATABASE_URL);
     const { Pool } = require('pg');
+    
+    // Probar primero con la URL actual
     const connectionString = process.env.DATABASE_URL || "postgresql://postgres:Lospanas2502%2A@db-backend-cuentas.cm1oqgm0esit.us-east-1.rds.amazonaws.com:5432/cuentasdb?schema=public";
+    
+    // Probar con base de datos 'postgres'
+    const postgresUrl = connectionString.replace('/cuentasdb', '/postgres');
+    console.log('Probando diagnóstico en la base de datos "postgres"...');
+    
     const pool = new Pool({
-      connectionString,
+      connectionString: postgresUrl,
       ssl: { rejectUnauthorized: false }
     });
     const tablesQuery = await pool.query(`
@@ -130,7 +138,7 @@ main().catch(async (err) => {
       WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
       ORDER BY table_schema, table_name;
     `);
-    console.log('Tablas y Esquemas encontrados:');
+    console.log('Tablas y Esquemas encontrados en "postgres":');
     console.table(tablesQuery.rows);
 
     const dbQuery = await pool.query("SELECT datname FROM pg_database WHERE datistemplate = false;");
