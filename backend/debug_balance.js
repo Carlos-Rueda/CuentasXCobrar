@@ -11,7 +11,7 @@ async function main() {
   }
   
   // Forzar cuentasdb como base de datos en lugar de postgres
-  connectionString = connectionString.replace('/postgres', '/cuentasdb');
+  connectionString = connectionString.replace('/5432/postgres', '/5432/cuentasdb');
 
   const pool = new Pool({
     connectionString,
@@ -128,7 +128,7 @@ main().catch(async (err) => {
     const connectionString = process.env.DATABASE_URL || "postgresql://postgres:Lospanas2502%2A@db-backend-cuentas.cm1oqgm0esit.us-east-1.rds.amazonaws.com:5432/cuentasdb?schema=public";
     
     // Probar con base de datos 'cuentasdb'
-    const targetUrl = connectionString.replace('/postgres', '/cuentasdb');
+    const targetUrl = connectionString.replace('/5432/postgres', '/5432/cuentasdb');
     console.log('Probando diagnóstico en la base de datos "cuentasdb"...');
     
     const pool = new Pool({
