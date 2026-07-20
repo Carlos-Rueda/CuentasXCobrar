@@ -14,6 +14,14 @@ try {
     console.log('No se pudo ejecutar ps aux');
   }
 
+  // Conexiones de red activas al puerto 5432
+  try {
+    const netstat = execSync('ss -antp | grep 5432 || netstat -an | grep 5432').toString();
+    console.log('Conexiones de red activas (puerto 5432):\n', netstat);
+  } catch (e) {
+    console.log('No se pudo ejecutar ss/netstat:', e.message);
+  }
+
   // Obtener PIDs de NestJS
   let pids = [];
   try {
