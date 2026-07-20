@@ -327,7 +327,7 @@ export class CuentasBancariasService implements OnModuleInit {
         process.env.FACTURACION_API_KEY || 'api_key_facturacion_cxc_2026';
       const graphqlUrl =
         process.env.FACTURACION_GRAPHQL_URL ||
-        'https://ad-modulo-facturacion-e51e.onrender.com/graphql';
+        'https://isfi18adb8.execute-api.us-east-1.amazonaws.com/graphql';
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -338,7 +338,7 @@ export class CuentasBancariasService implements OnModuleInit {
       } else {
         let token = '';
         const tokenRes = await fetch(
-          'https://ad-modulo-facturacion-e51e.onrender.com/auth/test-token',
+          'https://isfi18adb8.execute-api.us-east-1.amazonaws.com/auth/test-token',
         );
         if (tokenRes.ok) {
           const tokenData = await tokenRes.json();

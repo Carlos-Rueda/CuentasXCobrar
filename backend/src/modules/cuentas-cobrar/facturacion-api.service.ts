@@ -64,7 +64,7 @@ interface FacturasResponse {
 export class FacturacionApiService {
   private readonly graphqlUrl =
     process.env.FACTURACION_GRAPHQL_URL ||
-    'https://ad-modulo-facturacion-e51e.onrender.com/graphql';
+    'https://isfi18adb8.execute-api.us-east-1.amazonaws.com/graphql';
 
   /**
    * Helper privado para realizar peticiones POST HTTP a la API de GraphQL externa.
@@ -74,7 +74,7 @@ export class FacturacionApiService {
   private async getFreshToken(): Promise<string> {
     try {
       const response = await fetch(
-        'https://ad-modulo-facturacion-e51e.onrender.com/auth/test-token',
+        'https://isfi18adb8.execute-api.us-east-1.amazonaws.com/auth/test-token',
       );
       if (response.ok) {
         const data = await response.json();
