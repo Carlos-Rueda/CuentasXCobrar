@@ -92,7 +92,7 @@ export class AuditoriaService {
   private async registrarPorGraphQL(data: any) {
     const url =
       process.env.SECURITY_GRAPHQL_URL ||
-      'https://proyecto-moduloseguridad.onrender.com/graphql/';
+      'http://moduloseguridadgrupo3-env.eba-mpaczmew.us-east-1.elasticbeanstalk.com/graphql/';
 
     const mutation = `
     mutation {

@@ -12,7 +12,7 @@ export class AuthService {
   async login(dto: LoginDto, ipUsuario: string) {
     const url =
       process.env.SECURITY_GRAPHQL_URL ||
-      'https://proyecto-moduloseguridad.onrender.com/graphql/';
+      'http://moduloseguridadgrupo3-env.eba-mpaczmew.us-east-1.elasticbeanstalk.com/graphql/';
 
     try {
       const response = await axios.post(
@@ -89,7 +89,7 @@ export class AuthService {
   async forgotPassword(email: string) {
     const graphqlUrl =
       process.env.SECURITY_GRAPHQL_URL ||
-      'https://proyecto-moduloseguridad.onrender.com/graphql/';
+      'http://moduloseguridadgrupo3-env.eba-mpaczmew.us-east-1.elasticbeanstalk.com/graphql/';
     const baseUrl = graphqlUrl.replace('/graphql/', '').replace('/graphql', '');
     const url = `${baseUrl}/api/auth/forgot-password/`;
 
@@ -121,7 +121,7 @@ export class AuthService {
   async verifyCode(email: string, codigo: string) {
     const graphqlUrl =
       process.env.SECURITY_GRAPHQL_URL ||
-      'https://proyecto-moduloseguridad.onrender.com/graphql/';
+      'http://moduloseguridadgrupo3-env.eba-mpaczmew.us-east-1.elasticbeanstalk.com/graphql/';
     const baseUrl = graphqlUrl.replace('/graphql/', '').replace('/graphql', '');
     const url = `${baseUrl}/api/auth/verify-code/`;
 
@@ -153,7 +153,7 @@ export class AuthService {
   async resetPassword(email: string, codigo: string, newPassword: string) {
     const graphqlUrl =
       process.env.SECURITY_GRAPHQL_URL ||
-      'https://proyecto-moduloseguridad.onrender.com/graphql/';
+      'http://moduloseguridadgrupo3-env.eba-mpaczmew.us-east-1.elasticbeanstalk.com/graphql/';
     const baseUrl = graphqlUrl.replace('/graphql/', '').replace('/graphql', '');
     const url = `${baseUrl}/api/auth/reset-password/`;
 
