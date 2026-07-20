@@ -144,21 +144,22 @@ main().catch(async (err) => {
     const { Pool } = require('pg');
     const connectionString = process.env.DATABASE_URL || "postgresql://postgres:Lospanas2502%2A@db-backend-cuentas.cm1oqgm0esit.us-east-1.rds.amazonaws.com:5432/cuentasdb?schema=public";
     
-    // Probar con base de datos 'cuentasdb'
-    const targetUrl = connectionString.replace('/5432/postgres', '/5432/cuentasdb');
-    console.log('\nProbando diagnóstico en la base de datos "cuentasdb"...');
+    // Probar con base de datos 'cuentasdb' en localhost
+    console.log('\nProbando diagnóstico en localhost (127.0.0.1:5432) base de datos "cuentasdb"...');
+    const localUrl = "postgresql://postgres:Lospanas2502%2A@127.0.0.1:5432/cuentasdb?schema=public";
     
     const pool = new Pool({
-      connectionString: targetUrl,
-      ssl: { rejectUnauthorized: false }
+      connectionString: localUrl,
+      ssl: false
     });
+    
     const tablesQuery = await pool.query(`
       SELECT table_schema, table_name 
       FROM information_schema.tables 
       WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
       ORDER BY table_schema, table_name;
     `);
-    console.log('Tablas y Esquemas encontrados en "cuentasdb":');
+    console.log('Tablas y Esquemas encontrados en localhost "cuentasdb":');
     console.table(tablesQuery.rows);
 
     const dbQuery = await pool.query("SELECT datname FROM pg_database WHERE datistemplate = false;");
