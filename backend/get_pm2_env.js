@@ -1,9 +1,10 @@
 const fs = require('fs');
+const path = require('path');
 const { execSync } = require('child_process');
 
 try {
   console.log('=============================================');
-  console.log('DIAGNÓSTICO DE VARIABLE DE ENTORNO EN PROCESO PM2');
+  console.log('DIAGNÓSTICO DE ENTORNO Y CONFIGURACIONES');
   console.log('=============================================');
 
   // Listar procesos corriendo
@@ -22,13 +23,25 @@ try {
     console.log('No se pudo ejecutar ss/netstat:', e.message);
   }
 
-  // Verificar contenedores Docker
-  try {
-    const dockerPs = execSync('docker ps').toString();
-    console.log('Contenedores Docker en ejecución:\n', dockerPs);
-  } catch (e) {
-    console.log('No se pudo ejecutar docker ps:', e.message);
-  }
+  // Búsqueda de archivos .env
+  console.log('\n--- BÚSQUEDA DE ARCHIVOS .ENV EN EL SERVIDOR ---');
+  const rootDir = '/home/ec2-user/CuentasXCobrar';
+  const envPaths = [
+    '/home/ec2-user/.env',
+    path.join(rootDir, '.env'),
+    path.join(rootDir, 'backend', '.env'),
+    path.join(rootDir, 'frontend', '.env')
+  ];
+  envPaths.forEach(p => {
+    if (fs.existsSync(p)) {
+      console.log(`Archivo encontrado en: ${p}`);
+      const content = fs.readFileSync(p, 'utf8');
+      const dbUrlLine = content.split('\n').find(l => l.includes('DATABASE_URL'));
+      console.log(`  -> ${dbUrlLine || 'DATABASE_URL no encontrada en este archivo'}`);
+    } else {
+      console.log(`Archivo NO existe: ${p}`);
+    }
+  });
 
   // Verificar resolución DNS y /etc/hosts
   console.log('\n--- DIAGNÓSTICO DE RESOLUCIÓN DE HOST ---');
