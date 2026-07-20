@@ -21,7 +21,7 @@ async function bootstrap() {
     console.table(cuentas.map(c => ({ id: c.id, banco: c.entidad_bancaria, nro: c.nro_cuenta })));
 
     // 2. Calcular saldo del Pichincha
-    const accountId = 'e0a41753-33df-4999-980b-06c0c27303e8';
+    const accountId = '6f8ab23b-53ff-4888-88fe-0932815e0237';
     const result = await service.calcularSaldo(accountId);
     console.log('\n2. Saldo calculado para la cuenta principal:', result);
 
