@@ -283,6 +283,10 @@ export class CuentasBancariasService implements OnModuleInit {
       ingresos_pagos += sumDetalles;
     }
 
+    // Sincronizar gastos de compras antes de calcular saldo
+    const { sincronizarGastosCompras } = await import('../../utils/sync-compras');
+    await sincronizarGastosCompras(this.prismaService);
+
     // 2. Calcular otros movimientos
     const movimientos = await this.prismaService.movimientos.findMany({
       where: {
@@ -291,6 +295,7 @@ export class CuentasBancariasService implements OnModuleInit {
     });
 
     let saldo_movimientos = 0;
+    let total_compras = 0;
     for (const mov of movimientos) {
       const monto = Number(mov.monto);
       if (mov.tipo === 'ingreso') {
@@ -299,7 +304,11 @@ export class CuentasBancariasService implements OnModuleInit {
         }
       } else if (mov.tipo === 'egreso') {
         if (mov.cuenta_origen_id === cuentaId) {
-          saldo_movimientos -= monto;
+          if (mov.descripcion.startsWith('Gasto Compras:')) {
+            total_compras += monto;
+          } else {
+            saldo_movimientos -= monto;
+          }
         }
       } else if (mov.tipo === 'transferencia') {
         if (mov.cuenta_destino_id === cuentaId) {
@@ -309,37 +318,6 @@ export class CuentasBancariasService implements OnModuleInit {
           saldo_movimientos -= monto;
         }
       }
-    }
-
-    // 3. Sumar egresos de compras (desde API externa)
-    let total_compras = 0;
-    try {
-      const response = await fetch(
-        'http://compras-alb-1632153594.us-east-1.elb.amazonaws.com/api/cxc/gastos',
-      );
-      if (response.ok) {
-        const body = await response.json();
-        const gastos = Array.isArray(body) ? body : (body.data || []);
-        const dbCuentas = await this.prismaService.cuentas_bancarias.findMany({
-          select: { id: true }
-        });
-        const dbCuentaIds = dbCuentas.map((c: any) => c.id.toLowerCase().trim());
-        const primaryAccountId = dbCuentas[0]?.id?.toLowerCase().trim();
-
-        const gastosCuenta = gastos.filter((g: any) => {
-          let targetCuentaId = g.cuenta_bancaria_id?.toLowerCase().trim();
-          if (!targetCuentaId || !dbCuentaIds.includes(targetCuentaId)) {
-            targetCuentaId = primaryAccountId || null;
-          }
-          return targetCuentaId === cuentaId.toLowerCase().trim();
-        });
-        total_compras = gastosCuenta.reduce(
-          (sum: number, g: any) => sum + Number(g.monto || 0),
-          0,
-        );
-      }
-    } catch (e) {
-      console.error('Error al obtener gastos en calcularSaldo:', e);
     }
 
     // 4. Obtener saldo de facturación (desde API externa GraphQL)

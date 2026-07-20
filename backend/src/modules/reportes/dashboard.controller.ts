@@ -25,6 +25,10 @@ export class DashboardController {
     description: 'Estado de cuenta detallado con historial de transacciones e información separada de CXC y Facturación.',
   })
   async obtenerEstadoCuentaDetallado() {
+    // Sincronizar gastos de compras antes de calcular reporte
+    const { sincronizarGastosCompras } = await import('../../utils/sync-compras');
+    await sincronizarGastosCompras(this.prisma);
+
     const cuentas = await this.prisma.cuentas_bancarias.findMany({
       where: {
         estado: {
@@ -33,10 +37,6 @@ export class DashboardController {
         },
       },
     });
-
-    // Obtener gastos del módulo de compras
-    const gastosCompras = await this.comprasApi.obtenerGastos();
-
 
     const reportList = await Promise.all(
       cuentas.map(async (cuenta) => {
@@ -83,29 +83,7 @@ export class DashboardController {
         const pagosRecaudadosCxc: any[] = [];
         const ingresosManuales: any[] = [];
         const comprasEgresos: any[] = [];
-
-        // Mapear gastos de compras (con comparación segura de UUIDs sin distinción de mayúsculas/minúsculas)
-        const dbCuentaIds = cuentas.map(c => c.id.toLowerCase().trim());
-        const gastosCuenta = gastosCompras.filter((g) => {
-          let targetCuentaId = g.cuenta_bancaria_id?.toLowerCase().trim();
-          if (!targetCuentaId || !dbCuentaIds.includes(targetCuentaId)) {
-            targetCuentaId = cuentas[0] ? cuentas[0].id.toLowerCase().trim() : null;
-          }
-          return targetCuentaId === cuenta.id.toLowerCase().trim();
-        });
-        const total_compras = gastosCuenta.reduce((sum, g) => sum + Number(g.monto || 0), 0);
-
-
-        for (const g of gastosCuenta) {
-          comprasEgresos.push({
-            id: `compra-${g.id}`,
-            fecha: g.fecha_registro || g.fecha_pago || new Date().toISOString(),
-            tipo: 'egreso',
-            referencia: `Compra No. ${g.id}`,
-            descripcion: g.detalle || g.motivo || 'Gasto registrado de compras',
-            monto: Number(g.monto || 0),
-          });
-        }
+        let total_compras = 0;
 
         for (const p of pagos) {
           const totalPago = p.detalles_pago.reduce((sum, d) => sum + Number(d.monto_pagado), 0);
@@ -136,15 +114,29 @@ export class DashboardController {
             }
           } else if (mov.tipo === 'egreso') {
             if (mov.cuenta_origen_id === cuenta.id) {
-              saldo_movimientos -= monto;
-              pagosExternos.push({
-                id: mov.id,
-                fecha: mov.created_at ? mov.created_at.toISOString() : new Date().toISOString(),
-                tipo: 'egreso',
-                referencia: 'Pago de Servicio',
-                descripcion: mov.descripcion,
-                monto: monto,
-              });
+              if (mov.descripcion.startsWith('Gasto Compras:')) {
+                total_compras += monto;
+                const refPart = mov.descripcion.split(' (Ref: ')[1]?.replace(')', '') || 'Compra';
+                const descPart = mov.descripcion.replace(/^Gasto Compras:\s*/, '').split(' (Ref: ')[0];
+                comprasEgresos.push({
+                  id: mov.id,
+                  fecha: mov.created_at ? mov.created_at.toISOString() : new Date().toISOString(),
+                  tipo: 'egreso',
+                  referencia: `Compra No. ${refPart}`,
+                  descripcion: descPart,
+                  monto: monto,
+                });
+              } else {
+                saldo_movimientos -= monto;
+                pagosExternos.push({
+                  id: mov.id,
+                  fecha: mov.created_at ? mov.created_at.toISOString() : new Date().toISOString(),
+                  tipo: 'egreso',
+                  referencia: 'Pago de Servicio',
+                  descripcion: mov.descripcion,
+                  monto: monto,
+                });
+              }
             }
           } else if (mov.tipo === 'transferencia') {
             if (mov.cuenta_destino_id === cuenta.id) {

@@ -182,6 +182,10 @@ export class CuentasCobrarService {
   }
 
   async generarCuentasSaldos() {
+    // Sincronizar gastos de compras antes de calcular saldos
+    const { sincronizarGastosCompras } = await import('../../utils/sync-compras');
+    await sincronizarGastosCompras(this.prismaService);
+
     const cuentas = await this.prismaService.cuentas_bancarias.findMany({
       where: {
         estado: {
@@ -190,9 +194,6 @@ export class CuentasCobrarService {
         },
       },
     });
-
-    // Obtener los gastos del módulo de compras
-    const gastosCompras = await this.comprasApiService.obtenerGastos();
 
     const reportList = await Promise.all(
       cuentas.map(async (cuenta) => {
@@ -230,6 +231,7 @@ export class CuentasCobrarService {
         });
 
         let saldo_movimientos = 0;
+        let total_compras = 0;
         for (const mov of movimientos) {
           const monto = Number(mov.monto);
           if (mov.tipo === 'ingreso') {
@@ -238,7 +240,11 @@ export class CuentasCobrarService {
             }
           } else if (mov.tipo === 'egreso') {
             if (mov.cuenta_origen_id === cuenta.id) {
-              saldo_movimientos -= monto;
+              if (mov.descripcion.startsWith('Gasto Compras:')) {
+                total_compras += monto;
+              } else {
+                saldo_movimientos -= monto;
+              }
             }
           } else if (mov.tipo === 'transferencia') {
             if (mov.cuenta_destino_id === cuenta.id) {
@@ -249,17 +255,6 @@ export class CuentasCobrarService {
             }
           }
         }
-
-        // 3. Sumar egresos de compras (con comparación segura de UUIDs sin distinción de mayúsculas/minúsculas)
-        const dbCuentaIds = cuentas.map(c => c.id.toLowerCase().trim());
-        const gastosCuenta = gastosCompras.filter((g) => {
-          let targetCuentaId = g.cuenta_bancaria_id?.toLowerCase().trim();
-          if (!targetCuentaId || !dbCuentaIds.includes(targetCuentaId)) {
-            targetCuentaId = cuentas[0] ? cuentas[0].id.toLowerCase().trim() : null;
-          }
-          return targetCuentaId === cuenta.id.toLowerCase().trim();
-        });
-        const total_compras = gastosCuenta.reduce((sum, g) => sum + Number(g.monto || 0), 0);
 
         const saldo_cxc = ingresos_pagos + saldo_movimientos - total_compras;
         const saldo_facturacion = await this.facturacionApiService.obtenerSaldoCuenta(cuenta.id);
