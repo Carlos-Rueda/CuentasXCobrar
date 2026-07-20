@@ -14,10 +14,17 @@ export class FacturasService {
   private cachedToken: string = '';
 
   private async getFreshToken(): Promise<string> {
+    if (this.cachedToken) {
+      return this.cachedToken;
+    }
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
       const response = await fetch(
         'https://isfi18adb8.execute-api.us-east-1.amazonaws.com/auth/test-token',
+        { signal: controller.signal }
       );
+      clearTimeout(timeoutId);
       if (response.ok) {
         const data = await response.json();
         if (data && data.token) {
@@ -84,6 +91,7 @@ export class FacturasService {
           ));
 
       if (isUnauthorized) {
+        this.cachedToken = '';
         const token = await this.getFreshToken();
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;

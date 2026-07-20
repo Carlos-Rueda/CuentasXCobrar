@@ -8,6 +8,8 @@ import { AuditoriaService } from '../auditoria/auditoria.service';
 
 @Injectable()
 export class CuentasBancariasService implements OnModuleInit {
+  private cachedFacturacionToken: string = '';
+
   constructor(
     private readonly prismaService: PrismaService,
     private readonly auditoriaService: AuditoriaService,
@@ -336,13 +338,24 @@ export class CuentasBancariasService implements OnModuleInit {
       if (apiKey) {
         headers['x-api-key'] = apiKey;
       } else {
-        let token = '';
-        const tokenRes = await fetch(
-          'https://isfi18adb8.execute-api.us-east-1.amazonaws.com/auth/test-token',
-        );
-        if (tokenRes.ok) {
-          const tokenData = await tokenRes.json();
-          token = tokenData?.token || '';
+        let token = this.cachedFacturacionToken;
+        if (!token) {
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
+            const tokenRes = await fetch(
+              'https://isfi18adb8.execute-api.us-east-1.amazonaws.com/auth/test-token',
+              { signal: controller.signal }
+            );
+            clearTimeout(timeoutId);
+            if (tokenRes.ok) {
+              const tokenData = await tokenRes.json();
+              token = tokenData?.token || '';
+              this.cachedFacturacionToken = token;
+            }
+          } catch (err) {
+            console.error('Error fetching token in CuentasBancariasService:', err);
+          }
         }
         if (token) headers['Authorization'] = `Bearer ${token}`;
       }
@@ -363,6 +376,10 @@ export class CuentasBancariasService implements OnModuleInit {
         headers,
         body: JSON.stringify(gqlQuery),
       });
+
+      if (gqlRes.status === 401) {
+        this.cachedFacturacionToken = '';
+      }
 
       if (gqlRes.ok) {
         const gqlBody = await gqlRes.json();

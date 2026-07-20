@@ -2,9 +2,14 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export async function sincronizarGastosCompras(prisma: PrismaService): Promise<void> {
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+
     const response = await fetch(
       'http://compras-alb-1632153594.us-east-1.elb.amazonaws.com/api/cxc/gastos',
+      { signal: controller.signal }
     );
+    clearTimeout(timeoutId);
     if (!response.ok) return;
 
     const body = await response.json();
