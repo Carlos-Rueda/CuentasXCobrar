@@ -132,6 +132,11 @@ main().catch(async (err) => {
     `);
     console.log('Tablas y Esquemas encontrados:');
     console.table(tablesQuery.rows);
+
+    const dbQuery = await pool.query("SELECT datname FROM pg_database WHERE datistemplate = false;");
+    console.log('Bases de datos en el servidor:');
+    console.table(dbQuery.rows);
+
     await pool.end();
   } catch (dbErr) {
     console.error('No se pudo listar las tablas para diagnóstico:', dbErr);
