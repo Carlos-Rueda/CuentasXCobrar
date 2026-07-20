@@ -251,10 +251,9 @@ export class CuentasCobrarService {
         }
 
         // 3. Sumar egresos de compras (con comparación segura de UUIDs sin distinción de mayúsculas/minúsculas)
-        const gastosCuenta = gastosCompras.filter((g) => {
-          const targetCuentaId = g.cuenta_bancaria_id || (cuentas[0] ? cuentas[0].id : null);
-          return targetCuentaId?.toLowerCase().trim() === cuenta.id.toLowerCase().trim();
-        });
+        const gastosCuenta = gastosCompras.filter(
+          (g) => g.cuenta_bancaria_id?.toLowerCase().trim() === cuenta.id.toLowerCase().trim()
+        );
         const total_compras = gastosCuenta.reduce((sum, g) => sum + Number(g.monto || 0), 0);
 
         const saldo_cxc = ingresos_pagos + saldo_movimientos - total_compras;
