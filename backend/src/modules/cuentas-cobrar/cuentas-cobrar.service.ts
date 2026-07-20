@@ -6,6 +6,7 @@ import { ValidadorDeudaDto } from './dto/validador-deuda.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { FacturacionApiService } from './facturacion-api.service';
 import { ComprasApiService } from './compras-api.service';
+import { sincronizarGastosCompras } from '../../utils/sync-compras';
 
 @Injectable()
 export class CuentasCobrarService {
@@ -183,7 +184,6 @@ export class CuentasCobrarService {
 
   async generarCuentasSaldos() {
     // Sincronizar gastos de compras antes de calcular saldos
-    const { sincronizarGastosCompras } = await import('../../utils/sync-compras');
     await sincronizarGastosCompras(this.prismaService);
 
     const cuentas = await this.prismaService.cuentas_bancarias.findMany({

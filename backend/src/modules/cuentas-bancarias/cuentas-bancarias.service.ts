@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { sincronizarGastosCompras } from '../../utils/sync-compras';
 import { CuentaBancariaEntity } from './cuenta-bancaria.entity';
 import { CreateCuentaBancariaDto } from './dto/create-cuenta-bancaria.dto';
 import { UpdateCuentaBancariaDto } from './dto/update-cuenta-bancaria.dto';
@@ -284,7 +285,6 @@ export class CuentasBancariasService implements OnModuleInit {
     }
 
     // Sincronizar gastos de compras antes de calcular saldo
-    const { sincronizarGastosCompras } = await import('../../utils/sync-compras');
     await sincronizarGastosCompras(this.prismaService);
 
     // 2. Calcular otros movimientos

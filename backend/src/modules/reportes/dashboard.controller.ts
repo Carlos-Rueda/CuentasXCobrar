@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { FacturacionApiService } from '../cuentas-cobrar/facturacion-api.service';
 import { ComprasApiService } from '../cuentas-cobrar/compras-api.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { sincronizarGastosCompras } from '../../utils/sync-compras';
 
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -26,7 +27,6 @@ export class DashboardController {
   })
   async obtenerEstadoCuentaDetallado() {
     // Sincronizar gastos de compras antes de calcular reporte
-    const { sincronizarGastosCompras } = await import('../../utils/sync-compras');
     await sincronizarGastosCompras(this.prisma);
 
     const cuentas = await this.prisma.cuentas_bancarias.findMany({
