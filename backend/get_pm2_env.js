@@ -22,6 +22,14 @@ try {
     console.log('No se pudo ejecutar ss/netstat:', e.message);
   }
 
+  // Verificar contenedores Docker
+  try {
+    const dockerPs = execSync('docker ps').toString();
+    console.log('Contenedores Docker en ejecución:\n', dockerPs);
+  } catch (e) {
+    console.log('No se pudo ejecutar docker ps:', e.message);
+  }
+
   // Obtener PIDs de NestJS
   let pids = [];
   try {
