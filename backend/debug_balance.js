@@ -114,4 +114,27 @@ async function main() {
   await pool.end();
 }
 
-main().catch(console.error);
+main().catch(async (err) => {
+  console.error('\nError durante la ejecución del script:', err);
+  console.log('\n--- DIAGNÓSTICO DE TABLAS EN LA BASE DE DATOS ---');
+  try {
+    const { Pool } = require('pg');
+    const connectionString = process.env.DATABASE_URL || "postgresql://postgres:Lospanas2502%2A@db-backend-cuentas.cm1oqgm0esit.us-east-1.rds.amazonaws.com:5432/cuentasdb?schema=public";
+    const pool = new Pool({
+      connectionString,
+      ssl: { rejectUnauthorized: false }
+    });
+    const tablesQuery = await pool.query(`
+      SELECT table_schema, table_name 
+      FROM information_schema.tables 
+      WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+      ORDER BY table_schema, table_name;
+    `);
+    console.log('Tablas y Esquemas encontrados:');
+    console.table(tablesQuery.rows);
+    await pool.end();
+  } catch (dbErr) {
+    console.error('No se pudo listar las tablas para diagnóstico:', dbErr);
+  }
+  process.exit(1);
+});
