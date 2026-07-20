@@ -122,14 +122,31 @@ main().catch(async (err) => {
   console.log('\n--- DIAGNÓSTICO DE TABLAS EN LA BASE DE DATOS ---');
   try {
     console.log('DATABASE_URL real en process.env:', process.env.DATABASE_URL);
-    const { Pool } = require('pg');
+    const fs = require('fs');
+    const path = require('path');
     
-    // Probar primero con la URL actual
+    console.log('\n--- BÚSQUEDA DE ARCHIVOS .ENV EN EL SERVIDOR ---');
+    const rootDir = '/home/ec2-user/CuentasXCobrar';
+    const envPaths = [
+      path.join(rootDir, '.env'),
+      path.join(rootDir, 'backend', '.env'),
+      path.join(rootDir, 'frontend', '.env')
+    ];
+    envPaths.forEach(p => {
+      if (fs.existsSync(p)) {
+        console.log(`Archivo encontrado en: ${p}`);
+        const content = fs.readFileSync(p, 'utf8');
+        const dbUrlLine = content.split('\n').find(l => l.includes('DATABASE_URL'));
+        console.log(`  -> ${dbUrlLine || 'DATABASE_URL no encontrada en este archivo'}`);
+      }
+    });
+
+    const { Pool } = require('pg');
     const connectionString = process.env.DATABASE_URL || "postgresql://postgres:Lospanas2502%2A@db-backend-cuentas.cm1oqgm0esit.us-east-1.rds.amazonaws.com:5432/cuentasdb?schema=public";
     
     // Probar con base de datos 'cuentasdb'
     const targetUrl = connectionString.replace('/5432/postgres', '/5432/cuentasdb');
-    console.log('Probando diagnóstico en la base de datos "cuentasdb"...');
+    console.log('\nProbando diagnóstico en la base de datos "cuentasdb"...');
     
     const pool = new Pool({
       connectionString: targetUrl,
