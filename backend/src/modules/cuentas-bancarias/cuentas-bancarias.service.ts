@@ -315,11 +315,11 @@ export class CuentasBancariasService implements OnModuleInit {
     let total_compras = 0;
     try {
       const response = await fetch(
-        'https://capitalist-hilde-darpolc-e92dd24f.koyeb.app/api/cxc/gastos',
+        'http://compras-alb-1632153594.us-east-1.elb.amazonaws.com/api/cxc/gastos',
       );
       if (response.ok) {
         const body = await response.json();
-        const gastos = body.data || [];
+        const gastos = Array.isArray(body) ? body : (body.data || []);
         const gastosCuenta = gastos.filter(
           (g: any) =>
             g.cuenta_bancaria_id?.toLowerCase().trim() ===
